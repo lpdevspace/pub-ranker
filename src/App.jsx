@@ -96,7 +96,7 @@ export default function App() {
         return () => unsubscribe();
     }, []);
 
-    // --- DETERMINE WHICH PAGE TO SHOW ---
+// --- DETERMINE WHICH PAGE TO SHOW ---
     let currentScreen;
     
     if (authLoading) {
@@ -105,6 +105,18 @@ export default function App() {
         currentScreen = <AuthScreen auth={auth} />;
     } else if (!userProfile) {
         currentScreen = <LoadingScreen text="Loading User Profile..." />;
+    } else if (userProfile.isBanned) {
+        // --- THE BAN SCREEN ---
+        currentScreen = (
+            <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4 text-center">
+                <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl max-w-md w-full border-t-8 border-red-600">
+                    <span className="text-6xl mb-4 block">🛑</span>
+                    <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Account Suspended</h1>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">Your access to Pub Ranker has been revoked by the platform administrator due to a violation of guidelines.</p>
+                    <button onClick={() => auth.signOut()} className="w-full bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 transition">Log Out</button>
+                </div>
+            </div>
+        );
     } else if (!userProfile.activeGroupId || !userProfile.groups.includes(userProfile.activeGroupId)) {
         currentScreen = (
             <div className="container mx-auto p-4 max-w-7xl">
@@ -114,15 +126,7 @@ export default function App() {
     } else {
         currentScreen = (
             <div className="container mx-auto p-4 max-w-7xl">
-                <MainApp 
-                    user={user} 
-                    userProfile={userProfile} 
-                    groupId={userProfile.activeGroupId} 
-                    auth={auth} 
-                    db={db} 
-                    isDarkMode={isDarkMode}           
-                    toggleDarkMode={toggleDarkMode}   
-                />
+                <MainApp user={user} userProfile={userProfile} groupId={userProfile.activeGroupId} auth={auth} db={db} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />
             </div>
         );
     }

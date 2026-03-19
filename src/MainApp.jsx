@@ -16,6 +16,7 @@ import LeaderboardPage from './pages/LeaderboardPage';
 import SpinTheWheelPage from './pages/SpinTheWheelPage';
 import AdminPage from './pages/AdminPage';
 import SuperAdminPage from './pages/SuperAdminPage';
+import FeedbackPage from './pages/FeedbackPage';
 
 export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMode, toggleDarkMode }) {            const [page, setPage] = useState("dashboard");
             const [currentPub, setCurrentPub] = useState(null);
@@ -344,6 +345,8 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                                 scores={scores}
                             />
                         );
+                    
+                        case 'feedback': return <FeedbackPage db={db} userProfile={userProfile} />;
 
                     case 'admin':
                         return (

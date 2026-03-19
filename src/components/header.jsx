@@ -46,6 +46,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                         <NavButton name="By User" targetPage="individual" />
                         <NavButton name="Spin" targetPage="spin" />
                         <NavButton name="Leaderboard" targetPage="leaderboard" />
+                        <NavButton name="Send Feedback" targetPage="feedback" />
                         {canManageGroup && (
                             <NavButton name="Manage Group" targetPage="admin" />
                         )}

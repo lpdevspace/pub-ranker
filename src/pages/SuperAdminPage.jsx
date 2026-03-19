@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { firebase } from '../firebase'; // Need this for Firestore server timestamps
+import { firebase } from '../firebase';
 
 export default function SuperAdminPage({ db, userProfile }) {
+    const [activeTab, setActiveTab] = useState('overview'); // overview, pubs, users, feedback
+    
+    // Data States
     const [stats, setStats] = useState({ users: 0, groups: 0, pubs: 0 });
     const [groupsList, setGroupsList] = useState([]);
+    const [pubsList, setPubsList] = useState([]);
+    const [usersList, setUsersList] = useState([]);
+    const [feedbackList, setFeedbackList] = useState([]);
     const [loading, setLoading] = useState(true);
     
     // Announcement State
@@ -11,31 +17,44 @@ export default function SuperAdminPage({ db, userProfile }) {
     const [isPublishing, setIsPublishing] = useState(false);
 
     // Modal States
-    const [modalType, setModalType] = useState(null); // 'view', 'edit', 'delete', or null
-    const [selectedGroup, setSelectedGroup] = useState(null);
-    const [editGroupName, setEditGroupName] = useState("");
+    const [modalType, setModalType] = useState(null); 
+    const [selectedItem, setSelectedItem] = useState(null);
+    const [editString, setEditString] = useState("");
 
     const fetchGlobalData = async () => {
         try {
-            const usersSnap = await db.collection('users').get();
-            const groupsSnap = await db.collection('groups').get();
-            const pubsSnap = await db.collection('pubs').get();
+            // Fetch everything
+            const [usersSnap, groupsSnap, pubsSnap, feedbackSnap, annDoc] = await Promise.all([
+                db.collection('users').get(),
+                db.collection('groups').get(),
+                db.collection('pubs').get(),
+                db.collection('feedback').get(),
+                db.collection('global').doc('settings').get()
+            ]);
 
-            setStats({
-                users: usersSnap.size,
-                groups: groupsSnap.size,
-                pubs: pubsSnap.size
-            });
+            setStats({ users: usersSnap.size, groups: groupsSnap.size, pubs: pubsSnap.size });
 
+            // Parse Groups
             const groupsData = groupsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             groupsData.sort((a, b) => (a.groupName || "").localeCompare(b.groupName || ""));
             setGroupsList(groupsData);
 
+            // Parse Pubs
+            const pubsData = pubsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setPubsList(pubsData);
+
+            // Parse Users
+            const usersData = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setUsersList(usersData);
+
+            // Parse Feedback
+            const feedbackData = feedbackSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            feedbackData.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0)); // Newest first
+            setFeedbackList(feedbackData);
+
             // Fetch current announcement
-            const annDoc = await db.collection('global').doc('settings').get();
-            if (annDoc.exists) {
-                setAnnouncement(annDoc.data().announcement || "");
-            }
+            if (annDoc.exists) setAnnouncement(annDoc.data().announcement || "");
+            
         } catch (error) {
             console.error("Error fetching data:", error);
         } finally {
@@ -48,70 +67,60 @@ export default function SuperAdminPage({ db, userProfile }) {
         fetchGlobalData();
     }, [db, userProfile]);
 
-    // --- ANNOUNCEMENT LOGIC ---
+    // --- 📢 ANNOUNCEMENT LOGIC ---
     const handlePublishAnnouncement = async () => {
         setIsPublishing(true);
         try {
             await db.collection('global').doc('settings').set({ 
-                announcement: announcement.trim(),
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                announcement: announcement.trim(), updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
             alert("Announcement published globally!");
-        } catch (error) {
-            console.error("Error publishing:", error);
-            alert("Failed to publish.");
-        }
+        } catch (error) { alert("Failed to publish."); }
         setIsPublishing(false);
     };
 
     const handleClearAnnouncement = async () => {
         setAnnouncement("");
         setIsPublishing(true);
-        try {
-            await db.collection('global').doc('settings').set({ announcement: "" }, { merge: true });
-        } catch (error) {
-            console.error("Error clearing:", error);
-        }
+        try { await db.collection('global').doc('settings').set({ announcement: "" }, { merge: true }); } 
+        catch (error) { console.error(error); }
         setIsPublishing(false);
     };
 
-    // --- GROUP ACTIONS LOGIC ---
-    const openModal = (type, group) => {
-        setSelectedGroup(group);
-        setModalType(type);
-        if (type === 'edit') setEditGroupName(group.groupName);
-    };
-
-    const closeModal = () => {
-        setModalType(null);
-        setSelectedGroup(null);
-    };
-
-    const handleUpdateGroup = async () => {
-        if (!editGroupName.trim()) return;
+    // --- 🍻 PUB MODERATION ---
+    const handleDeletePub = async (pubId) => {
+        if (!window.confirm("Delete this pub globally? This will break ratings for users who scored it.")) return;
         try {
-            await db.collection('groups').doc(selectedGroup.id).update({ groupName: editGroupName.trim() });
-            setGroupsList(groupsList.map(g => g.id === selectedGroup.id ? { ...g, groupName: editGroupName.trim() } : g));
-            closeModal();
-        } catch (error) {
-            console.error("Error updating group:", error);
-            alert("Failed to update group.");
-        }
+            await db.collection('pubs').doc(pubId).delete();
+            setPubsList(pubsList.filter(p => p.id !== pubId));
+            setStats(prev => ({ ...prev, pubs: prev.pubs - 1 }));
+        } catch (error) { alert("Failed to delete pub."); }
     };
 
-    const handleDeleteGroup = async () => {
-        const confirmDelete = window.confirm(`Are you absolutely sure you want to delete ${selectedGroup.groupName}? This cannot be undone.`);
-        if (!confirmDelete) return;
-
+    // --- 🔨 USER MODERATION (BAN HAMMER) ---
+    const handleToggleBan = async (user) => {
+        const action = user.isBanned ? "UNBAN" : "BAN";
+        if (!window.confirm(`Are you sure you want to ${action} ${user.displayName}?`)) return;
         try {
-            await db.collection('groups').doc(selectedGroup.id).delete();
-            setGroupsList(groupsList.filter(g => g.id !== selectedGroup.id));
-            setStats(prev => ({ ...prev, groups: prev.groups - 1 }));
-            closeModal();
-        } catch (error) {
-            console.error("Error deleting group:", error);
-            alert("Failed to delete group.");
-        }
+            await db.collection('users').doc(user.id).update({ isBanned: !user.isBanned });
+            setUsersList(usersList.map(u => u.id === user.id ? { ...u, isBanned: !user.isBanned } : u));
+        } catch (error) { alert("Failed to update user status."); }
+    };
+
+    // --- 📥 FEEDBACK INBOX ---
+    const handleResolveFeedback = async (id, currentStatus) => {
+        try {
+            await db.collection('feedback').doc(id).update({ resolved: !currentStatus });
+            setFeedbackList(feedbackList.map(f => f.id === id ? { ...f, resolved: !currentStatus } : f));
+        } catch (error) { alert("Failed to update feedback."); }
+    };
+
+    const handleDeleteFeedback = async (id) => {
+        if (!window.confirm("Delete this feedback?")) return;
+        try {
+            await db.collection('feedback').doc(id).delete();
+            setFeedbackList(feedbackList.filter(f => f.id !== id));
+        } catch (error) { alert("Failed to delete feedback."); }
     };
 
     if (!userProfile?.isSuperAdmin) return <div className="p-8 text-center text-red-500 font-bold text-xl">🛑 Access Denied.</div>;
@@ -119,133 +128,179 @@ export default function SuperAdminPage({ db, userProfile }) {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Platform Overview</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Welcome, Super Admin. Oversee the entire Pub Ranker database here.</p>
-            </div>
-
-            {/* --- NEW: GLOBAL ANNOUNCEMENT PUBLISHER --- */}
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-yellow-500 transition-colors duration-300">
-                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">Global Announcement Broadcast</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">This message will appear at the top of the screen for every user in every group.</p>
-                <textarea
-                    value={announcement}
-                    onChange={(e) => setAnnouncement(e.target.value)}
-                    placeholder="Type an announcement (e.g., 'Pub Ranker will be down for maintenance at 2 AM')..."
-                    className="w-full p-3 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-gray-50 dark:bg-gray-700 dark:text-white mb-3 resize-none h-24"
-                />
-                <div className="flex gap-3">
-                    <button onClick={handlePublishAnnouncement} disabled={isPublishing || !announcement.trim()} className="bg-yellow-500 text-white px-4 py-2 rounded font-semibold hover:bg-yellow-600 transition disabled:opacity-50">
-                        {isPublishing ? "Publishing..." : "Publish to All Users"}
-                    </button>
-                    <button onClick={handleClearAnnouncement} disabled={isPublishing || !announcement} className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition disabled:opacity-50">
-                        Clear Banner
-                    </button>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Platform Command Center</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Welcome, Super Admin. God Mode activated.</p>
+                </div>
+                {/* TABS */}
+                <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
+                    {['overview', 'pubs', 'users', 'feedback'].map(tab => (
+                        <button 
+                            key={tab} 
+                            onClick={() => setActiveTab(tab)}
+                            className={`px-4 py-2 rounded-md text-sm font-semibold capitalize transition-all ${activeTab === tab ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
+                        >
+                            {tab === 'feedback' && feedbackList.filter(f => !f.resolved).length > 0 && '🔴 '}
+                            {tab}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            {/* Global Stat Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-gradient-to-br from-blue-500 to-blue-700 text-white p-6 rounded-lg shadow-lg">
-                    <h3 className="text-sm font-medium uppercase tracking-wider opacity-80">Total Users</h3>
-                    <p className="text-4xl font-black mt-1">{stats.users}</p>
-                </div>
-                <div className="bg-gradient-to-br from-purple-500 to-purple-700 text-white p-6 rounded-lg shadow-lg">
-                    <h3 className="text-sm font-medium uppercase tracking-wider opacity-80">Total Groups</h3>
-                    <p className="text-4xl font-black mt-1">{stats.groups}</p>
-                </div>
-                <div className="bg-gradient-to-br from-green-500 to-green-700 text-white p-6 rounded-lg shadow-lg">
-                    <h3 className="text-sm font-medium uppercase tracking-wider opacity-80">Total Pubs Added</h3>
-                    <p className="text-4xl font-black mt-1">{stats.pubs}</p>
-                </div>
-            </div>
-
-            {/* Groups Directory */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden transition-colors duration-300">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                    <h3 className="text-lg font-bold text-gray-800 dark:text-white">Active Groups Directory</h3>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 text-xs uppercase tracking-wider">
-                                <th className="p-4 font-semibold">Group Name</th>
-                                <th className="p-4 font-semibold text-center">Members</th>
-                                <th className="p-4 font-semibold">Owner ID</th>
-                                <th className="p-4 font-semibold text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-                            {groupsList.map(group => (
-                                <tr key={group.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-gray-800 dark:text-gray-200">
-                                    <td className="p-4 font-bold">{group.groupName}</td>
-                                    <td className="p-4 text-center">
-                                        <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 py-1 px-3 rounded-full font-semibold">
-                                            {group.members ? group.members.length : 0}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 font-mono text-xs text-gray-500 dark:text-gray-400 truncate max-w-[150px]" title={group.ownerUid}>
-                                        {group.ownerUid}
-                                    </td>
-                                    <td className="p-4 text-right space-x-2 whitespace-nowrap">
-                                        <button onClick={() => openModal('view', group)} className="text-blue-500 hover:text-blue-700 font-semibold" title="View Members">👁️ View</button>
-                                        <button onClick={() => openModal('edit', group)} className="text-yellow-500 hover:text-yellow-700 font-semibold" title="Edit Group">✏️ Edit</button>
-                                        <button onClick={() => openModal('delete', group)} className="text-red-500 hover:text-red-700 font-semibold" title="Delete Group">🗑️ Delete</button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* --- ACTION MODALS --- */}
-            {modalType && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black bg-opacity-70 transition-opacity">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6 relative">
-                        <button onClick={closeModal} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white">✕</button>
-                        
-                        {/* VIEW MEMBERS MODAL */}
-                        {modalType === 'view' && (
-                            <div>
-                                <h3 className="text-xl font-bold mb-4 dark:text-white">Members: {selectedGroup.groupName}</h3>
-                                <div className="max-h-64 overflow-y-auto space-y-2">
-                                    {selectedGroup.members?.map(uid => (
-                                        <div key={uid} className="p-2 bg-gray-50 dark:bg-gray-700 rounded text-sm font-mono text-gray-600 dark:text-gray-300 border dark:border-gray-600 flex justify-between">
-                                            <span>{uid}</span>
-                                            {uid === selectedGroup.ownerUid && <span className="text-xs font-bold text-yellow-600 dark:text-yellow-400">OWNER</span>}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* EDIT GROUP MODAL */}
-                        {modalType === 'edit' && (
-                            <div>
-                                <h3 className="text-xl font-bold mb-4 dark:text-white">Edit Group Name</h3>
-                                <input 
-                                    type="text" 
-                                    value={editGroupName} 
-                                    onChange={(e) => setEditGroupName(e.target.value)}
-                                    className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white mb-4"
-                                />
-                                <button onClick={handleUpdateGroup} className="w-full bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700 transition">Save Changes</button>
-                            </div>
-                        )}
-
-                        {/* DELETE GROUP MODAL */}
-                        {modalType === 'delete' && (
-                            <div className="text-center">
-                                <h3 className="text-2xl font-bold text-red-600 mb-2">Delete Group?</h3>
-                                <p className="text-gray-600 dark:text-gray-300 mb-6">Are you sure you want to permanently delete <strong>{selectedGroup.groupName}</strong>? This will wipe the group document from the database.</p>
-                                <div className="flex gap-3">
-                                    <button onClick={handleDeleteGroup} className="flex-1 bg-red-600 text-white py-2 rounded font-semibold hover:bg-red-700 transition">Yes, Delete</button>
-                                    <button onClick={closeModal} className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white py-2 rounded font-semibold hover:bg-gray-400 dark:hover:bg-gray-500 transition">Cancel</button>
-                                </div>
-                            </div>
-                        )}
+            {/* ========================================= */}
+            {/* TAB 1: OVERVIEW & GROUPS                  */}
+            {/* ========================================= */}
+            {activeTab === 'overview' && (
+                <div className="space-y-6 animate-fadeIn">
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-yellow-500">
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">Global Announcement Broadcast</h3>
+                        <textarea value={announcement} onChange={(e) => setAnnouncement(e.target.value)} placeholder="Type an announcement to display to all users..." className="w-full p-3 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-yellow-500 bg-gray-50 dark:bg-gray-700 dark:text-white mb-3 resize-none h-20" />
+                        <div className="flex gap-3">
+                            <button onClick={handlePublishAnnouncement} disabled={isPublishing || !announcement.trim()} className="bg-yellow-500 text-white px-4 py-2 rounded font-semibold hover:bg-yellow-600 disabled:opacity-50">Publish to All Users</button>
+                            <button onClick={handleClearAnnouncement} disabled={isPublishing || !announcement} className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded font-semibold hover:bg-gray-300 disabled:opacity-50">Clear Banner</button>
+                        </div>
                     </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-gradient-to-br from-blue-500 to-blue-700 text-white p-6 rounded-lg shadow-lg">
+                            <h3 className="text-sm font-medium uppercase tracking-wider opacity-80">Total Users</h3>
+                            <p className="text-4xl font-black mt-1">{stats.users}</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-purple-500 to-purple-700 text-white p-6 rounded-lg shadow-lg">
+                            <h3 className="text-sm font-medium uppercase tracking-wider opacity-80">Total Groups</h3>
+                            <p className="text-4xl font-black mt-1">{stats.groups}</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-green-500 to-green-700 text-white p-6 rounded-lg shadow-lg">
+                            <h3 className="text-sm font-medium uppercase tracking-wider opacity-80">Total Pubs</h3>
+                            <p className="text-4xl font-black mt-1">{stats.pubs}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                        <div className="p-4 border-b border-gray-200 dark:border-gray-700"><h3 className="text-lg font-bold text-gray-800 dark:text-white">Active Groups</h3></div>
+                        <div className="overflow-x-auto max-h-96">
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 sticky top-0">
+                                    <tr><th className="p-3">Group Name</th><th className="p-3 text-center">Members</th><th className="p-3">Owner ID</th></tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-gray-800 dark:text-gray-200">
+                                    {groupsList.map(g => (
+                                        <tr key={g.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                            <td className="p-3 font-bold">{g.groupName}</td>
+                                            <td className="p-3 text-center"><span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 py-1 px-2 rounded-full font-semibold text-xs">{g.members?.length || 0}</span></td>
+                                            <td className="p-3 font-mono text-xs text-gray-500 truncate max-w-[150px]">{g.ownerUid}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================= */}
+            {/* TAB 2: GLOBAL PUB DIRECTORY               */}
+            {/* ========================================= */}
+            {activeTab === 'pubs' && (
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden animate-fadeIn">
+                    <div className="p-4 border-b border-gray-200 dark:border-gray-700"><h3 className="text-lg font-bold text-gray-800 dark:text-white">Global Pub Directory</h3></div>
+                    <div className="overflow-x-auto max-h-[600px]">
+                        <table className="w-full text-left border-collapse text-sm">
+                            <thead className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 sticky top-0">
+                                <tr><th className="p-3">Photo</th><th className="p-3">Pub Name</th><th className="p-3">Location</th><th className="p-3 text-right">Action</th></tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-gray-800 dark:text-gray-200">
+                                {pubsList.map(pub => (
+                                    <tr key={pub.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                        <td className="p-3 w-16">{pub.photoURL ? <img src={pub.photoURL} alt="pub" className="w-10 h-10 rounded object-cover" /> : <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded flex items-center justify-center text-xl">🍺</div>}</td>
+                                        <td className="p-3 font-bold">{pub.name}</td>
+                                        <td className="p-3 text-gray-500 dark:text-gray-400">{pub.location || 'Unknown'}</td>
+                                        <td className="p-3 text-right"><button onClick={() => handleDeletePub(pub.id)} className="text-red-500 hover:text-red-700 font-semibold text-xs bg-red-50 dark:bg-red-900/30 px-2 py-1 rounded">Delete</button></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================= */}
+            {/* TAB 3: USER DIRECTORY & THE BAN HAMMER    */}
+            {/* ========================================= */}
+            {activeTab === 'users' && (
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden animate-fadeIn">
+                    <div className="p-4 border-b border-gray-200 dark:border-gray-700"><h3 className="text-lg font-bold text-gray-800 dark:text-white">User Directory</h3></div>
+                    <div className="overflow-x-auto max-h-[600px]">
+                        <table className="w-full text-left border-collapse text-sm">
+                            <thead className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 sticky top-0">
+                                <tr><th className="p-3">Name</th><th className="p-3">Email</th><th className="p-3">UID</th><th className="p-3 text-center">Status</th><th className="p-3 text-right">Ban Hammer</th></tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-gray-800 dark:text-gray-200">
+                                {usersList.map(u => (
+                                    <tr key={u.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 ${u.isBanned ? 'opacity-60 bg-red-50 dark:bg-red-900/10' : ''}`}>
+                                        <td className="p-3 font-bold flex items-center gap-2">
+                                            {u.avatarUrl && <img src={u.avatarUrl} className="w-6 h-6 rounded-full" alt="avatar"/>}
+                                            {u.displayName || 'Unknown'} {u.isSuperAdmin && '👑'}
+                                        </td>
+                                        <td className="p-3 text-gray-500 dark:text-gray-400">{u.email}</td>
+                                        <td className="p-3 font-mono text-xs text-gray-400 max-w-[100px] truncate">{u.id}</td>
+                                        <td className="p-3 text-center">
+                                            {u.isBanned ? <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-bold">BANNED</span> : <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold">ACTIVE</span>}
+                                        </td>
+                                        <td className="p-3 text-right">
+                                            {!u.isSuperAdmin && (
+                                                <button onClick={() => handleToggleBan(u)} className={`font-semibold text-xs px-3 py-1 rounded text-white ${u.isBanned ? 'bg-gray-500 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700 shadow-md transform hover:scale-105 transition-all'}`}>
+                                                    {u.isBanned ? 'Restore User' : 'BAN USER'}
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================= */}
+            {/* TAB 4: FEEDBACK & BUG REPORTS INBOX       */}
+            {/* ========================================= */}
+            {activeTab === 'feedback' && (
+                <div className="space-y-4 animate-fadeIn">
+                    <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-white">Feedback Inbox</h3>
+                        <span className="text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-3 py-1 rounded-full font-bold">{feedbackList.length} Messages</span>
+                    </div>
+                    
+                    {feedbackList.length === 0 ? (
+                        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow text-center text-gray-500 dark:text-gray-400">No feedback submitted yet!</div>
+                    ) : (
+                        <div className="grid grid-cols-1 gap-4">
+                            {feedbackList.map(item => (
+                                <div key={item.id} className={`p-4 rounded-lg shadow-sm border-l-4 transition-colors ${item.resolved ? 'bg-gray-50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600 opacity-70' : 'bg-white dark:bg-gray-800 border-blue-500'}`}>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <span className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded ${item.type === 'bug' ? 'bg-red-100 text-red-800' : item.type === 'feature' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                                                {item.type}
+                                            </span>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                                                From: {item.userName} ({item.userEmail})
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => handleResolveFeedback(item.id, item.resolved)} className={`text-xs font-semibold px-2 py-1 rounded ${item.resolved ? 'text-gray-600 bg-gray-200 hover:bg-gray-300' : 'text-green-800 bg-green-100 hover:bg-green-200'}`}>
+                                                {item.resolved ? 'Mark Unresolved' : '✔️ Resolve'}
+                                            </button>
+                                            <button onClick={() => handleDeleteFeedback(item.id)} className="text-xs text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1 rounded font-semibold">Delete</button>
+                                        </div>
+                                    </div>
+                                    <p className="text-gray-800 dark:text-gray-200 font-medium whitespace-pre-wrap">{item.message}</p>
+                                    <p className="text-xs text-gray-400 mt-2">{item.createdAt ? new Date(item.createdAt.toDate()).toLocaleString() : 'Recent'}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
         </div>
