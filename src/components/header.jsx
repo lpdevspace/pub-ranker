@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+    import React, { useState } from 'react';
 import { firebase } from '../firebase'; // Need this for the FieldValue delete in ProfileModal
 
 export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile, isDarkMode, toggleDarkMode }) {    const [showProfile, setShowProfile] = useState(false);
@@ -48,6 +48,10 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                         <NavButton name="Leaderboard" targetPage="leaderboard" />
                         {canManageGroup && (
                             <NavButton name="Manage Group" targetPage="admin" />
+                        )}
+                        {/* THE SECRET SUPER ADMIN BUTTON */}
+                        {userProfile?.isSuperAdmin && (
+                            <NavButton name="Super Admin" targetPage="superadmin" />
                         )}
                     </nav>
             

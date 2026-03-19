@@ -15,6 +15,7 @@ import IndividualRankingsPage from './pages/IndividualRankingsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import SpinTheWheelPage from './pages/SpinTheWheelPage';
 import AdminPage from './pages/AdminPage';
+import SuperAdminPage from './pages/SuperAdminPage';
 
 export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMode, toggleDarkMode }) {            const [page, setPage] = useState("dashboard");
             const [currentPub, setCurrentPub] = useState(null);
@@ -359,6 +360,8 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                             />
                         );
 
+                        case 'superadmin':
+                         return <SuperAdminPage db={db} userProfile={userProfile} />;
                     default:
                         return (
                             <DashboardPage

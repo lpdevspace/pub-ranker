@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { auth, db, firebase } from './firebase';
-import MainApp from './MainApp'; // We will create this file next!
+import MainApp from './MainApp';
 
 export function LoadingScreen({ text = "" }) {
     return (
@@ -15,10 +15,10 @@ export default function App() {
     const [user, setUser] = useState(null);
     const [userProfile, setUserProfile] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
-
-// --- ADD THESE LINES ---
+    const [globalAnnouncement, setGlobalAnnouncement] = useState("");
     const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
 
+    // --- DARK MODE LOGIC ---
     useEffect(() => {
         if (isDarkMode) {
             document.documentElement.classList.add('dark');
@@ -30,9 +30,8 @@ export default function App() {
     }, [isDarkMode]);
 
     const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
-    // -----------------------
 
-    // Listen for Auth State Changes (Simplified since firebase is initialized in firebase.js)
+    // --- AUTH LOGIC ---
     useEffect(() => {
         let profileUnsubscribe = null;
 
@@ -85,35 +84,66 @@ export default function App() {
         };
     }, []);
 
-    if (authLoading) return <LoadingScreen text="Loading Authentication..." />;
+    // --- GLOBAL ANNOUNCEMENT LOGIC ---
+    useEffect(() => {
+        const unsubscribe = db.collection('global').doc('settings').onSnapshot((doc) => {
+            if (doc.exists && doc.data().announcement) {
+                setGlobalAnnouncement(doc.data().announcement);
+            } else {
+                setGlobalAnnouncement("");
+            }
+        });
+        return () => unsubscribe();
+    }, []);
 
-    if (!user) {
-        return <AuthScreen auth={auth} />;
-    }
-
-    if (!userProfile) return <LoadingScreen text="Loading User Profile..." />;
-
-    if (!userProfile.activeGroupId || !userProfile.groups.includes(userProfile.activeGroupId)) {
-        return (
+    // --- DETERMINE WHICH PAGE TO SHOW ---
+    let currentScreen;
+    
+    if (authLoading) {
+        currentScreen = <LoadingScreen text="Loading Authentication..." />;
+    } else if (!user) {
+        currentScreen = <AuthScreen auth={auth} />;
+    } else if (!userProfile) {
+        currentScreen = <LoadingScreen text="Loading User Profile..." />;
+    } else if (!userProfile.activeGroupId || !userProfile.groups.includes(userProfile.activeGroupId)) {
+        currentScreen = (
             <div className="container mx-auto p-4 max-w-7xl">
                 <GroupPortal user={user} userProfile={userProfile} auth={auth} db={db} />
             </div>
         );
+    } else {
+        currentScreen = (
+            <div className="container mx-auto p-4 max-w-7xl">
+                <MainApp 
+                    user={user} 
+                    userProfile={userProfile} 
+                    groupId={userProfile.activeGroupId} 
+                    auth={auth} 
+                    db={db} 
+                    isDarkMode={isDarkMode}           
+                    toggleDarkMode={toggleDarkMode}   
+                />
+            </div>
+        );
     }
 
+    // --- THE MASTER RENDER BLOCK ---
+    // This ensures the banner is always at the top, no matter what screen is loaded!
     return (
-        <div className="container mx-auto p-4 max-w-7xl">
-            <MainApp user={user} 
-            userProfile={userProfile} 
-            groupId={userProfile.activeGroupId} 
-            auth={auth} 
-            db={db} 
-            isDarkMode={isDarkMode}           // <-- Add this
-            toggleDarkMode={toggleDarkMode}   // <-- Add this
-            />
-        </div>
+        <>
+            {globalAnnouncement && (
+                <div className="bg-yellow-500 text-yellow-900 font-bold text-center p-3 shadow-md z-50 relative">
+                    📢 {globalAnnouncement}
+                </div>
+            )}
+            {currentScreen}
+        </>
     );
 }
+
+// ==========================================
+// SUB-COMPONENTS
+// ==========================================
 
 function AuthScreen({ auth }) {
     const [email, setEmail] = useState("");
@@ -147,7 +177,7 @@ function AuthScreen({ auth }) {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
-            <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
+            <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full z-10">
                 <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">Welcome to Pub Ranker</h2>
 
                 <div className="space-y-4">
@@ -177,13 +207,9 @@ function AuthScreen({ auth }) {
 }
 
 function GroupPortal({ user, userProfile, auth, db }) {
-    // ... (Keeping this brief for the prompt, but this is your GroupPortal logic)
     const [myGroups, setMyGroups] = useState([]);
     const [loadingGroups, setLoadingGroups] = useState(true);
-    const [joinCode, setJoinCode] = useState("");
-    const [createName, setCreateName] = useState("");
     const [error, setError] = useState("");
-    const [message, setMessage] = useState("");
 
     const userRef = useMemo(() => db.collection("users").doc(user.uid), [user.uid, db]);
 
