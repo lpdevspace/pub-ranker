@@ -16,8 +16,7 @@ import LeaderboardPage from './pages/LeaderboardPage';
 import SpinTheWheelPage from './pages/SpinTheWheelPage';
 import AdminPage from './pages/AdminPage';
 
-        function MainApp({ user, userProfile, groupId, auth, db }) {
-            const [page, setPage] = useState("dashboard");
+export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMode, toggleDarkMode }) {            const [page, setPage] = useState("dashboard");
             const [currentPub, setCurrentPub] = useState(null);
             const [editingPub, setEditingPub] = useState(null);
 
@@ -333,6 +332,7 @@ import AdminPage from './pages/AdminPage';
 								scores={scores}
 								allUsers={allUsers}
 								pubs={pubs}
+                                criteria={criteria}
 							/>
 						);
                     case 'spin':
@@ -386,6 +386,8 @@ import AdminPage from './pages/AdminPage';
 				auth={auth}
 				db={db}
 				userProfile={userProfile}
+                isDarkMode={isDarkMode}           // <-- Add this
+                toggleDarkMode={toggleDarkMode}   // <-- Add this
 				/>
 				{renderPage()}
 			</div>
@@ -414,6 +416,3 @@ import AdminPage from './pages/AdminPage';
                 </div>
             );
         }
-
-
-		export default MainApp;

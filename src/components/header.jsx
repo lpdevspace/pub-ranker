@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { firebase } from '../firebase'; // Need this for the FieldValue delete in ProfileModal
 
-export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile }) {
-    const [showProfile, setShowProfile] = useState(false);
+export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile, isDarkMode, toggleDarkMode }) {    const [showProfile, setShowProfile] = useState(false);
     
     const NavButton = ({ name, targetPage }) => {
         const isActive = page === targetPage;
@@ -29,42 +28,55 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
     
     return (
         <>
-            <header className="bg-white shadow-md rounded-lg p-4 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            {/* Added dark:bg-gray-800 to the header background */}
+            <header className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 mb-6 flex flex-col md:flex-row justify-between items-center gap-4 transition-colors duration-300">
                 <div className="flex items-center gap-3">
-                    <h1 className="text-4xl font-bold text-gray-800">Pub Ranker</h1>
-                    <span className="text-lg text-blue-700 font-semibold">{groupName}</span>
+                    {/* Added dark:text-white to the title */}
+                    <h1 className="text-4xl font-bold text-gray-800 dark:text-white transition-colors">Pub Ranker</h1>
+                    <span className="text-lg text-blue-700 dark:text-blue-400 font-semibold">{groupName}</span>
                 </div>
         
                 <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                    {/* ... Your NavButtons stay exactly the same ... */}
                     <nav className="flex items-center flex-wrap gap-2">
                         <NavButton name="Dashboard" targetPage="dashboard" />
                         <NavButton name="Pubs" targetPage="pubs" />
                         <NavButton name="Pubs to Visit" targetPage="toVisit" />
                         <NavButton name="Map" targetPage="map" />
-                        <NavButton name="Ranking Breakdown" targetPage="individual" />
-                        <NavButton name="Spin the Wheel" targetPage="spin" />
-                        <NavButton name="Hall of Fame" targetPage="leaderboard" />
+                        <NavButton name="By User" targetPage="individual" />
+                        <NavButton name="Spin" targetPage="spin" />
+                        <NavButton name="Leaderboard" targetPage="leaderboard" />
                         {canManageGroup && (
                             <NavButton name="Manage Group" targetPage="admin" />
                         )}
                     </nav>
             
-                    <div className="flex items-center border-l-2 border-gray-200 pl-4 ml-0 md:ml-2 gap-3">
-                        <button onClick={onSwitchGroup} className="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg font-semibold hover:bg-gray-300 transition text-sm" title="Switch, Join, or Create Group">
+                    <div className="flex items-center border-l-2 border-gray-200 dark:border-gray-600 pl-4 ml-0 md:ml-2 gap-3">
+                        
+                        {/* THE NEW DARK MODE TOGGLE BUTTON */}
+                        <button 
+                            onClick={toggleDarkMode} 
+                            className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+                            title="Toggle Dark Mode"
+                        >
+                            {isDarkMode ? '☀️' : '🌙'}
+                        </button>
+
+                        <button onClick={onSwitchGroup} className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition text-sm" title="Switch, Join, or Create Group">
                             Switch Group
                         </button>
             
-                        <button onClick={() => setShowProfile(true)} className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900" title="View and edit your profile">
+                        <button onClick={() => setShowProfile(true)} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white">
                             {avatarUrl ? (
-                                <img src={avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-gray-300" />
+                                <img src={avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-gray-300 dark:border-gray-600" />
                             ) : (
-                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
+                                <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-600 dark:text-gray-300">
                                     {displayName.charAt(0).toUpperCase()}
                                 </div>
                             )}
                             <span className="flex flex-col items-start">
                                 <span className="font-semibold">{displayName}</span>
-                                <span className="text-xs text-gray-500">{user?.email}</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</span>
                             </span>
                         </button>
             

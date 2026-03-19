@@ -108,18 +108,18 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
     const criterion = criteria[currentCriterion];
     const currentRating = ratings[criterion.id];
     
-    return (
-        <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl mx-auto">
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">{pub.name}</h2>
-            <p className="text-gray-600 mb-6">{pub.location}</p>
+return (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-2xl mx-auto transition-colors duration-300">
+            <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">{pub.name}</h2>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">{pub.location}</p>
         
             <div className="mb-8">
-                <h3 className="text-2xl font-semibold text-gray-700 mb-4">
+                <h3 className="text-2xl font-semibold text-gray-700 dark:text-gray-200 mb-4">
                     {criterion.name}
                 </h3>
         
                 {criterion.type === "scale" && (
-                <div className="flex gap-2 justify-center mb-6">
+                <div className="flex gap-2 justify-center mb-6 flex-wrap">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
                     <button
                         key={value}
@@ -128,7 +128,7 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
                             "w-12 h-12 rounded-lg font-bold transition " +
                             (currentRating === value
                             ? "bg-blue-600 text-white"
-                            : "bg-gray-200 text-gray-700 hover:bg-gray-300")
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600")
                         }
                     >
                         {value}
@@ -138,7 +138,7 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
                 )}
         
                 {criterion.type === "price" && (
-                <div className="flex gap-2 justify-center mb-6">
+                <div className="flex gap-2 justify-center mb-6 flex-wrap">
                     {[1, 2, 3, 4, 5].map((value) => (
                     <button
                         key={value}
@@ -147,12 +147,42 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
                             "px-6 py-3 rounded-lg font-bold transition " +
                             (currentRating === value
                             ? "bg-yellow-600 text-white"
-                            : "bg-gray-200 text-gray-700 hover:bg-gray-300")
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600")
                         }
                     >
                         {"£".repeat(value)}
                     </button>
                     ))}
+                </div>
+                )}
+
+                {/* THE NEW CURRENCY INPUT */}
+                {criterion.type === "currency" && (
+                <div className="flex flex-col items-center justify-center mb-6 max-w-xs mx-auto">
+                    <div className="relative w-full">
+                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 font-bold text-xl">£</span>
+                        <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            value={currentRating || ""}
+                            onChange={(e) => handleRate(criterion.id, parseFloat(e.target.value))}
+                            className="w-full pl-10 pr-4 py-4 text-2xl font-bold text-center border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 bg-white dark:bg-gray-700 dark:text-white transition"
+                        />
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Enter the exact price (e.g. 5.40)</p>
+                </div>
+                )}
+                {/* THE NEW WRITTEN REVIEW INPUT */}
+                {criterion.type === "text" && (
+                <div className="mb-6">
+                    <textarea
+                        value={currentRating || ""}
+                        onChange={(e) => handleRate(criterion.id, e.target.value)}
+                        placeholder="Leave your thoughts, review, or funny quotes here..."
+                        className="w-full h-32 p-4 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 bg-white dark:bg-gray-700 dark:text-white transition resize-none shadow-inner"
+                    />
                 </div>
                 )}
         
@@ -164,7 +194,7 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
                             "px-6 py-3 rounded-lg font-bold transition " +
                             (currentRating === true
                             ? "bg-green-600 text-white"
-                            : "bg-gray-200 text-gray-700 hover:bg-gray-300")
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600")
                         }
                     >
                         Yes
@@ -175,7 +205,7 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
                             "px-6 py-3 rounded-lg font-bold transition " +
                             (currentRating === false
                             ? "bg-red-600 text-white"
-                            : "bg-gray-200 text-gray-700 hover:bg-gray-300")
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600")
                         }
                     >
                         No
@@ -188,17 +218,17 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
                 <button
                     onClick={() => setCurrentCriterion((c) => Math.max(0, c - 1))}
                     disabled={currentCriterion === 0}
-                    className="flex-1 bg-gray-400 text-white py-2 rounded-lg font-semibold hover:bg-gray-500 transition disabled:opacity-50"
+                    className="flex-1 bg-gray-400 dark:bg-gray-600 text-white py-2 rounded-lg font-semibold hover:bg-gray-500 dark:hover:bg-gray-500 transition disabled:opacity-50"
                 >
                     Previous
                 </button>
-                <div className="text-center py-2">
+                <div className="text-center py-2 dark:text-gray-300">
                     {currentCriterion + 1} / {criteria.length}
                 </div>
                 <button
                     onClick={() => setCurrentCriterion((c) => Math.min(criteria.length - 1, c + 1))}
                     disabled={currentCriterion === criteria.length - 1}
-                    className="flex-1 bg-gray-400 text-white py-2 rounded-lg font-semibold hover:bg-gray-500 transition disabled:opacity-50"
+                    className="flex-1 bg-gray-400 dark:bg-gray-600 text-white py-2 rounded-lg font-semibold hover:bg-gray-500 dark:hover:bg-gray-500 transition disabled:opacity-50"
                 >
                     Next
                 </button>
@@ -215,7 +245,7 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
                 <button
                     type="button"
                     onClick={onBack}
-                    className="flex-1 bg-gray-400 text-white py-2 rounded-lg font-semibold hover:bg-gray-500 transition"
+                    className="flex-1 bg-gray-400 dark:bg-gray-600 text-white py-2 rounded-lg font-semibold hover:bg-gray-500 dark:hover:bg-gray-500 transition"
                 >
                     Cancel
                 </button>

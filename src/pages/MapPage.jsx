@@ -281,11 +281,11 @@ export default function MapPage({ pubs, criteria, scores }) {
     
     const pubsWithCoords = pubs.filter((p) => p.lat && p.lng);
     
-    return (
+return (
         <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-gray-800">Pub Map</h2>
+            <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Pub Map</h2>
         
-            <div className="bg-white p-4 rounded-lg shadow-md space-y-4">
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md space-y-4 transition-colors duration-300">
                 <div className="flex flex-col md:flex-row gap-3">
                     <button
                         onClick={() => buildPubCrawl("visited")}
@@ -303,11 +303,11 @@ export default function MapPage({ pubs, criteria, scores }) {
         
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2 md:col-span-1">
-                        <p className="font-medium text-gray-700">Filter by Yes/No criterion</p>
+                        <p className="font-medium text-gray-700 dark:text-gray-200">Filter by Yes/No criterion</p>
                         <select
                             value={yesNoCriterionId}
                             onChange={(e) => setYesNoCriterionId(e.target.value)}
-                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            className="w-full px-3 py-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white"
                         >
                             <option value="all">All pubs (no yes/no filter)</option>
                             {yesNoCriteria.map((c) => (
@@ -316,31 +316,31 @@ export default function MapPage({ pubs, criteria, scores }) {
                                 </option>
                             ))}
                         </select>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                             Create criteria such as "Pool table" or "Serves food" as Yes/No
                             criteria in the Admin page, then select them here.
                         </p>
                     </div>
             
-                    <div className="space-y-2 md:col-span-2 max-h-64 overflow-y-auto border rounded-lg p-2">
-                        <p className="font-medium text-gray-700">
+                    <div className="space-y-2 md:col-span-2 max-h-64 overflow-y-auto border dark:border-gray-600 rounded-lg p-2">
+                        <p className="font-medium text-gray-700 dark:text-gray-200">
                             Choose pubs to include (optional)
                         </p>
                         {pubsWithCoords.length === 0 ? (
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
                                 No pubs with location data available.
                             </p>
                         ) : (
                             pubsWithCoords.map((pub) => (
                                 <label
                                     key={pub.id}
-                                    className="flex items-center justify-between text-sm py-1 px-2 rounded hover:bg-gray-50 cursor-pointer"
+                                    className="flex items-center justify-between text-sm py-1 px-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
                                 >
                                     <span>
-                                        <span className="font-semibold text-gray-800">
+                                        <span className="font-semibold text-gray-800 dark:text-gray-200">
                                             {pub.name}
                                         </span>
-                                        <span className="text-gray-500 ml-1">
+                                        <span className="text-gray-500 dark:text-gray-400 ml-1">
                                             {pub.location || ""}
                                         </span>
                                     </span>
@@ -348,25 +348,25 @@ export default function MapPage({ pubs, criteria, scores }) {
                                         type="checkbox"
                                         checked={selectedPubIds.includes(pub.id)}
                                         onChange={() => togglePubSelection(pub.id)}
-                                        className="h-4 w-4 text-blue-600 rounded"
+                                        className="h-4 w-4 text-blue-600 rounded dark:bg-gray-600 dark:border-gray-500"
                                     />
                                 </label>
                             ))
                         )}
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                             If you do not select any pubs, the crawl will use all pubs that
                             match the filters above.
                         </p>
                     </div>
                 </div>
         
-                <div className="relative">
-                    <div ref={mapRef} className="map-container"></div>
+                <div className="relative rounded-lg overflow-hidden border dark:border-gray-700">
+                    <div ref={mapRef} className="map-container z-0"></div>
                     
                     <div className="absolute bottom-6 right-6 z-[400] flex flex-col gap-2">
                         <button 
                             onClick={handleResetView}
-                            className="bg-white p-3 rounded-full shadow-lg hover:bg-gray-100 border border-gray-200 text-gray-700 transition group"
+                            className="bg-white dark:bg-gray-800 p-3 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 transition group"
                             title="Reset Map View"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -376,7 +376,7 @@ export default function MapPage({ pubs, criteria, scores }) {
                     
                         <button 
                             onClick={handleLocateMe}
-                            className="absolute bottom-6 right-6 z-[400] bg-white p-3 rounded-full shadow-lg hover:bg-gray-100 border border-gray-200 text-blue-600 transition group"
+                            className="bg-white dark:bg-gray-800 p-3 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 text-blue-600 dark:text-blue-400 transition group"
                             title="Locate Me"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">

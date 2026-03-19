@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *)); /* Add this line! */
 
 /* Add your custom CSS from the old HTML file below */
 .loader {
@@ -39,4 +40,15 @@
 .custom-pin {
     background: transparent !important;
     border: none !important;
+}
+
+/* Leaflet Dark Mode Night Theme */
+html.dark .leaflet-container {
+  background: #1f2937; /* Tailwind gray-800 */
+}
+html.dark .leaflet-layer,
+html.dark .leaflet-control-zoom-in,
+html.dark .leaflet-control-zoom-out,
+html.dark .leaflet-control-attribution {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
 }

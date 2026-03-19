@@ -131,74 +131,98 @@ export default function PubsPage({
         breakdown = b;
     }
 
-    return (
+   return (
         <>
             {selectedPubForDetail && breakdown && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 overflow-y-auto">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 relative">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-70 overflow-y-auto transition-opacity duration-300">
+                    {/* MODAL BACKGROUND */}
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 relative transition-colors duration-300">
                         <button 
                             onClick={() => setSelectedPubForDetail(null)}
-                            className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+                            className="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                         </button>
 
-                        <h2 className="text-3xl font-bold mb-2 text-gray-800">
+                        <h2 className="text-3xl font-bold mb-2 text-gray-800 dark:text-white">
                         {selectedPubForDetail.name}
                         </h2>
-                        <p className="text-gray-600 mb-6">{selectedPubForDetail.location}</p>
+                        <p className="text-gray-600 dark:text-gray-300 mb-6">{selectedPubForDetail.location}</p>
                 
-                        <div className="flex items-center gap-4 mb-6 p-4 bg-blue-50 rounded-lg">
+                        <div className="flex items-center gap-4 mb-6 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
                             <div>
-                                <p className="text-sm text-blue-800 uppercase font-bold">Overall Rating</p>
-                                <p className="text-4xl font-bold text-blue-600">
+                                <p className="text-sm text-blue-800 dark:text-blue-300 uppercase font-bold">Overall Rating</p>
+                                <p className="text-4xl font-bold text-blue-600 dark:text-blue-400">
                                 {selectedPubForDetail.avgScore.toFixed(1)}
                                 </p>
                             </div>
                         </div>
                 
                         <div className="space-y-4">
-                            <h3 className="text-xl font-bold text-gray-800 border-b pb-2">Detailed Breakdown</h3>
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-white border-b dark:border-gray-700 pb-2">Detailed Breakdown</h3>
                             {Object.values(breakdown).map((data) => (
-                                <div key={data.name} className="bg-gray-50 p-4 rounded-lg">
+                                <div key={data.name} className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                                 <div className="flex justify-between items-center mb-2">
-                                    <h4 className="font-semibold text-gray-800">{data.name}</h4>
+                                    <h4 className="font-semibold text-gray-800 dark:text-gray-200">{data.name}</h4>
                                     {data.scores.length > 0 && (data.type === 'scale' || data.type === 'price') && (
-                                    <span className="text-lg font-bold text-blue-600">
+                                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
                                         {data.average.toFixed(1)}
                                     </span>
                                     )}
                                 </div>
                         
                                 {data.scores.length === 0 ? (
-                                    <p className="text-sm text-gray-500">No ratings yet</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">No ratings yet</p>
                                 ) : (
-                                    <div className="text-sm text-gray-600 space-y-2 mt-2">
-                                    {data.scores.map((s) => (
-                                        <div
-                                        key={s.id}
-                                        className="flex items-center justify-between bg-white p-2 rounded border border-gray-100"
-                                        >
-                                        <span>
-                                            <span className="font-semibold">{s.userName}:</span>{" "}
-                                            {data.type === "yes-no"
-                                            ? s.value
-                                                ? "Yes"
-                                                : "No"
-                                            : s.value}
-                                        </span>
-                                        <div className="flex gap-1">
-                                            {canDeleteScore(s, currentUser, currentGroup) && (
-                                            <button
-                                                className="px-2 py-1 text-xs rounded bg-red-100 text-red-600 hover:bg-red-200"
-                                                onClick={() => handleDeleteScore(s)}
-                                            >
-                                                Delete
-                                            </button>
-                                            )}
-                                        </div>
-                                        </div>
-                                    ))}
+                                    <div className="mt-3">
+                                        {/* IF IT IS A TEXT REVIEW, RENDER AS CHAT BUBBLES */}
+                                        {data.type === "text" ? (
+                                            <div className="space-y-3">
+                                                {data.scores.map((s) => (
+                                                    <div key={s.id} className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm relative">
+                                                        <p className="font-semibold text-gray-800 dark:text-gray-200 mb-1 text-sm">{s.userName}</p>
+                                                        <p className="text-gray-600 dark:text-gray-300 italic text-sm">"{s.value}"</p>
+                                                        {canDeleteScore(s, currentUser, currentGroup) && (
+                                                            <button
+                                                                onClick={() => handleDeleteScore(s)}
+                                                                className="absolute top-2 right-2 text-xs text-red-500 hover:text-red-700 bg-red-50 dark:bg-red-900/30 px-2 py-1 rounded"
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            /* IF IT IS A NORMAL NUMBER/BOOL RATING, RENDER AS STANDARD ROWS */
+                                            <div className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+                                                {data.scores.map((s) => (
+                                                    <div
+                                                        key={s.id}
+                                                        className="flex items-center justify-between bg-white dark:bg-gray-800 p-2 rounded border border-gray-100 dark:border-gray-600"
+                                                    >
+                                                        <span>
+                                                            <span className="font-semibold dark:text-gray-200">{s.userName}:</span>{" "}
+                                                            {data.type === "yes-no"
+                                                                ? s.value ? "Yes" : "No"
+                                                                : data.type === "currency"
+                                                                ? `£${parseFloat(s.value).toFixed(2)}`
+                                                                : s.value}
+                                                        </span>
+                                                        <div className="flex gap-1">
+                                                            {canDeleteScore(s, currentUser, currentGroup) && (
+                                                                <button
+                                                                    className="px-2 py-1 text-xs rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50"
+                                                                    onClick={() => handleDeleteScore(s)}
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                                 </div>
@@ -209,28 +233,28 @@ export default function PubsPage({
             )}
         
             <div className="space-y-6">
-                <h2 className="text-3xl font-bold text-gray-800">Visited Pubs</h2>
+                <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Visited Pubs</h2>
             
-                <div className="bg-white p-4 rounded-lg shadow-md space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-700">Filter & Search</h3>
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md space-y-4 transition-colors duration-300">
+                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Filter & Search</h3>
             
                     <input
                         type="text"
                         placeholder="Search by name..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white placeholder-gray-400 dark:placeholder-gray-400"
                     />
             
                     {yesNoCriteria.length > 0 && (
                         <div>
-                            <label className="block font-medium text-gray-600 mb-2">
+                            <label className="block font-medium text-gray-600 dark:text-gray-300 mb-2">
                                 Filter by Yes Criterion
                             </label>
                             <select
                                 value={yesNoFilter}
                                 onChange={(e) => setYesNoFilter(e.target.value)}
-                                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white"
                             >
                                 <option value="">All Pubs</option>
                                 {yesNoCriteria.map((c) => (
@@ -242,13 +266,13 @@ export default function PubsPage({
                         </div>
                     )}
                     <div>
-                        <label className="block font-medium text-gray-600 mb-2">
+                        <label className="block font-medium text-gray-600 dark:text-gray-300 mb-2">
                             Sort By
                         </label>
                         <select
                             value={sortOption}
                             onChange={(e) => setSortOption(e.target.value)}
-                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white"
                         >
                             <option value="highest">Highest Rated</option>
                             <option value="lowest">Lowest Rated</option>
@@ -262,7 +286,7 @@ export default function PubsPage({
                     {filteredPubs.map((pub) => (
                     <div
                         key={pub.id}
-                        className="bg-white rounded-lg shadow overflow-hidden hover:shadow-lg transition"
+                        className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden hover:shadow-lg transition-all duration-300"
                     >
                         <div className="flex flex-col sm:flex-row">
                         {pub.photoURL && (
@@ -279,12 +303,12 @@ export default function PubsPage({
                         )}
                         <div className="flex-1 p-4 flex flex-col justify-between">
                             <div className="mb-3">
-                            <h3 className="text-xl font-semibold text-gray-800">
+                            <h3 className="text-xl font-semibold text-gray-800 dark:text-white">
                                 {pub.name}
                             </h3>
-                            <p className="text-gray-600">{pub.location}</p>
+                            <p className="text-gray-600 dark:text-gray-400">{pub.location}</p>
                             <div className="mt-1">
-                                <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-semibold">
+                                <span className="inline-block bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs px-2 py-1 rounded-full font-semibold">
                                     Score: {pub.avgScore.toFixed(1)} ({new Set(Object.values(scores[pub.id] || {}).flat().filter(s => s.type === 'scale' || s.type === 'price').map(s => s.userId)).size} ratings)
                                 </span>
                             </div>
@@ -326,11 +350,12 @@ export default function PubsPage({
                 </div>
             
                 {filteredPubs.length === 0 && (
-                    <p className="text-gray-500 text-center py-8">
+                    <p className="text-gray-500 dark:text-gray-400 text-center py-8">
                     No pubs match your search.
                     </p>
                 )}
             </div>
         </>
     );
+    
 }

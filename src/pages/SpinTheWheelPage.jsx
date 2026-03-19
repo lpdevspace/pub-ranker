@@ -126,41 +126,41 @@ export default function SpinTheWheelPage({ pubs, criteria, scores }) {
         requestAnimationFrame(animate);
     };
 
-    return (
+return (
         <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-gray-800">Spin the Wheel</h2>
+            <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Spin the Wheel</h2>
 
-            <div className="bg-white p-4 rounded-lg shadow-md space-y-4">
-                <h3 className="text-xl font-semibold text-gray-700">Wheel Options</h3>
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md space-y-4 transition-colors duration-300">
+                <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-200">Wheel Options</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <p className="font-medium text-gray-600">Pubs to Include</p>
+                        <p className="font-medium text-gray-600 dark:text-gray-300">Pubs to Include</p>
                         <label className="flex items-center space-x-2 cursor-pointer">
                             <input
                                 type="checkbox"
                                 checked={includeVisited}
                                 onChange={() => setIncludeVisited(!includeVisited)}
-                                className="h-5 w-5 rounded text-blue-600"
+                                className="h-5 w-5 rounded text-blue-600 dark:bg-gray-700 dark:border-gray-600"
                             />
-                            <span className="text-gray-700">Visited Pubs</span>
+                            <span className="text-gray-700 dark:text-gray-300">Visited Pubs</span>
                         </label>
                         <label className="flex items-center space-x-2 cursor-pointer">
                             <input
                                 type="checkbox"
                                 checked={includeToVisit}
                                 onChange={() => setIncludeToVisit(!includeToVisit)}
-                                className="h-5 w-5 rounded text-orange-600"
+                                className="h-5 w-5 rounded text-orange-600 dark:bg-gray-700 dark:border-gray-600"
                             />
-                            <span className="text-gray-700">Pubs to Visit</span>
+                            <span className="text-gray-700 dark:text-gray-300">Pubs to Visit</span>
                         </label>
                     </div>
 
                     <div className="space-y-2">
-                        <label className="block font-medium text-gray-600">Filter by Yes Criterion</label>
+                        <label className="block font-medium text-gray-600 dark:text-gray-300">Filter by Yes Criterion</label>
                         <select
                             value={criterionId}
                             onChange={e => setCriterionId(e.target.value)}
-                            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white"
                         >
                             <option value="">All Pubs that match status</option>
                             {yesNoCriteria.map(c => (
@@ -173,7 +173,7 @@ export default function SpinTheWheelPage({ pubs, criteria, scores }) {
                 </div>
             </div>
 
-            <div className="bg-white p-4 rounded-lg shadow-md">
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-colors duration-300">
                 <div className="flex justify-center relative">
                     <div
                         ref={wheelContainerRef}
@@ -188,7 +188,7 @@ export default function SpinTheWheelPage({ pubs, criteria, scores }) {
                             ref={canvasRef}
                             width={650}
                             height={650}
-                            className="border-2 border-gray-200 rounded-lg block"
+                            className="border-2 border-gray-200 dark:border-gray-700 rounded-lg block"
                             style={{ width: '100%', height: '100%' }}
                         />
                     </div>
@@ -198,7 +198,7 @@ export default function SpinTheWheelPage({ pubs, criteria, scores }) {
                     <button
                         onClick={handleSpin}
                         disabled={isSpinning || filteredPubs.length === 0}
-                        className="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold text-xl hover:bg-green-700 transition disabled:bg-gray-400"
+                        className="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold text-xl hover:bg-green-700 transition disabled:bg-gray-400 dark:disabled:bg-gray-600"
                     >
                         {isSpinning ? 'Spinning...' : 'SPIN!'}
                     </button>
@@ -206,14 +206,14 @@ export default function SpinTheWheelPage({ pubs, criteria, scores }) {
 
                 {spinResult && (
                     <div className="mt-6 text-center">
-                        <h3 className="text-2xl font-bold text-blue-600 mb-2">The Winner Is!</h3>
-                        <p className="text-4xl font-bold text-gray-800 animate-pulse">{spinResult.name}</p>
-                        <p className="text-lg text-gray-600 mt-2">{spinResult.location}</p>
+                        <h3 className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-2">The Winner Is!</h3>
+                        <p className="text-4xl font-bold text-gray-800 dark:text-white animate-pulse">{spinResult.name}</p>
+                        <p className="text-lg text-gray-600 dark:text-gray-300 mt-2">{spinResult.location}</p>
                     </div>
                 )}
 
                 {filteredPubs.length === 0 && !isSpinning && (
-                    <p className="mt-6 text-center text-lg text-red-600 font-semibold">
+                    <p className="mt-6 text-center text-lg text-red-600 dark:text-red-400 font-semibold">
                         No pubs match your filters! Try changing your options.
                     </p>
                 )}

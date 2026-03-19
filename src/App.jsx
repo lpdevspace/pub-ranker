@@ -16,6 +16,22 @@ export default function App() {
     const [userProfile, setUserProfile] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
 
+// --- ADD THESE LINES ---
+    const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+
+    useEffect(() => {
+        if (isDarkMode) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        }
+    }, [isDarkMode]);
+
+    const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
+    // -----------------------
+
     // Listen for Auth State Changes (Simplified since firebase is initialized in firebase.js)
     useEffect(() => {
         let profileUnsubscribe = null;
@@ -87,7 +103,14 @@ export default function App() {
 
     return (
         <div className="container mx-auto p-4 max-w-7xl">
-            <MainApp user={user} userProfile={userProfile} groupId={userProfile.activeGroupId} auth={auth} db={db} />
+            <MainApp user={user} 
+            userProfile={userProfile} 
+            groupId={userProfile.activeGroupId} 
+            auth={auth} 
+            db={db} 
+            isDarkMode={isDarkMode}           // <-- Add this
+            toggleDarkMode={toggleDarkMode}   // <-- Add this
+            />
         </div>
     );
 }

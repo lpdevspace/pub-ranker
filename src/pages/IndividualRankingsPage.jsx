@@ -51,17 +51,17 @@ export default function IndividualRankingsPage({ scores, pubs, criteria, allUser
             .sort((a, b) => b.primaryScore - a.primaryScore);
     }, [selectedUser1, selectedUser2, pubs, user1Scores, user2Scores]);
 
-    return (
+return (
         <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-gray-800">Individual Rankings</h2>
+            <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Individual Rankings</h2>
 
-            <div className="bg-white p-4 rounded-lg shadow-md grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md grid grid-cols-1 md:grid-cols-2 gap-4 transition-colors duration-300">
                 <div>
-                    <label className="block font-medium text-gray-600 mb-2">Select User 1</label>
+                    <label className="block font-medium text-gray-600 dark:text-gray-300 mb-2">Select User 1</label>
                     <select
                         value={selectedUser1 || ""}
                         onChange={(e) => setSelectedUser1(e.target.value || null)}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white"
                     >
                         <option value="">Select a user...</option>
                         {Array.from(activeRaters).map((userId) => (
@@ -72,11 +72,11 @@ export default function IndividualRankingsPage({ scores, pubs, criteria, allUser
                     </select>
                 </div>
                 <div>
-                    <label className="block font-medium text-gray-600 mb-2">Select User 2 (Compare)</label>
+                    <label className="block font-medium text-gray-600 dark:text-gray-300 mb-2">Select User 2 (Compare)</label>
                     <select
                         value={selectedUser2 || ""}
                         onChange={(e) => setSelectedUser2(e.target.value || null)}
-                        className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                        className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:text-white"
                     >
                         <option value="">None (Single View)</option>
                         {Array.from(activeRaters).map((userId) => (
@@ -91,22 +91,22 @@ export default function IndividualRankingsPage({ scores, pubs, criteria, allUser
             {(selectedUser1 || selectedUser2) && (
                 <div className="space-y-3">
                     {rankedPubs.map((pub) => (
-                        <div key={pub.id} className="bg-white p-4 rounded-lg shadow flex justify-between items-center">
+                        <div key={pub.id} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex justify-between items-center transition-colors duration-300">
                             <div>
-                                <h3 className="text-lg font-semibold text-gray-800">{pub.name}</h3>
-                                <p className="text-gray-600">{pub.location}</p>
+                                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{pub.name}</h3>
+                                <p className="text-gray-600 dark:text-gray-400">{pub.location}</p>
                             </div>
                             <div className="flex gap-4">
                                 {selectedUser1 && (
                                     <div className="text-center">
-                                        <div className="text-2xl font-bold text-blue-600">{pub.score1 ? pub.score1.toFixed(1) : '-'}</div>
-                                        {selectedUser2 && <div className="text-xs text-gray-500">{getUserName(selectedUser1)}</div>}
+                                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{pub.score1 ? pub.score1.toFixed(1) : '-'}</div>
+                                        {selectedUser2 && <div className="text-xs text-gray-500 dark:text-gray-400">{getUserName(selectedUser1)}</div>}
                                     </div>
                                 )}
                                 {selectedUser2 && (
-                                    <div className="text-center border-l pl-4">
-                                        <div className="text-2xl font-bold text-purple-600">{pub.score2 ? pub.score2.toFixed(1) : '-'}</div>
-                                        <div className="text-xs text-gray-500">{getUserName(selectedUser2)}</div>
+                                    <div className="text-center border-l dark:border-gray-700 pl-4">
+                                        <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{pub.score2 ? pub.score2.toFixed(1) : '-'}</div>
+                                        <div className="text-xs text-gray-500 dark:text-gray-400">{getUserName(selectedUser2)}</div>
                                     </div>
                                 )}
                             </div>
