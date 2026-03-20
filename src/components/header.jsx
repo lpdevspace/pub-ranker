@@ -1,16 +1,22 @@
-    import React, { useState } from 'react';
-import { firebase } from '../firebase'; // Need this for the FieldValue delete in ProfileModal
+import React, { useState } from 'react';
+import { firebase } from '../firebase'; 
 
-export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile, isDarkMode, toggleDarkMode }) {    const [showProfile, setShowProfile] = useState(false);
+export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile, isDarkMode, toggleDarkMode }) {
+    const [showProfile, setShowProfile] = useState(false);
+    const [isNavOpen, setIsNavOpen] = useState(false); // For mobile menu toggle
     
-    const NavButton = ({ name, targetPage }) => {
+    const NavButton = ({ name, targetPage, icon }) => {
         const isActive = page === targetPage;
         return (
             <button
                 onClick={() => setPage(targetPage)}
-                className={"px-4 py-2 rounded-lg font-semibold transition " + (isActive ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-200")}
+                className={`whitespace-nowrap flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm transition-all duration-300 ${
+                    isActive 
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/30 transform scale-105" 
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
+                }`}
             >
-                {name}
+                <span>{icon}</span> {name}
             </button>
         );
     };
@@ -19,79 +25,117 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
     const avatarUrl = userProfile?.avatarUrl || "";
     
     const handleSignOut = async () => {
-        try {
-            await auth.signOut();
-        } catch (e) {
-            console.error("Error signing out", e);
-        }
+        try { await auth.signOut(); } 
+        catch (e) { console.error("Error signing out", e); }
     };
     
     return (
         <>
-            {/* Added dark:bg-gray-800 to the header background */}
-            <header className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-4 mb-6 flex flex-col md:flex-row justify-between items-center gap-4 transition-colors duration-300">
-                <div className="flex items-center gap-3">
-                    {/* Added dark:text-white to the title */}
-                    <h1 className="text-4xl font-bold text-gray-800 dark:text-white transition-colors">Pub Ranker</h1>
-                    <span className="text-lg text-blue-700 dark:text-blue-400 font-semibold">{groupName}</span>
-                </div>
-        
-                <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-                    {/* ... Your NavButtons stay exactly the same ... */}
-                    <nav className="flex items-center flex-wrap gap-2">
-                        <NavButton name="Dashboard" targetPage="dashboard" />
-                        <NavButton name="Pubs" targetPage="pubs" />
-                        <NavButton name="Pubs to Visit" targetPage="toVisit" />
-                        <NavButton name="Map" targetPage="map" />
-                        <NavButton name="By User" targetPage="individual" />
-                        <NavButton name="Spin" targetPage="spin" />
-                        <NavButton name="Leaderboard" targetPage="leaderboard" />
-                        <NavButton name="Send Feedback" targetPage="feedback" />
-                        {canManageGroup && (
-                            <NavButton name="Manage Group" targetPage="admin" />
-                        )}
-                        {/* THE SECRET SUPER ADMIN BUTTON */}
-                        {userProfile?.isSuperAdmin && (
-                            <NavButton name="Super Admin" targetPage="superadmin" />
-                        )}
-                    </nav>
-            
-                    <div className="flex items-center border-l-2 border-gray-200 dark:border-gray-600 pl-4 ml-0 md:ml-2 gap-3">
-                        
-                        {/* THE NEW DARK MODE TOGGLE BUTTON */}
-                        <button 
-                            onClick={toggleDarkMode} 
-                            className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
-                            title="Toggle Dark Mode"
-                        >
-                            {isDarkMode ? '☀️' : '🌙'}
-                        </button>
-
-                        <button onClick={onSwitchGroup} className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition text-sm" title="Switch, Join, or Create Group">
-                            Switch Group
-                        </button>
-            
-                        <button onClick={() => setShowProfile(true)} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white">
-                            {avatarUrl ? (
-                                <img src={avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-gray-300 dark:border-gray-600" />
-                            ) : (
-                                <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-600 dark:text-gray-300">
-                                    {displayName.charAt(0).toUpperCase()}
-                                </div>
-                            )}
-                            <span className="flex flex-col items-start">
-                                <span className="font-semibold">{displayName}</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</span>
+            {/* Sticky Frosted Glass Header */}
+            <header className="sticky top-0 z-[100] bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800 mb-6 transition-colors duration-300 shadow-sm">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    
+                    {/* TOP ROW: Brand & User Actions */}
+                    <div className="flex justify-between items-center h-20">
+                        {/* Brand */}
+                        <div className="flex flex-col justify-center">
+                            <h1 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 tracking-tight">
+                                Pub Ranker
+                            </h1>
+                            <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest">
+                                {groupName}
                             </span>
-                        </button>
-            
-                        <button onClick={handleSignOut} className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition text-sm">
-                            Log Out
-                        </button>
+                        </div>
+
+                        {/* Desktop User Actions */}
+                        <div className="hidden md:flex items-center gap-3">
+                            <button 
+                                onClick={toggleDarkMode} 
+                                className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                                title="Toggle Dark Mode"
+                            >
+                                {isDarkMode ? '☀️' : '🌙'}
+                            </button>
+
+                            <button onClick={onSwitchGroup} className="px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold text-sm hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+                                Switch Group
+                            </button>
+                
+                            {/* Profile Pill */}
+                            <button onClick={() => setShowProfile(true)} className="flex items-center gap-2 pl-1 pr-4 py-1 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition group">
+                                {avatarUrl ? (
+                                    <img src={avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover" />
+                                ) : (
+                                    <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
+                                        {displayName.charAt(0).toUpperCase()}
+                                    </div>
+                                )}
+                                <span className="font-bold text-sm text-gray-700 dark:text-gray-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate max-w-[100px]">
+                                    {displayName.split(' ')[0]}
+                                </span>
+                            </button>
+
+                            <button onClick={handleSignOut} className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center justify-center hover:bg-red-100 dark:hover:bg-red-900/40 transition" title="Log Out">
+                                🚪
+                            </button>
+                        </div>
+
+                        {/* Mobile Menu Toggle */}
+                        <div className="md:hidden flex items-center gap-2">
+                            <button onClick={() => setShowProfile(true)} className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden">
+                                {avatarUrl ? <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" /> : <span className="font-bold text-gray-700 dark:text-gray-300">{displayName.charAt(0).toUpperCase()}</span>}
+                            </button>
+                            <button onClick={() => setIsNavOpen(!isNavOpen)} className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center text-xl">
+                                {isNavOpen ? '✕' : '☰'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Mobile Dropdown Actions (Only visible when hamburger clicked) */}
+                    {isNavOpen && (
+                        <div className="md:hidden py-4 border-t border-gray-200 dark:border-gray-800 flex flex-col gap-2 animate-fadeIn">
+                            <button onClick={toggleDarkMode} className="w-full text-left px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 font-bold text-gray-700 dark:text-gray-300">
+                                {isDarkMode ? '☀️ Switch to Light Mode' : '🌙 Switch to Dark Mode'}
+                            </button>
+                            <button onClick={onSwitchGroup} className="w-full text-left px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 font-bold text-gray-700 dark:text-gray-300">
+                                🔄 Switch Group
+                            </button>
+                            <button onClick={handleSignOut} className="w-full text-left px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 font-bold text-red-600 dark:text-red-400">
+                                🚪 Log Out
+                            </button>
+                        </div>
+                    )}
+
+                    {/* BOTTOM ROW: Scrollable Navigation Pills */}
+                    <div className="py-3 flex overflow-x-auto gap-2 hide-scrollbar pb-4 items-center">
+                        <NavButton name="Dashboard" targetPage="dashboard" icon="📊" />
+                        <NavButton name="Directory" targetPage="pubs" icon="🍻" />
+                        <NavButton name="Hit List" targetPage="toVisit" icon="🎯" />
+                        <NavButton name="Map Planner" targetPage="map" icon="🗺️" />
+                        <NavButton name="Leaderboard" targetPage="leaderboard" icon="🏆" />
+                        <NavButton name="Versus" targetPage="individual" icon="🥊" />
+                        <NavButton name="Spin" targetPage="spin" icon="🎡" />
+                        <NavButton name="Feedback" targetPage="feedback" icon="💬" />
+                        
+                        {canManageGroup && (
+                            <div className="pl-2 border-l-2 border-gray-300 dark:border-gray-700 ml-1">
+                                <NavButton name="Admin" targetPage="admin" icon="⚙️" />
+                            </div>
+                        )}
+                        {userProfile?.isSuperAdmin && (
+                            <NavButton name="Super Admin" targetPage="superadmin" icon="👑" />
+                        )}
                     </div>
                 </div>
             </header>
+            
+            {/* CSS for hiding scrollbar on the nav row */}
+            <style dangerouslySetContent={{__html: `
+                .hide-scrollbar::-webkit-scrollbar { display: none; }
+                .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+            `}} />
         
+            {/* User Profile Modal */}
             {showProfile && (
                 <ProfileModal user={user} userProfile={userProfile} db={db} onClose={() => setShowProfile(false)} />
             )}
@@ -99,6 +143,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
     );
 }
 
+// --- PROFILE MODAL COMPONENT ---
 function ProfileModal({ user, userProfile, db, onClose }) {
     const [nickname, setNickname] = useState(userProfile?.nickname || "");
     const [avatarUrl, setAvatarUrl] = useState(userProfile?.avatarUrl || "");
@@ -109,10 +154,7 @@ function ProfileModal({ user, userProfile, db, onClose }) {
     
     const handleSave = async (e) => {
         e.preventDefault();
-        setError("");
-        setMessage("");
-        setSaving(true);
-    
+        setError(""); setMessage(""); setSaving(true);
         try {
             const userRef = db.collection("users").doc(user.uid);
             await userRef.update({
@@ -120,8 +162,8 @@ function ProfileModal({ user, userProfile, db, onClose }) {
                 avatarUrl: avatarUrl.trim() || firebase.firestore.FieldValue.delete(),
                 bio: bio.trim() || firebase.firestore.FieldValue.delete(),
             });
-            setMessage("Profile updated.");
-            setTimeout(() => { onClose(); }, 600);
+            setMessage("Profile updated successfully!");
+            setTimeout(() => { onClose(); }, 1000);
         } catch (e) {
             console.error("Error updating profile", e);
             setError("Could not save profile. Please try again.");
@@ -131,44 +173,50 @@ function ProfileModal({ user, userProfile, db, onClose }) {
     };
     
     return (
-        <div className="modal-backdrop">
-            <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full space-y-4">
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">Your Profile</h3>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 relative">
+                
+                <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white transition">✕</button>
+
+                <h3 className="text-2xl font-black text-gray-800 dark:text-white mb-6">Your Profile</h3>
         
-                {error && <p className="text-sm text-red-500">{error}</p>}
-                {message && <p className="text-sm text-green-600">{message}</p>}
+                {error && <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg font-bold text-sm border border-red-200">{error}</div>}
+                {message && <div className="mb-4 p-3 bg-green-50 text-green-600 rounded-lg font-bold text-sm border border-green-200">{message}</div>}
         
-                <form onSubmit={handleSave} className="space-y-3">
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Name (from sign-in)</label>
-                        <p className="text-sm text-gray-800">{userProfile?.displayName || user?.email || "Unknown user"}</p>
-                    </div>
-            
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Nickname (shown in app)</label>
-                        <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="e.g. Pool Shark, Craft Queen" className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
-            
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Avatar URL</label>
-                        <input type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="Paste an image link (optional)" className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                        <p className="text-xs text-gray-500 mt-1">Use a square image for best results.</p>
-                        {avatarUrl && (
-                            <div className="mt-2 flex items-center gap-2">
-                                <img src={avatarUrl} alt="Avatar preview" className="w-12 h-12 rounded-full object-cover border border-gray-300" onError={(e) => { e.target.style.display = "none"; }} />
-                                <span className="text-xs text-gray-500">Preview</span>
+                <form onSubmit={handleSave} className="space-y-4">
+                    <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-600 flex items-center gap-4 mb-2">
+                        {avatarUrl ? (
+                            <img src={avatarUrl} alt="Preview" className="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white dark:border-gray-700" onError={(e) => { e.target.style.display = "none"; }} />
+                        ) : (
+                            <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-black shadow-sm">
+                                {(userProfile?.displayName || user?.email || "U").charAt(0).toUpperCase()}
                             </div>
                         )}
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Account Email</label>
+                            <p className="text-sm font-semibold text-gray-800 dark:text-white truncate max-w-[200px]">{user?.email}</p>
+                        </div>
                     </div>
             
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Bio</label>
-                        <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} placeholder="Short description (e.g. IPA fan, loves darts and pool)." className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Display Name (Nickname)</label>
+                        <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="e.g. The Pint Inspector" className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white transition" />
                     </div>
             
-                    <div className="flex justify-end gap-2 pt-2">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800" disabled={saving}>Cancel</button>
-                        <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-60">{saving ? "Saving..." : "Save"}</button>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Avatar URL (Optional)</label>
+                        <input type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="Paste a square image link..." className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white transition" />
+                    </div>
+            
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Short Bio</label>
+                        <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} placeholder="A short description about your drinking preferences..." className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white transition resize-none" />
+                    </div>
+            
+                    <div className="pt-4">
+                        <button type="submit" disabled={saving} className="w-full py-3 bg-blue-600 text-white rounded-xl text-lg font-black hover:bg-blue-700 transition shadow-md disabled:opacity-50">
+                            {saving ? "Saving..." : "Save Profile"}
+                        </button>
                     </div>
                 </form>
             </div>

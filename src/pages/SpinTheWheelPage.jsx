@@ -8,12 +8,14 @@ export default function SpinTheWheelPage({ pubs, criteria, scores }) {
     const [includeVisited, setIncludeVisited] = useState(true);
     const [includeToVisit, setIncludeToVisit] = useState(true);
     const [criterionId, setCriterionId] = useState('');
-    const [rotation, setRotation] = useState(0);
+    
+    // We now track a single target rotation, let CSS handle the animation!
+    const [rotation, setRotation] = useState(0); 
     const canvasRef = useRef(null);
-    const wheelContainerRef = useRef(null);
 
     const yesNoCriteria = criteria.filter(c => c.type === 'yes-no');
 
+    // --- FILTER LOGIC ---
     useEffect(() => {
         const pubsByStatus = pubs.filter(pub => {
             const isVisited = pub.status === 'visited';
@@ -34,6 +36,7 @@ export default function SpinTheWheelPage({ pubs, criteria, scores }) {
         setFilteredPubs(pubsByCriterion);
     }, [pubs, scores, criteria, includeVisited, includeToVisit, criterionId]);
 
+    // --- DRAW THE WHEEL (Only when pubs change) ---
     useEffect(() => {
         if (!canvasRef.current || filteredPubs.length === 0) return;
 
@@ -41,182 +44,188 @@ export default function SpinTheWheelPage({ pubs, criteria, scores }) {
         const ctx = canvas.getContext('2d');
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
-        const radius = 300;
+        const radius = canvas.width / 2 - 10; // Leave 10px padding for the stroke
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         const sliceAngle = (Math.PI * 2) / filteredPubs.length;
-        const colors = filteredPubs.map((_, i) =>
-            `hsl(${(i * 360) / filteredPubs.length}, 70%, 60%)`
-        );
+        // Vibrant modern color palette
+        const colors = ['#3B82F6', '#8B5CF6', '#EC4899', '#EF4444', '#F59E0B', '#10B981', '#06B6D4'];
 
         filteredPubs.forEach((pub, i) => {
-            const startAngle = sliceAngle * i;
+            const startAngle = i * sliceAngle;
             const endAngle = startAngle + sliceAngle;
 
+            // Draw Slice Background
             ctx.beginPath();
             ctx.moveTo(centerX, centerY);
             ctx.arc(centerX, centerY, radius, startAngle, endAngle);
             ctx.closePath();
-            ctx.fillStyle = colors[i];
+            ctx.fillStyle = colors[i % colors.length];
             ctx.fill();
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 4;
             ctx.stroke();
 
-            const midAngle = (startAngle + endAngle) / 2;
-            const textX = centerX + Math.cos(midAngle) * (radius * 0.65);
-            const textY = centerY + Math.sin(midAngle) * (radius * 0.65);
+            // Draw Slice Text
+            const midAngle = startAngle + sliceAngle / 2;
+            const textRadius = radius * 0.65;
+            const textX = centerX + Math.cos(midAngle) * textRadius;
+            const textY = centerY + Math.sin(midAngle) * textRadius;
 
             ctx.save();
             ctx.translate(textX, textY);
             ctx.rotate(midAngle);
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 12px sans-serif';
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px system-ui, -apple-system, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(pub.name.substring(0, 24), 0, 0);
+            
+            // Truncate text nicely so it doesn't overflow
+            let label = pub.name;
+            if (label.length > 16) label = label.substring(0, 15) + '...';
+            
+            ctx.fillText(label, 0, 0);
             ctx.restore();
         });
 
+        // Draw Center Hub
         ctx.beginPath();
-        ctx.arc(centerX, centerY, 15, 0, Math.PI * 2);
-        ctx.fillStyle = 'white';
+        ctx.arc(centerX, centerY, 40, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
         ctx.fill();
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = '#1F2937';
         ctx.stroke();
+
+        // Draw Star/Pin in center
+        ctx.fillStyle = '#1F2937';
+        ctx.font = 'bold 20px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🍻', centerX, centerY);
+
     }, [filteredPubs]);
 
+    // --- BUTTERY SMOOTH SPIN LOGIC ---
     const handleSpin = () => {
         if (isSpinning || filteredPubs.length === 0) return;
         
         setIsSpinning(true);
         setSpinResult(null);
 
-        const duration = 3000;
-        const startTime = Date.now();
-        const sliceAngle = (Math.PI * 2) / filteredPubs.length;
-        const randomIndex = Math.floor(Math.random() * filteredPubs.length);
-        const targetAngle = randomIndex * sliceAngle + (sliceAngle / 2);
-        const finalRotation = Math.random() * 360 + 720 + (targetAngle * 180 / Math.PI);
+        const numSlices = filteredPubs.length;
+        const winningIndex = Math.floor(Math.random() * numSlices);
+        
+        // Math to find the exact angle to align the winning slice to the top (270 degrees)
+        const sliceCenterDeg = (winningIndex + 0.5) * (360 / numSlices);
+        const targetRotation = 270 - sliceCenterDeg;
+        
+        // Calculate the difference from our current rotation
+        const currentMod = rotation % 360;
+        let targetMod = targetRotation % 360;
+        if (targetMod < 0) targetMod += 360;
+        
+        let diff = targetMod - currentMod;
+        if (diff < 0) diff += 360;
+        
+        // Add a slight random offset so it doesn't land dead-center every single time
+        const sliceHalf = (360 / numSlices) / 2;
+        const randomOffset = (Math.random() * sliceHalf) - (sliceHalf / 2);
+        
+        // 5 full spins + the exact math difference
+        const newRotation = rotation + (360 * 5) + diff + randomOffset;
+        setRotation(newRotation);
 
-        const animate = () => {
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            
-            // Easing function for smooth deceleration
-            const easeOut = 1 - Math.pow(1 - progress, 3);
-            const currentRotation = finalRotation * easeOut;
-            
-            setRotation(currentRotation);
-
-            if (elapsed < duration) {
-                requestAnimationFrame(animate);
-            } else {
-                setRotation(finalRotation);
-                setSpinResult(filteredPubs[randomIndex]);
-                setIsSpinning(false);
-                
-                // Trigger confetti using the imported library
-                confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
-            }
-        };
-
-        requestAnimationFrame(animate);
+        // Wait for the CSS transition to finish (4000ms), then declare winner!
+        setTimeout(() => {
+            setSpinResult(filteredPubs[winningIndex]);
+            setIsSpinning(false);
+            confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+        }, 4000);
     };
 
-return (
-        <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Spin the Wheel</h2>
+    return (
+        <div className="space-y-8 max-w-4xl mx-auto">
+            <div className="text-center">
+                <h2 className="text-4xl font-black text-gray-800 dark:text-white mb-2">Spin the Wheel</h2>
+                <p className="text-gray-500 dark:text-gray-400">Can't decide where to go? Let fate decide.</p>
+            </div>
 
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md space-y-4 transition-colors duration-300">
-                <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-200">Wheel Options</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <p className="font-medium text-gray-600 dark:text-gray-300">Pubs to Include</p>
-                        <label className="flex items-center space-x-2 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={includeVisited}
-                                onChange={() => setIncludeVisited(!includeVisited)}
-                                className="h-5 w-5 rounded text-blue-600 dark:bg-gray-700 dark:border-gray-600"
-                            />
-                            <span className="text-gray-700 dark:text-gray-300">Visited Pubs</span>
-                        </label>
-                        <label className="flex items-center space-x-2 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={includeToVisit}
-                                onChange={() => setIncludeToVisit(!includeToVisit)}
-                                className="h-5 w-5 rounded text-orange-600 dark:bg-gray-700 dark:border-gray-600"
-                            />
-                            <span className="text-gray-700 dark:text-gray-300">Pubs to Visit</span>
-                        </label>
+            {/* --- CONTROLS --- */}
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors duration-300">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                        <p className="font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider text-sm">Pool of Pubs</p>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all ${includeVisited ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+                                <input type="checkbox" checked={includeVisited} onChange={() => setIncludeVisited(!includeVisited)} className="hidden" />
+                                <span className="font-bold">✅ Visited</span>
+                            </label>
+                            <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all ${includeToVisit ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+                                <input type="checkbox" checked={includeToVisit} onChange={() => setIncludeToVisit(!includeToVisit)} className="hidden" />
+                                <span className="font-bold">🎯 Hit List</span>
+                            </label>
+                        </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="block font-medium text-gray-600 dark:text-gray-300">Filter by Yes Criterion</label>
+                    <div className="space-y-3">
+                        <label className="block font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider text-sm">Filter Requirements</label>
                         <select
                             value={criterionId}
                             onChange={e => setCriterionId(e.target.value)}
-                            className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white"
+                            className="w-full px-4 py-3 font-semibold border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50 dark:bg-gray-700 dark:text-white transition-colors"
                         >
-                            <option value="">All Pubs that match status</option>
+                            <option value="">No Filter (Include All)</option>
                             {yesNoCriteria.map(c => (
-                                <option key={c.id} value={c.id}>
-                                    {c.name}
-                                </option>
+                                <option key={c.id} value={c.id}>Must have: {c.name}</option>
                             ))}
                         </select>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md transition-colors duration-300">
-                <div className="flex justify-center relative">
-                    <div
-                        ref={wheelContainerRef}
+            {/* --- THE WHEEL --- */}
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-colors duration-300 flex flex-col items-center overflow-hidden">
+                
+                <div className="relative w-full max-w-[450px] aspect-square mb-8 mt-4">
+                    {/* The Flipper / Pointer */}
+                    <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center">
+                        <div className="w-8 h-12 bg-gray-800 dark:bg-white shadow-2xl" style={{ clipPath: 'polygon(50% 100%, 0 0, 100% 0)' }}></div>
+                    </div>
+
+                    {/* The Rotating Canvas Wrapper */}
+                    <div 
+                        className="w-full h-full rounded-full shadow-[0_0_40px_rgba(0,0,0,0.1)] dark:shadow-[0_0_40px_rgba(255,255,255,0.05)] overflow-hidden border-8 border-gray-800 dark:border-gray-100 bg-gray-100 dark:bg-gray-700"
                         style={{
                             transform: `rotate(${rotation}deg)`,
-                            transition: isSpinning ? 'none' : 'transform 0.3s ease-out',
-                            width: '750px',
-                            height: '750px'
+                            transition: isSpinning ? 'transform 4s cubic-bezier(0.17, 0.67, 0.1, 1)' : 'none'
                         }}
                     >
-                        <canvas
-                            ref={canvasRef}
-                            width={650}
-                            height={650}
-                            className="border-2 border-gray-200 dark:border-gray-700 rounded-lg block"
-                            style={{ width: '100%', height: '100%' }}
-                        />
+                        {filteredPubs.length > 0 ? (
+                            <canvas ref={canvasRef} width={800} height={800} className="w-full h-full object-contain" />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-center p-8">
+                                <p className="text-gray-500 dark:text-gray-400 font-bold">No pubs match your current filters!</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                <div className="text-center mt-6">
-                    <button
-                        onClick={handleSpin}
-                        disabled={isSpinning || filteredPubs.length === 0}
-                        className="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold text-xl hover:bg-green-700 transition disabled:bg-gray-400 dark:disabled:bg-gray-600"
-                    >
-                        {isSpinning ? 'Spinning...' : 'SPIN!'}
-                    </button>
+                <button
+                    onClick={handleSpin}
+                    disabled={isSpinning || filteredPubs.length === 0}
+                    className="w-full max-w-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-xl font-black text-2xl uppercase tracking-widest hover:from-blue-700 hover:to-purple-700 transition transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-xl shadow-blue-500/30"
+                >
+                    {isSpinning ? 'Spinning...' : 'SPIN THE WHEEL'}
+                </button>
+
+                {/* WINNER ANNOUNCEMENT */}
+                <div className={`mt-8 text-center transition-all duration-500 ${spinResult ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-4 hidden'}`}>
+                    <p className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">The Winner Is</p>
+                    <h3 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-2 drop-shadow-sm">{spinResult?.name}</h3>
+                    <p className="text-xl text-gray-600 dark:text-gray-300 font-medium">📍 {spinResult?.location}</p>
                 </div>
-
-                {spinResult && (
-                    <div className="mt-6 text-center">
-                        <h3 className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-2">The Winner Is!</h3>
-                        <p className="text-4xl font-bold text-gray-800 dark:text-white animate-pulse">{spinResult.name}</p>
-                        <p className="text-lg text-gray-600 dark:text-gray-300 mt-2">{spinResult.location}</p>
-                    </div>
-                )}
-
-                {filteredPubs.length === 0 && !isSpinning && (
-                    <p className="mt-6 text-center text-lg text-red-600 dark:text-red-400 font-semibold">
-                        No pubs match your filters! Try changing your options.
-                    </p>
-                )}
             </div>
         </div>
     );
