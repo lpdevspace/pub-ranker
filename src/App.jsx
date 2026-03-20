@@ -17,6 +17,7 @@ export default function App() {
     const [authLoading, setAuthLoading] = useState(true);
     const [globalAnnouncement, setGlobalAnnouncement] = useState("");
     const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+    const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
 
     // --- DARK MODE LOGIC ---
     useEffect(() => {
@@ -84,16 +85,18 @@ export default function App() {
         };
     }, []);
 
-    // --- GLOBAL ANNOUNCEMENT LOGIC ---
-    useEffect(() => {
-        const unsubscribe = db.collection('global').doc('settings').onSnapshot((doc) => {
-            if (doc.exists && doc.data().announcement) {
-                setGlobalAnnouncement(doc.data().announcement);
-            } else {
-                setGlobalAnnouncement("");
-            }
-        });
-        return () => unsubscribe();
+    // --- GLOBAL SETTINGS LOGIC ---
+     useEffect(() => {
+     const unsubscribe = db.collection('global').doc('settings').onSnapshot((doc) => {
+         if (doc.exists) {
+             setGlobalAnnouncement(doc.data().announcement || "");
+             setIsMaintenanceMode(doc.data().maintenanceMode || false);
+         } else {
+             setGlobalAnnouncement("");
+             setIsMaintenanceMode(false);
+         }
+      });
+     return () => unsubscribe();
     }, []);
 
 // --- DETERMINE WHICH PAGE TO SHOW ---
@@ -105,8 +108,22 @@ export default function App() {
         currentScreen = <AuthScreen auth={auth} />;
     } else if (!userProfile) {
         currentScreen = <LoadingScreen text="Loading User Profile..." />;
+    } else if (isMaintenanceMode && !userProfile?.isSuperAdmin) {
+     // --- THE MAINTENANCE SCREEN ---
+     currentScreen = (
+         <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4 text-center">
+             <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl max-w-md w-full border-t-8 border-yellow-500">
+                 <span className="text-6xl mb-4 block">🚧</span>
+                 <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Under Maintenance</h1>
+                 <p className="text-gray-600 dark:text-gray-400 mb-6">Pub Ranker is currently undergoing scheduled maintenance to add awesome new features. We'll be back shortly!</p>
+                 <button onClick={() => auth.signOut()} className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white font-bold py-2 px-4 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">Log Out</button>
+             </div>
+         </div>
+     );
+ } else if (userProfile.isBanned) {
     } else if (userProfile.isBanned) {
         // --- THE BAN SCREEN ---
+    
         currentScreen = (
             <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4 text-center">
                 <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl max-w-md w-full border-t-8 border-red-600">
@@ -133,13 +150,23 @@ export default function App() {
 
     // --- THE MASTER RENDER BLOCK ---
     // This ensures the banner is always at the top, no matter what screen is loaded!
+// --- THE MASTER RENDER BLOCK ---
+    // This ensures the banner is always at the top, no matter what screen is loaded!
     return (
         <>
+            {/* 🚧 NEW: MAINTENANCE MODE REMINDER FOR ADMINS */}
+            {isMaintenanceMode && userProfile?.isSuperAdmin && (
+                <div className="bg-red-600 text-white font-bold text-center p-3 shadow-md z-[60] relative animate-pulse">
+                    🚧 MAINTENANCE MODE IS ACTIVE 🚧 — All normal users are currently locked out!
+                </div>
+            )}
+
             {globalAnnouncement && (
                 <div className="bg-yellow-500 text-yellow-900 font-bold text-center p-3 shadow-md z-50 relative">
                     📢 {globalAnnouncement}
                 </div>
             )}
+            
             {currentScreen}
         </>
     );

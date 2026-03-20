@@ -16,6 +16,8 @@ export default function SuperAdminPage({ db, userProfile }) {
     const [announcement, setAnnouncement] = useState("");
     const [isPublishing, setIsPublishing] = useState(false);
 
+    //Maintenance Mode
+    const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
     // Modal States
     const [modalType, setModalType] = useState(null); 
     const [selectedItem, setSelectedItem] = useState(null);
@@ -52,8 +54,11 @@ export default function SuperAdminPage({ db, userProfile }) {
             feedbackData.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0)); // Newest first
             setFeedbackList(feedbackData);
 
-            // Fetch current announcement
-            if (annDoc.exists) setAnnouncement(annDoc.data().announcement || "");
+            // Fetch current announcement and maintenance mode
+             if (annDoc.exists) {
+             setAnnouncement(annDoc.data().announcement || "");
+             setIsMaintenanceMode(annDoc.data().maintenanceMode || false);
+         }
             
         } catch (error) {
             console.error("Error fetching data:", error);
@@ -86,6 +91,22 @@ export default function SuperAdminPage({ db, userProfile }) {
         catch (error) { console.error(error); }
         setIsPublishing(false);
     };
+    // --- 🚧 MAINTENANCE MODE LOGIC ---
+ const handleToggleMaintenance = async () => {
+     const newState = !isMaintenanceMode;
+     if (newState && !window.confirm("WARNING: Turning this on will instantly kick all non-admin users out of the app. Are you sure?")) return;
+
+     setIsMaintenanceMode(newState);
+     try {
+         await db.collection('global').doc('settings').set({ 
+             maintenanceMode: newState,
+             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+         }, { merge: true });
+     } catch (error) {
+         alert("Failed to update maintenance mode.");
+         setIsMaintenanceMode(!newState); // Revert on failure
+     }
+ };
 
     // --- 🍻 PUB MODERATION ---
     const handleDeletePub = async (pubId) => {
@@ -151,6 +172,21 @@ export default function SuperAdminPage({ db, userProfile }) {
             {/* ========================================= */}
             {/* TAB 1: OVERVIEW & GROUPS                  */}
             {/* ========================================= */}
+
+            {/* --- DANGER ZONE: MAINTENANCE MODE --- */}
+                 <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-red-600 flex justify-between items-center">
+                     <div>
+                         <h3 className="text-lg font-bold text-gray-800 dark:text-white">Maintenance Mode</h3>
+                         <p className="text-xs text-gray-500 dark:text-gray-400">Instantly lock all non-admin users out of the app.</p>
+                     </div>
+                     <button 
+                         onClick={handleToggleMaintenance} 
+                         className={`px-6 py-2 rounded font-bold text-white transition-all ${isMaintenanceMode ? 'bg-red-600 hover:bg-red-700 animate-pulse' : 'bg-gray-400 hover:bg-gray-500'}`}
+                     >
+                         {isMaintenanceMode ? "🛑 ACTIVE: App Locked" : "Enable Lockout"}
+                     </button>
+                 </div>
+
             {activeTab === 'overview' && (
                 <div className="space-y-6 animate-fadeIn">
                     <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-yellow-500">
