@@ -84,7 +84,7 @@ export function StatCard({ title, value, subValue }) {
     );
 }
 
-export default function DashboardPage({ pubs, newPubs, criteria, users, scores, rankedPubs, setPage }) {
+export default function DashboardPage({ pubs, newPubs, criteria, users, scores, db, groupId, rankedPubs, setPage }) {
     // Normalise inputs
     const pubsArray = Array.isArray(pubs) ? pubs : Object.values(pubs || {});
     const newPubsArray = Array.isArray(newPubs) ? newPubs : Object.values(newPubs || {});
@@ -98,6 +98,23 @@ export default function DashboardPage({ pubs, newPubs, criteria, users, scores, 
     // --- ADD THESE TWO LINES RIGHT HERE! ---
     const [comparePub1, setComparePub1] = useState("");
     const [comparePub2, setComparePub2] = useState("");
+    const [livePubId, setLivePubId] = useState("");
+
+    // Listen to the group document for live location changes
+    useEffect(() => {
+        if (!db || !groupId) return;
+        const unsub = db.collection('groups').doc(groupId).onSnapshot(doc => {
+            if (doc.exists) setLivePubId(doc.data().livePubId || "");
+        });
+        return () => unsub();
+    }, [db, groupId]);
+
+    const handleSetLiveLocation = async (e) => {
+        const newPubId = e.target.value;
+        try {
+            await db.collection('groups').doc(groupId).update({ livePubId: newPubId });
+        } catch (error) { console.error("Error updating location:", error); }
+    };
     // ---------------------------------------
 
     // --- THE GUINNESS INDEX CALCULATION ---
@@ -418,6 +435,42 @@ return (
                 <StatCard title="Pubs to Visit" value={totalNewPubs} />
                 <StatCard title="Total Raters" value={totalRaters} />
                 <StatCard title="Top Rated Pub" value={topRatedPub.name} subValue={`Weighted Avg ${topRatedPub.avgScore.toFixed(1)}`} />
+            </div>
+            {/* --- NEW: LIVE LOCATION TRACKER --- */}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow transition-colors duration-300 relative overflow-hidden mb-6 border border-gray-100 dark:border-gray-700">
+                {livePubId && (
+                    <div className="absolute inset-0 bg-red-500 opacity-10 animate-pulse pointer-events-none"></div>
+                )}
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4 relative z-10">
+                    <div className="flex items-center gap-4">
+                        <div className={`text-4xl ${livePubId ? 'animate-bounce' : 'grayscale opacity-50'}`}>📍</div>
+                        <div>
+                            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Current Group Location</h3>
+                            {livePubId ? (
+                                <p className="text-2xl font-black text-red-600 dark:text-red-400">
+                                    {pubs.find(p => p.id === livePubId)?.name || "Unknown Pub"}
+                                </p>
+                            ) : (
+                                <p className="text-lg font-bold text-gray-800 dark:text-gray-200">Not currently at a pub.</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="w-full md:w-auto">
+                        <select 
+                            value={livePubId} 
+                            onChange={handleSetLiveLocation}
+                            className="w-full md:w-64 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold cursor-pointer"
+                        >
+                            <option value="">🏠 Everyone went home</option>
+                            <optgroup label="Active Pubs">
+                                {pubs.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
             </div>
             {/* THE GUINNESS INDEX BANNER */}
             {(cheapestPint || priciestPint) && (

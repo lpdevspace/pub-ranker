@@ -1,7 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 
-// Notice we added 'criteria' to the props here!
 export default function LeaderboardPage({ scores, allUsers, pubs, criteria = [] }) {
+    // 1. THIS IS THE CORRECT SPOT FOR useState!
+    // It must be at the top level, outside of useMemo.
+    const [selectedUserId, setSelectedUserId] = useState(null);
+
     const { awards, dynamicAwards, userBadges } = useMemo(() => {
         const userStats = {};
 
@@ -203,15 +206,20 @@ export default function LeaderboardPage({ scores, allUsers, pubs, criteria = [] 
             {/* SECTION 3: THE TROPHY CABINET */}
             <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2 transition-colors">Trophy Cabinet</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Hover over badges to see how they were earned!</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Click on a user to view their stats!</p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {userBadges.map((userStat) => {
                         const user = getUserDetails(userStat.userId);
                         return (
-                            <div key={userStat.userId} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4 transition-colors duration-300">
+                            <button 
+                                key={userStat.userId} 
+                                onClick={() => setSelectedUserId(userStat.userId)}
+                                className="w-full text-left bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
+                            >
+                                {/* 2. THIS IS THE MISSING CONTENT WE ADDED BACK! */}
                                 {user.avatar ? (
-                                    <img src={user.avatar} alt={user.name} className="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-gray-600" />
+                                    <img src={user.avatar} alt={user.name} className="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-gray-600 flex-shrink-0" />
                                 ) : (
                                     <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-lg flex-shrink-0">
                                         {user.name.charAt(0).toUpperCase()}
@@ -222,11 +230,7 @@ export default function LeaderboardPage({ scores, allUsers, pubs, criteria = [] 
                                     <div className="flex flex-wrap gap-1 mt-1">
                                         {userStat.badges.length > 0 ? (
                                             userStat.badges.map((badge, idx) => (
-                                                <span 
-                                                    key={idx} 
-                                                    title={badge.title} 
-                                                    className="text-xl cursor-help hover:scale-110 transition-transform"
-                                                >
+                                                <span key={idx} title={badge.title} className="text-xl">
                                                     {badge.emoji}
                                                 </span>
                                             ))
@@ -235,11 +239,81 @@ export default function LeaderboardPage({ scores, allUsers, pubs, criteria = [] 
                                         )}
                                     </div>
                                 </div>
-                            </div>
+                            </button>
                         );
                     })}
                 </div>
             </div>
+
+            {/* --- NEW: USER PROFILE MODAL --- */}
+            {selectedUserId && (() => {
+                const user = getUserDetails(selectedUserId);
+                const stat = userBadges.find(s => s.userId === selectedUserId);
+                
+                // Find their favorite pub (highest scale score)
+                let favoritePub = { name: "Hasn't rated enough", score: 0 };
+                Object.entries(scores).forEach(([pubId, pubScores]) => {
+                    let total = 0, count = 0;
+                    Object.values(pubScores).forEach(critScores => {
+                        const userScore = critScores.find(s => s.userId === selectedUserId && s.type === 'scale');
+                        if (userScore && userScore.value != null) { total += userScore.value; count++; }
+                    });
+                    if (count > 0) {
+                        const avg = total / count;
+                        if (avg > favoritePub.score) {
+                            favoritePub = { name: pubs.find(p => p.id === pubId)?.name || "Unknown Pub", score: avg };
+                        }
+                    }
+                });
+
+                return (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-70 backdrop-blur-sm animate-fadeIn">
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden relative border border-gray-200 dark:border-gray-700">
+                            {/* Close Button */}
+                            <button onClick={() => setSelectedUserId(null)} className="absolute top-3 right-3 w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white transition-colors z-10">✕</button>
+                            
+                            {/* Header */}
+                            <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 flex flex-col items-center text-center">
+                                {user.avatar ? (
+                                    <img src={user.avatar} alt={user.name} className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-lg mb-3" />
+                                ) : (
+                                    <div className="w-24 h-24 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center text-blue-600 dark:text-blue-400 font-black text-4xl shadow-lg mb-3 border-4 border-white dark:border-gray-800">
+                                        {user.name.charAt(0).toUpperCase()}
+                                    </div>
+                                )}
+                                <h3 className="text-2xl font-bold text-white">{user.name}</h3>
+                                <p className="text-blue-100 font-medium">{stat?.pubsRatedCount || 0} Pubs Rated</p>
+                            </div>
+
+                            {/* Body */}
+                            <div className="p-6 space-y-4">
+                                <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-1">Favorite Pub</p>
+                                    <p className="font-bold text-gray-800 dark:text-white text-lg flex items-center justify-between">
+                                        {favoritePub.name} 
+                                        {favoritePub.score > 0 && <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">{favoritePub.score.toFixed(1)}/10</span>}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-2">Trophy Cabinet</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {stat?.badges.length > 0 ? (
+                                            stat.badges.map((badge, idx) => (
+                                                <div key={idx} title={badge.title} className="bg-gray-100 dark:bg-gray-700 p-2 rounded-lg text-2xl hover:scale-110 transition-transform cursor-help">
+                                                    {badge.emoji}
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <p className="text-sm text-gray-400 italic">No badges earned yet.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 }

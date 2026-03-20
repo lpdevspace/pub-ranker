@@ -276,6 +276,8 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                                 scores={scores}
                                 rankedPubs={rankedVisitedPubs}
                                 setPage={setPage}
+                                groupId={groupId}
+                                db={db}
                             />
                         );
 
@@ -293,6 +295,9 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
 						currentUser={user}
 						currentGroup={currentGroup}
 						groupRef={groupRef}
+                        userProfile={userProfile}
+                        groupId={groupId}
+                        db={db}
 						/>
 					);
 
@@ -304,6 +309,7 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                                 canManageGroup={canManageGroup}
                                 onPromotePub={handlePromotePub}
                                 onSelectPubForEdit={handleSelectPubForEdit}
+                                allUsers={allUsers} // <-- Make sure this is here!  
                             />
                         );
 
@@ -313,6 +319,9 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                                 pubs={pubs}
                                 criteria={activeCriteria}
                                 scores={scores}
+                                db={db}
+                                groupId={groupId}
+                                userProfile={userProfile}
                             />
                         );
 

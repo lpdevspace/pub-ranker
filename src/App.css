@@ -182,3 +182,9 @@
     border-right-color: var(--border);
   }
 }
+
+/* Fixes the background behind custom Leaflet Emoji/Div icons */
+.custom-leaflet-icon {
+    background: transparent !important;
+    border: none !important;
+}

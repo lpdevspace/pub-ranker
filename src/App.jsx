@@ -148,8 +148,6 @@ export default function App() {
         );
     }
 
-    // --- THE MASTER RENDER BLOCK ---
-    // This ensures the banner is always at the top, no matter what screen is loaded!
 // --- THE MASTER RENDER BLOCK ---
     // This ensures the banner is always at the top, no matter what screen is loaded!
     return (

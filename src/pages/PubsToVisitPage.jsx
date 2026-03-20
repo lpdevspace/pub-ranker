@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 
-export default function PubsToVisitPage({ pubs, canManageGroup, onPromotePub, onSelectPubForEdit }) {
+export default function PubsToVisitPage({ pubs, canManageGroup, onPromotePub, onSelectPubForEdit, allUsers }) {
     const [searchTerm, setSearchTerm] = useState("");
-    const [sortOption, setSortOption] = useState("alphabetical");
+    const [sortOption, setSortOption] = useState("newest");
+
+    const getUserName = (userId) => {
+        const u = allUsers && allUsers[userId];
+        return u ? (u.nickname || u.displayName || u.email) : "Unknown User";
+    };
 
     const filteredPubs = pubs.filter(pub => 
         pub.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -16,78 +21,104 @@ export default function PubsToVisitPage({ pubs, canManageGroup, onPromotePub, on
         return 0;
     });
 
-return (
+    return (
         <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Pubs to Visit</h2>
-        
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md space-y-4 transition-colors duration-300">
-                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Filter & Search</h3>
-                <input
-                    type="text"
-                    placeholder="Search pubs to visit..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white placeholder-gray-400"
-                />
+            
+            {/* --- HEADER & CONTROLS --- */}
+            <div className="flex flex-col md:flex-row justify-between items-end gap-4">
                 <div>
-                    <label className="block font-medium text-gray-600 dark:text-gray-300 mb-2">Sort By</label>
-                    <select
-                        value={sortOption}
-                        onChange={(e) => setSortOption(e.target.value)}
-                        className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white"
-                    >
-                        <option value="alphabetical">Alphabetical (A-Z)</option>
-                        <option value="newest">Newest Added</option>
-                    </select>
+                    <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">The Hit List</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Pubs we need to visit next.</p>
                 </div>
             </div>
+        
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row gap-4 transition-colors duration-300">
+                <input
+                    type="text"
+                    placeholder="Search the hit list..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
+                />
+                <select
+                    value={sortOption}
+                    onChange={(e) => setSortOption(e.target.value)}
+                    className="px-4 py-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold"
+                >
+                    <option value="newest">🆕 Newest Added</option>
+                    <option value="alphabetical">🔤 Alphabetical (A-Z)</option>
+                </select>
+            </div>
 
-            <div className="space-y-3">
-                {filteredPubs.length > 0 ? (
-                filteredPubs.map((pub) => (
+            {/* --- THE WISHLIST GRID --- */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredPubs.map((pub) => (
                     <div
                         key={pub.id}
-                        className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors duration-300"
+                        className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col group relative"
                     >
-                        <div>
-                            <h3 className="text-xl font-semibold text-gray-800 dark:text-white">{pub.name}</h3>
-                            <p className="text-gray-600 dark:text-gray-400">{pub.location}</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            <a 
-                                href={pub.googleLink || `http://googleusercontent.com/maps.google.com/${pub.lat ? pub.lat+','+pub.lng : encodeURIComponent(pub.name + ' ' + pub.location)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-4 py-2 rounded-lg font-semibold hover:bg-blue-200 dark:hover:bg-blue-900/50 transition"
-                            >
-                                Open in Maps
-                            </a>
-                            {canManageGroup && (
-                            <>
-                                <button
-                                    onClick={() => onPromotePub(pub.id)}
-                                    className="bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition"
-                                >
-                                    Mark Visited
-                                </button>
-                                <button
-                                    onClick={() => onSelectPubForEdit(pub)}
-                                    className="bg-yellow-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-yellow-600 transition"
-                                >
-                                    Edit
-                                </button>
-                            </>
+                        {/* Image Header */}
+                        <div className="h-40 relative bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                            {pub.photoURL ? (
+                                <img src={pub.photoURL} alt={pub.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => { e.target.style.display = "none"; }} />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-5xl opacity-50 grayscale">🍻</div>
                             )}
+                            
+                            {/* "Unvisited" Badge */}
+                            <div className="absolute top-3 right-3 bg-gray-900/80 backdrop-blur text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border border-gray-600">
+                                Not Visited
+                            </div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-5 flex flex-col flex-1">
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-1 truncate">{pub.name}</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 truncate flex items-center gap-1">📍 {pub.location || 'Unknown Location'}</p>
+                            
+                            {/* Added By / Metadata */}
+                            <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-700 mb-4">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    <span className="font-semibold text-gray-700 dark:text-gray-300">Added by:</span> {pub.addedBy ? getUserName(pub.addedBy) : 'The Group'}
+                                </p>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-2">
+                            <a 
+                            href={pub.googleLink || (pub.lat && pub.lng ? `https://www.google.com/maps/search/?api=1&query=${pub.lat},${pub.lng}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pub.name + ' ' + pub.location)}`)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                             className="flex-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-lg font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition text-center text-sm"
+                            >
+                            🗺️ Map
+                            </a>
+                                
+                                {canManageGroup && (
+                                    <>
+                                        <button onClick={() => onSelectPubForEdit(pub)} className="px-3 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 font-bold rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition" title="Edit Pub">
+                                            ✏️
+                                        </button>
+                                        <button onClick={() => onPromotePub(pub.id)} className="flex-1 bg-green-500 text-white px-3 py-2 rounded-lg font-bold hover:bg-green-600 transition shadow-sm text-sm whitespace-nowrap">
+                                            ✅ Mark Visited
+                                        </button>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
-                ))
-                ) : (
-                <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                    No pubs match your search or all have been visited!
-                </p>
-                )}
+                ))}
             </div>
+
+            {filteredPubs.length === 0 && (
+                <div className="text-center py-16 px-4 bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600">
+                    <span className="text-6xl mb-4 block">🍻</span>
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Hit List Empty!</h3>
+                    <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                        You have visited every pub on your wishlist, or no one has added any new ones yet. Time to click "Add Pub" and start planning the next night out!
+                    </p>
+                </div>
+            )}
         </div>
     );
-
 }
