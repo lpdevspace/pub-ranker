@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ImageUploader from '../components/ImageUploader'; // <-- New Import
 
 export default function PubsPage({
     pubs,
@@ -18,7 +19,6 @@ export default function PubsPage({
     const [yesNoFilter, setYesNoFilter] = useState("");
     const [sortOption, setSortOption] = useState("highest");
 
-    // --- YOUR EXISTING DATA LOGIC REMAINS EXACTLY THE SAME ---
     const handleDeleteScore = async (score) => {
         if (!groupRef || !score?.id) return;
         if (!window.confirm("Are you sure you want to delete this rating?")) return;
@@ -45,14 +45,13 @@ export default function PubsPage({
 
     const yesNoCriteria = criteria.filter((c) => c.type === "yes-no");
 
-    // 1. Enrich pubs with average scores and tiers for the grid display
     const enrichedPubs = pubs.map(pub => {
         let totalScore = 0; let count = 0;
         criteria.filter(c => c.type === 'scale').forEach(c => {
             const cScores = scores[pub.id]?.[c.id] || [];
             cScores.forEach(s => { if (s.value != null && !isNaN(s.value)) { totalScore += s.value; count++; } });
         });
-        const avg = count > 0 ? (totalScore / count) : 0; // Use 0 for unrated so sorting works
+        const avg = count > 0 ? (totalScore / count) : 0; 
         
         let tierLabel = 'Unrated', color = 'bg-gray-400';
         if (count > 0) {
@@ -80,7 +79,6 @@ export default function PubsPage({
         return 0;
     });
 
-    // Compute Breakdown for Selected Pub
     let breakdown = null;
     if (selectedPubForDetail) {
         const pub = selectedPubForDetail;
@@ -110,8 +108,6 @@ export default function PubsPage({
 
     return (
         <div className="space-y-6">
-            
-            {/* --- HEADER & CONTROLS --- */}
             <div className="flex justify-between items-end mb-2">
                 <div>
                     <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Visited Pubs</h2>
@@ -120,10 +116,7 @@ export default function PubsPage({
             </div>
 
             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row gap-4 transition-colors duration-300">
-                <input
-                    type="text" placeholder="Search pubs by name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                    className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700 dark:text-white"
-                />
+                <input type="text" placeholder="Search pubs by name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700 dark:text-white" />
                 
                 {yesNoCriteria.length > 0 && (
                     <select value={yesNoFilter} onChange={(e) => setYesNoFilter(e.target.value)} className="px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold min-w-[200px]">
@@ -140,30 +133,22 @@ export default function PubsPage({
                 </select>
             </div>
 
-            {/* --- THE NEW VISUAL GRID --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredPubs.map((pub) => (
                     <div key={pub.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex flex-col group relative">
-                        
-                        {/* Image Header */}
-                        <div 
-                            className="h-48 relative bg-gray-200 dark:bg-gray-700 overflow-hidden cursor-pointer"
-                            onClick={() => setSelectedPubForDetail(pub)}
-                        >
+                        <div className="h-48 relative bg-gray-200 dark:bg-gray-700 overflow-hidden cursor-pointer" onClick={() => setSelectedPubForDetail(pub)}>
                             {pub.photoURL ? (
                                 <img src={pub.photoURL} alt={pub.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => { e.target.style.display = "none"; }} />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center text-5xl">🍺</div>
                             )}
                             
-                            {/* Floating Tier Badge */}
                             {pub.ratingCount > 0 && (
                                 <div className={`absolute top-3 right-3 text-white text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-lg ${pub.color}`}>
                                     {pub.tierLabel}
                                 </div>
                             )}
                             
-                            {/* Overlay 'Details' Hint */}
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                                 <span className="opacity-0 group-hover:opacity-100 bg-white/90 text-gray-900 font-bold px-4 py-2 rounded-full transform translate-y-4 group-hover:translate-y-0 transition-all shadow-lg">
                                     View Full Reviews
@@ -171,12 +156,10 @@ export default function PubsPage({
                             </div>
                         </div>
 
-                        {/* Body */}
                         <div className="p-5 flex flex-col flex-1">
                             <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-1 truncate">{pub.name}</h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 truncate">📍 {pub.location || 'Unknown Location'}</p>
                             
-                            {/* Stats Row */}
                             <div className="flex justify-between items-center mb-4">
                                 <div>
                                     <p className="text-xs text-gray-400 font-bold uppercase mb-1">Score</p>
@@ -188,19 +171,12 @@ export default function PubsPage({
                                 </div>
                             </div>
 
-                            {/* Action Buttons */}
                             <div className="flex gap-2 mt-auto pt-4 border-t border-gray-100 dark:border-gray-700">
-                                <button onClick={() => onSelectPub(pub)} className="flex-1 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">
-                                    Rate
-                                </button>
+                                <button onClick={() => onSelectPub(pub)} className="flex-1 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Rate</button>
                                 {canManageGroup && (
                                     <>
-                                        <button onClick={() => onSelectPubForEdit(pub)} className="px-3 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 font-bold rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition" title="Edit Pub">
-                                            ✏️
-                                        </button>
-                                        <button onClick={() => handleDeletePub(pub.id)} className="px-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-bold rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition" title="Delete Pub">
-                                            🗑️
-                                        </button>
+                                        <button onClick={() => onSelectPubForEdit(pub)} className="px-3 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 font-bold rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition" title="Edit Pub">✏️</button>
+                                        <button onClick={() => handleDeletePub(pub.id)} className="px-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-bold rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition" title="Delete Pub">🗑️</button>
                                     </>
                                 )}
                             </div>
@@ -215,7 +191,7 @@ export default function PubsPage({
                 </div>
             )}
 
-            {/* --- YOUR EXISTING POPUP MODAL STAYS EXACTLY THE SAME --- */}
+            {/* DETAILED MODAL */}
             {selectedPubForDetail && breakdown && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black bg-opacity-70 backdrop-blur-sm overflow-y-auto transition-opacity duration-300">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 md:p-8 relative transition-colors duration-300">
@@ -231,6 +207,30 @@ export default function PubsPage({
                             </div>
                             <div className="text-6xl opacity-50">🍻</div>
                         </div>
+
+                        {/* --- NEW: IMAGE UPLOADER INTEGRATION --- */}
+                        {canManageGroup && (
+                            <div className="mb-8 bg-gray-50 dark:bg-gray-700/50 p-5 rounded-xl border border-gray-100 dark:border-gray-700">
+                                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-3">Pub Photo</h3>
+                                <ImageUploader 
+                                    groupId={currentGroup?.id}
+                                    currentPhotoUrl={selectedPubForDetail.photoURL}
+                                    onPhotoUploaded={async (url) => {
+                                        try {
+                                            await pubsRef.doc(selectedPubForDetail.id).update({ photoURL: url });
+                                            setSelectedPubForDetail(prev => ({ ...prev, photoURL: url }));
+                                        } catch (e) { console.error("Error updating photo", e); }
+                                    }}
+                                    onPhotoRemoved={async () => {
+                                        try {
+                                            await pubsRef.doc(selectedPubForDetail.id).update({ photoURL: "" });
+                                            setSelectedPubForDetail(prev => ({ ...prev, photoURL: "" }));
+                                        } catch (e) { console.error("Error removing photo", e); }
+                                    }}
+                                />
+                            </div>
+                        )}
+                        {/* --- END IMAGE UPLOADER --- */}
                 
                         <div className="space-y-6">
                             <h3 className="text-2xl font-bold text-gray-800 dark:text-white border-b-2 border-gray-100 dark:border-gray-700 pb-2">Detailed Breakdown</h3>
@@ -268,9 +268,7 @@ export default function PubsPage({
                                                         <div key={s.id} className="flex items-center justify-between bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-100 dark:border-gray-600 shadow-sm">
                                                             <div className="flex gap-2">
                                                                 <span className="font-bold text-gray-800 dark:text-gray-200">{s.userName}:</span>
-                                                                <span>
-                                                                    {data.type === "yes-no" ? s.value ? "✅ Yes" : "❌ No" : data.type === "currency" ? `£${parseFloat(s.value).toFixed(2)}` : s.value}
-                                                                </span>
+                                                                <span>{data.type === "yes-no" ? s.value ? "✅ Yes" : "❌ No" : data.type === "currency" ? `£${parseFloat(s.value).toFixed(2)}` : s.value}</span>
                                                             </div>
                                                             {canDeleteScore(s, currentUser, currentGroup) && (
                                                                 <button className="px-2 py-1 text-xs font-bold rounded bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100" onClick={() => handleDeleteScore(s)}>Delete</button>

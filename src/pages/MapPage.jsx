@@ -18,9 +18,14 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
     const [crawlName, setCrawlName] = useState("");
     const [crawlDate, setCrawlDate] = useState("");
     const [isSaving, setIsSaving] = useState(false);
-    
-    // NEW: Track if we are editing an existing crawl
     const [editingCrawlId, setEditingCrawlId] = useState(null);
+
+    // --- NEW: AUTO-ROUTE GENERATOR STATE ---
+    const [showAutoModal, setShowAutoModal] = useState(false);
+    const [autoCount, setAutoCount] = useState(4);
+    const [autoStatus, setAutoStatus] = useState("all"); // 'all', 'visited', 'to-visit'
+    const [autoFixedType, setAutoFixedType] = useState("none"); // 'none', 'start', 'end'
+    const [autoFixedPubId, setAutoFixedPubId] = useState("");
 
     // Fetch Saved Crawls
     useEffect(() => {
@@ -70,13 +75,89 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
         alert("Itinerary copied to clipboard!");
     };
 
-    // --- NEW: EDIT & DELETE LOGIC ---
+    // --- NEW: THE ROUTE GENERATOR AI ENGINE ---
+    const getDistance = (lat1, lon1, lat2, lon2) => {
+        const R = 6371; 
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+        return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+    };
+
+    // Dynamically filter pubs for the Generator dropdown so users can't select invalid pubs
+    const validAutoPubs = useMemo(() => {
+        let pool = pubsWithStats.filter(p => p.lat && p.lng);
+        if (autoStatus === 'visited') pool = pool.filter(p => p.status === 'visited');
+        if (autoStatus === 'to-visit') pool = pool.filter(p => p.status !== 'visited');
+        return pool.sort((a, b) => a.name.localeCompare(b.name));
+    }, [pubsWithStats, autoStatus]);
+
+    const generateAutoCrawl = (e) => {
+        e.preventDefault();
+        
+        let poolLeft = [...validAutoPubs];
+
+        if (poolLeft.length < autoCount) {
+            alert(`Not enough pubs match your filters! Found ${poolLeft.length}, but you asked for ${autoCount}.`);
+            return;
+        }
+
+        let route = [];
+        let currentPub = null;
+
+        // Determine starting point
+        if ((autoFixedType === 'start' || autoFixedType === 'end') && autoFixedPubId) {
+            currentPub = poolLeft.find(p => p.id === autoFixedPubId);
+        } else {
+            // Random start - prefer highly rated pubs if available
+            const goodPubs = poolLeft.filter(p => (p.avg || 0) >= 7.0);
+            currentPub = goodPubs.length > 0 ? goodPubs[Math.floor(Math.random() * goodPubs.length)] : poolLeft[Math.floor(Math.random() * poolLeft.length)];
+        }
+
+        if (!currentPub) return alert("The selected pub doesn't match your filters!");
+
+        route.push(currentPub.id);
+        poolLeft = poolLeft.filter(p => p.id !== currentPub.id);
+
+        // Nearest-Neighbor Algorithm
+        while (route.length < autoCount && poolLeft.length > 0) {
+            let closestPub = null;
+            let minDistance = Infinity;
+
+            for (const p of poolLeft) {
+                const dist = getDistance(currentPub.lat, currentPub.lng, p.lat, p.lng);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    closestPub = p;
+                }
+            }
+
+            if (closestPub) {
+                route.push(closestPub.id);
+                currentPub = closestPub;
+                poolLeft = poolLeft.filter(p => p.id !== closestPub.id);
+            } else {
+                break;
+            }
+        }
+
+        // If they wanted to END at the specific pub, reverse the array!
+        if (autoFixedType === 'end') {
+            route.reverse();
+        }
+
+        setCrawlRoute(route);
+        setCrawlMode(true);
+        setShowAutoModal(false);
+    };
+
+    // --- EDIT & DELETE LOGIC ---
     const handleEditCrawl = (crawl) => {
         setEditingCrawlId(crawl.id);
         setCrawlName(crawl.name);
         setCrawlDate(crawl.date);
         setCrawlRoute(crawl.route);
-        setCrawlMode(true); // Switch to map planner mode
+        setCrawlMode(true); 
     };
 
     const handleDeleteCrawl = async (crawlId, crawlName) => {
@@ -96,36 +177,18 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
     const handleSaveCrawl = async (e) => {
         e.preventDefault();
         if (!crawlName.trim() || !crawlDate || crawlRoute.length === 0) return;
-        
         setIsSaving(true);
         try {
             if (editingCrawlId) {
-                // UPDATE existing crawl
-                await db.collection('crawls').doc(editingCrawlId).update({
-                    name: crawlName.trim(),
-                    date: crawlDate,
-                    route: crawlRoute
-                });
+                await db.collection('crawls').doc(editingCrawlId).update({ name: crawlName.trim(), date: crawlDate, route: crawlRoute });
                 alert("Crawl updated successfully!");
             } else {
-                // CREATE new crawl
-                await db.collection('crawls').add({
-                    groupId,
-                    name: crawlName.trim(),
-                    date: crawlDate,
-                    route: crawlRoute,
-                    createdBy: userProfile?.uid || 'unknown',
-                    creatorName: userProfile?.displayName || 'Unknown User',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                await db.collection('crawls').add({ groupId, name: crawlName.trim(), date: crawlDate, route: crawlRoute, createdBy: userProfile?.uid || 'unknown', creatorName: userProfile?.displayName || 'Unknown User', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
                 alert("New crawl saved successfully!");
             }
             setShowSaveModal(false);
             resetPlanner();
-        } catch (error) {
-            console.error("Error saving crawl:", error);
-            alert("Failed to save the crawl.");
-        }
+        } catch (error) { alert("Failed to save the crawl."); }
         setIsSaving(false);
     };
 
@@ -139,7 +202,7 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
     };
 
     return (
-        <div className="h-[calc(100vh-120px)] flex flex-col lg:flex-row gap-4 relative">
+        <div className="h-[calc(100vh-120px)] flex flex-col lg:flex-row gap-4 relative animate-fadeIn">
             
             {/* LEFT SIDE: THE MAP */}
             <div className="flex-1 rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-700 relative z-0">
@@ -172,12 +235,25 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
                 
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 flex flex-col gap-3 flex-shrink-0 transition-colors">
                     {!crawlMode && <input type="text" placeholder="Search pubs..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700 dark:text-white" />}
-                    <button 
-                        onClick={crawlMode ? resetPlanner : () => setCrawlMode(true)}
-                        className={`w-full py-2 rounded-lg font-bold transition-all ${crawlMode ? 'bg-black text-white shadow-lg' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800'}`}
-                    >
-                        {crawlMode ? "🛑 Exit Crawl Planner" : "🗺️ Create New Crawl"}
-                    </button>
+                    
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={crawlMode ? resetPlanner : () => setCrawlMode(true)}
+                            className={`flex-1 py-2 rounded-lg font-bold transition-all ${crawlMode ? 'bg-black text-white shadow-lg' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800'}`}
+                        >
+                            {crawlMode ? "🛑 Exit Planner" : "🗺️ Manual Route"}
+                        </button>
+
+                        {!crawlMode && (
+                            <button 
+                                onClick={() => setShowAutoModal(true)}
+                                className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-lg hover:from-purple-600 hover:to-pink-600 transition shadow-md flex items-center gap-2"
+                                title="Auto-generate a smart route!"
+                            >
+                                ✨ Auto
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 flex-1 overflow-y-auto flex flex-col transition-colors">
@@ -240,9 +316,7 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
                                             <p className="text-center text-gray-500 italic mt-8">No crawls saved yet. Go plan one!</p>
                                         ) : (
                                             savedCrawls.map(crawl => {
-                                                // Security Check: Only Creator or Admin can edit/delete
                                                 const canEdit = crawl.createdBy === userProfile?.uid || userProfile?.isSuperAdmin;
-
                                                 return (
                                                     <div key={crawl.id} className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600 flex flex-col gap-3">
                                                         <div className="flex justify-between items-start">
@@ -256,7 +330,6 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
                                                         </div>
                                                         <p className="text-xs text-gray-500">Planned by {crawl.creatorName}</p>
                                                         
-                                                        {/* ACTION BUTTONS */}
                                                         <div className="flex gap-2 mt-1">
                                                             <button onClick={() => { setCrawlRoute(crawl.route); setCrawlMode(true); }} className="flex-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold py-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition text-sm">
                                                                 📍 View
@@ -284,10 +357,65 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
                 </div>
             </div>
 
+            {/* --- NEW: AUTO GENERATOR MODAL --- */}
+            {showAutoModal && (
+                <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-8 relative border border-gray-200 dark:border-gray-700">
+                        <button onClick={() => setShowAutoModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 dark:bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center">✕</button>
+                        
+                        <h3 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500 mb-2">Smart Generator</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Let the AI build the most geographically efficient route for you.</p>
+                        
+                        <form onSubmit={generateAutoCrawl} className="space-y-5">
+                            
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Number of Pubs</label>
+                                <div className="flex items-center gap-4">
+                                    <input type="range" min="2" max="10" value={autoCount} onChange={(e) => setAutoCount(Number(e.target.value))} className="flex-1 accent-purple-500" />
+                                    <span className="font-black text-xl text-purple-600 dark:text-purple-400 w-8 text-center">{autoCount}</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Filter By Status</label>
+                                <select value={autoStatus} onChange={e => setAutoStatus(e.target.value)} className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold outline-none focus:border-purple-500">
+                                    <option value="all">Include All Pubs</option>
+                                    <option value="visited">Only Pubs We've Visited</option>
+                                    <option value="to-visit">Hit List (Not Visited Yet)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Fixed Point</label>
+                                <select value={autoFixedType} onChange={e => { setAutoFixedType(e.target.value); setAutoFixedPubId(""); }} className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold outline-none focus:border-purple-500 mb-2">
+                                    <option value="none">🎲 Random Starting Point</option>
+                                    <option value="start">📍 Start the route here...</option>
+                                    <option value="end">🏁 End the route here...</option>
+                                </select>
+
+                                {autoFixedType !== "none" && (
+                                    <select value={autoFixedPubId} onChange={e => setAutoFixedPubId(e.target.value)} className="w-full px-4 py-3 border border-purple-300 dark:border-purple-600 rounded-xl bg-purple-50 dark:bg-purple-900/20 dark:text-white font-semibold outline-none focus:border-purple-500" required>
+                                        <option value="">Select a specific pub...</option>
+                                        {validAutoPubs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                    </select>
+                                )}
+                            </div>
+                            
+                            <div className="pt-2">
+                                <button type="submit" className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-black text-lg py-4 rounded-xl hover:from-purple-600 hover:to-pink-600 transition shadow-lg shadow-purple-500/30 transform hover:scale-[1.02]">
+                                    Generate Route
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             {/* SAVE/UPDATE MODAL */}
             {showSaveModal && (
                 <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black bg-opacity-70 backdrop-blur-sm animate-fadeIn">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md p-6 border border-gray-200 dark:border-gray-700">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md p-6 border border-gray-200 dark:border-gray-700 relative">
+                        <button onClick={() => setShowSaveModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 dark:bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center">✕</button>
                         <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{editingCrawlId ? 'Update Pub Crawl' : 'Save Pub Crawl'}</h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Confirm your event name and date.</p>
                         <form onSubmit={handleSaveCrawl} className="space-y-4">
@@ -299,10 +427,9 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
                                 <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Date</label>
                                 <input type="date" value={crawlDate} onChange={e => setCrawlDate(e.target.value)} className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700 dark:text-white" required />
                             </div>
-                            <div className="flex gap-3 pt-4">
-                                <button type="button" onClick={() => setShowSaveModal(false)} className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition">Cancel</button>
-                                <button type="submit" disabled={isSaving || !crawlName || !crawlDate} className={`flex-1 text-white font-bold py-2 rounded-lg transition disabled:opacity-50 ${editingCrawlId ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                                    {isSaving ? 'Saving...' : editingCrawlId ? 'Update Crawl' : 'Save Crawl'}
+                            <div className="pt-2">
+                                <button type="submit" disabled={isSaving || !crawlName || !crawlDate} className={`w-full text-white font-bold py-3 rounded-xl transition shadow-md disabled:opacity-50 ${editingCrawlId ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                                    {isSaving ? 'Saving...' : editingCrawlId ? 'Update Crawl' : 'Save Event to Dashboard'}
                                 </button>
                             </div>
                         </form>

@@ -18,8 +18,9 @@ export default function App() {
     const [globalAnnouncement, setGlobalAnnouncement] = useState("");
     const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
     const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+    
+    const [showAuth, setShowAuth] = useState(false);
 
-    // --- DARK MODE LOGIC ---
     useEffect(() => {
         if (isDarkMode) {
             document.documentElement.classList.add('dark');
@@ -32,7 +33,6 @@ export default function App() {
 
     const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
-    // --- AUTH LOGIC ---
     useEffect(() => {
         let profileUnsubscribe = null;
 
@@ -76,6 +76,8 @@ export default function App() {
                 setUser(null);
                 setUserProfile(null);
                 setAuthLoading(false);
+                // NEW: Reset showAuth to false so logging out drops you on the landing page
+                setShowAuth(false); 
             }
         });
 
@@ -85,45 +87,43 @@ export default function App() {
         };
     }, []);
 
-    // --- GLOBAL SETTINGS LOGIC ---
-     useEffect(() => {
-     const unsubscribe = db.collection('global').doc('settings').onSnapshot((doc) => {
-         if (doc.exists) {
-             setGlobalAnnouncement(doc.data().announcement || "");
-             setIsMaintenanceMode(doc.data().maintenanceMode || false);
-         } else {
-             setGlobalAnnouncement("");
-             setIsMaintenanceMode(false);
-         }
-      });
-     return () => unsubscribe();
+    useEffect(() => {
+        const unsubscribe = db.collection('global').doc('settings').onSnapshot((doc) => {
+            if (doc.exists) {
+                setGlobalAnnouncement(doc.data().announcement || "");
+                setIsMaintenanceMode(doc.data().maintenanceMode || false);
+            } else {
+                setGlobalAnnouncement("");
+                setIsMaintenanceMode(false);
+            }
+        });
+        return () => unsubscribe();
     }, []);
 
-// --- DETERMINE WHICH PAGE TO SHOW ---
     let currentScreen;
     
     if (authLoading) {
         currentScreen = <LoadingScreen text="Loading Authentication..." />;
     } else if (!user) {
-        currentScreen = <AuthScreen auth={auth} />;
+        if (showAuth) {
+            currentScreen = <AuthScreen auth={auth} onBack={() => setShowAuth(false)} />;
+        } else {
+            currentScreen = <PublicLandingPage db={db} onLoginClick={() => setShowAuth(true)} />;
+        }
     } else if (!userProfile) {
         currentScreen = <LoadingScreen text="Loading User Profile..." />;
     } else if (isMaintenanceMode && !userProfile?.isSuperAdmin) {
-     // --- THE MAINTENANCE SCREEN ---
-     currentScreen = (
-         <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4 text-center">
-             <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl max-w-md w-full border-t-8 border-yellow-500">
-                 <span className="text-6xl mb-4 block">🚧</span>
-                 <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Under Maintenance</h1>
-                 <p className="text-gray-600 dark:text-gray-400 mb-6">Pub Ranker is currently undergoing scheduled maintenance to add awesome new features. We'll be back shortly!</p>
-                 <button onClick={() => auth.signOut()} className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white font-bold py-2 px-4 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">Log Out</button>
-             </div>
-         </div>
-     );
- } else if (userProfile.isBanned) {
+        currentScreen = (
+            <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4 text-center">
+                <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl max-w-md w-full border-t-8 border-yellow-500">
+                    <span className="text-6xl mb-4 block">🚧</span>
+                    <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Under Maintenance</h1>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">Pub Ranker is currently undergoing scheduled maintenance to add awesome new features. We'll be back shortly!</p>
+                    <button onClick={() => auth.signOut()} className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white font-bold py-2 px-4 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">Log Out</button>
+                </div>
+            </div>
+        );
     } else if (userProfile.isBanned) {
-        // --- THE BAN SCREEN ---
-    
         currentScreen = (
             <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4 text-center">
                 <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl max-w-md w-full border-t-8 border-red-600">
@@ -148,11 +148,8 @@ export default function App() {
         );
     }
 
-// --- THE MASTER RENDER BLOCK ---
-    // This ensures the banner is always at the top, no matter what screen is loaded!
     return (
         <>
-            {/* 🚧 NEW: MAINTENANCE MODE REMINDER FOR ADMINS */}
             {isMaintenanceMode && userProfile?.isSuperAdmin && (
                 <div className="bg-red-600 text-white font-bold text-center p-3 shadow-md z-[60] relative animate-pulse">
                     🚧 MAINTENANCE MODE IS ACTIVE 🚧 — All normal users are currently locked out!
@@ -174,7 +171,92 @@ export default function App() {
 // SUB-COMPONENTS
 // ==========================================
 
-function AuthScreen({ auth }) {
+function PublicLandingPage({ db, onLoginClick }) {
+    const [publicGroups, setPublicGroups] = useState([]);
+
+    useEffect(() => {
+        db.collection('groups')
+          .where('isPublic', '==', true)
+          .limit(9)
+          .get()
+          .then(async snap => {
+              const groupsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+              
+              // NEW: Fetch the total number of pubs for each group to make the tile look great!
+              const enrichedGroups = await Promise.all(groupsData.map(async (g) => {
+                  try {
+                      // Attempt to fetch from sub-collection first, fallback to top-level if needed
+                      let pubCount = 0;
+                      const subDocs = await db.collection('groups').doc(g.id).collection('pubs').get().catch(()=>({size:0}));
+                      const topDocs = await db.collection('pubs').where('groupId', '==', g.id).get().catch(()=>({size:0}));
+                      pubCount = subDocs.size + topDocs.size;
+                      return { ...g, pubCount };
+                  } catch (e) {
+                      return { ...g, pubCount: 0 };
+                  }
+              }));
+              
+              setPublicGroups(enrichedGroups);
+          })
+          .catch(e => console.error("Error fetching public groups", e));
+    }, [db]);
+
+    return (
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white animate-fadeIn">
+            <header className="p-6 max-w-7xl mx-auto flex justify-between items-center">
+                <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Pub Ranker</h1>
+                <button onClick={onLoginClick} className="bg-blue-600 text-white px-6 py-2 rounded-full font-bold hover:bg-blue-700 transition shadow-md">Sign In</button>
+            </header>
+
+            <main className="max-w-7xl mx-auto px-6 py-16 md:py-24 text-center">
+                <span className="text-6xl md:text-8xl mb-6 block drop-shadow-lg">🍻</span>
+                <h2 className="text-5xl md:text-7xl font-black mb-6 tracking-tight text-gray-900 dark:text-white">Stop arguing.<br/><span className="text-blue-600 dark:text-blue-400">Start ranking.</span></h2>
+                <p className="text-xl text-gray-600 dark:text-gray-400 mb-10 max-w-2xl mx-auto">The ultimate platform for you and your mates to rank, review, and map out the best pubs in your city. No fake reviews, just your group's honest opinions.</p>
+                <button onClick={onLoginClick} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-full font-black text-xl hover:scale-105 transition transform shadow-xl hover:shadow-blue-500/25">
+                    Create Your Free Group
+                </button>
+            </main>
+
+            <section className="max-w-7xl mx-auto px-6 py-16">
+                <h3 className="text-2xl font-bold mb-8 border-b border-gray-200 dark:border-gray-800 pb-4">🌍 Explore Public City Leaderboards</h3>
+                {publicGroups.length === 0 ? (
+                    <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700">
+                        <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">No public groups yet. Log in and be the first to put your city on the map!</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {publicGroups.map(group => (
+                            <div key={group.id} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-lg transition transform hover:-translate-y-1 relative overflow-hidden">
+                                
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="text-4xl">{group.coverPhoto ? <img src={group.coverPhoto} className="w-16 h-16 rounded-xl object-cover shadow-sm" alt="Cover" /> : '🍻'}</div>
+                                    <span className="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">Public Directory</span>
+                                </div>
+                                
+                                <h4 className="text-xl font-black mb-1 truncate">{group.groupName}</h4>
+                                <p className="text-blue-600 dark:text-blue-400 text-sm mb-4 font-bold tracking-wider uppercase">📍 {group.city || "Global"}</p>
+                                
+                                {/* NEW: Member and Pub Stats Grid! */}
+                                <div className="grid grid-cols-2 gap-2 border-t border-gray-100 dark:border-gray-700 pt-4">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] uppercase font-bold text-gray-400">Members</span>
+                                        <span className="text-lg font-black text-gray-800 dark:text-gray-200">👥 {group.members?.length || 1}</span>
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] uppercase font-bold text-gray-400">Pubs Ranked</span>
+                                        <span className="text-lg font-black text-gray-800 dark:text-gray-200">🍺 {group.pubCount}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
+        </div>
+    );
+}
+
+function AuthScreen({ auth, onBack }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isSignUp, setIsSignUp] = useState(false);
@@ -205,28 +287,31 @@ function AuthScreen({ auth }) {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100">
-            <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full z-10">
-                <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">Welcome to Pub Ranker</h2>
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md w-full relative">
+                <button onClick={onBack} className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 dark:hover:text-white transition font-bold">
+                    ← Back
+                </button>
+                <h2 className="text-3xl font-black mb-6 text-center text-gray-800 dark:text-white mt-6">Welcome to Pub Ranker</h2>
 
                 <div className="space-y-4">
-                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="w-full px-4 py-3 border dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="w-full px-4 py-3 border dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     
-                    <button onClick={handleAuthAction} className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition duration-300">
+                    <button onClick={handleAuthAction} className="w-full bg-blue-600 text-white py-3 rounded-xl font-black text-lg hover:bg-blue-700 transition shadow-md">
                         {isSignUp ? 'Sign Up' : 'Log In'}
                     </button>
                     
-                    <button onClick={handleGoogleSignIn} className="w-full bg-white border border-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-50 transition duration-300 flex items-center justify-center">
+                    <button onClick={handleGoogleSignIn} className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-3 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-600 transition flex items-center justify-center shadow-sm">
                         Sign in with Google
                     </button>
                 </div>
 
-                {error && <p className="text-red-500 text-sm mt-4 text-center">{error}</p>}
+                {error && <p className="text-red-500 text-sm mt-4 text-center font-bold">{error}</p>}
 
-                <p className="text-center text-sm text-gray-600 mt-6">
+                <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
                     {isSignUp ? "Already have an account?" : "Don't have an account?"}
-                    <button onClick={() => setIsSignUp(!isSignUp)} className="text-blue-600 hover:underline ml-1 font-semibold">
+                    <button onClick={() => setIsSignUp(!isSignUp)} className="text-blue-600 dark:text-blue-400 hover:underline ml-1 font-bold">
                         {isSignUp ? 'Log In' : 'Sign Up'}
                     </button>
                 </p>
@@ -238,19 +323,14 @@ function AuthScreen({ auth }) {
 function GroupPortal({ user, userProfile, auth, db }) {
     const [myGroups, setMyGroups] = useState([]);
     const [loadingGroups, setLoadingGroups] = useState(true);
-    
-    // State for joining and creating
     const [joinCode, setJoinCode] = useState("");
     const [createGroupName, setCreateGroupName] = useState("");
     const [isCreating, setIsCreating] = useState(false);
-    
-    // Messages
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
 
     const userRef = useMemo(() => db.collection("users").doc(user.uid), [user.uid, db]);
 
-    // Fetch User's Existing Groups
     useEffect(() => {
         if (!userProfile.groups || userProfile.groups.length === 0) {
             setLoadingGroups(false);
@@ -277,19 +357,16 @@ function GroupPortal({ user, userProfile, auth, db }) {
         return () => unsub();
     }, [userProfile.groups, db]);
 
-    // Select an Active Group
     const handleSelectGroup = async (groupId) => {
         try { await userRef.update({ activeGroupId: groupId }); } 
         catch (e) { setError("Could not select group."); }
     };
 
-    // Logout
     const handleLogout = async () => {
         try { await auth.signOut(); } 
         catch (error) { console.error("Error signing out", error); }
     };
 
-    // --- CREATE A NEW GROUP ---
     const handleCreateGroup = async (e) => {
         e.preventDefault();
         if (!createGroupName.trim()) return;
@@ -304,8 +381,8 @@ function GroupPortal({ user, userProfile, auth, db }) {
                 ownerUid: user.uid,
                 managers: [],
                 members: [user.uid],
-                pendingMembers: [], // Setup for privacy feature
-                requireApproval: false, // Default to public
+                pendingMembers: [], 
+                requireApproval: false, 
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             });
 
@@ -320,10 +397,8 @@ function GroupPortal({ user, userProfile, auth, db }) {
         }
     };
 
-    // --- SECURE: JOIN AN EXISTING GROUP ---
     const handleJoinGroup = async (e, codeFromUrl = null) => {
         if (e) e.preventDefault();
-        
         const code = codeFromUrl || joinCode;
         if (!code || !code.trim()) return;
 
@@ -341,20 +416,17 @@ function GroupPortal({ user, userProfile, auth, db }) {
 
             const groupData = groupDoc.data();
 
-            // 1. Check if already in group
             if (groupData.members?.includes(userProfile.uid)) {
                 setError("You are already a member of this group!");
                 await userRef.update({ activeGroupId: code.trim() });
                 return;
             }
 
-            // 2. Check if already waiting for approval
             if (groupData.pendingMembers?.includes(userProfile.uid)) {
                 setMessage("⏳ Your join request is still pending approval by an admin.");
                 return;
             }
 
-            // 3. THE SECURITY RULE: Does this group require approval?
             if (groupData.requireApproval) {
                 await groupRef.update({
                     pendingMembers: firebase.firestore.FieldValue.arrayUnion(userProfile.uid)
@@ -362,7 +434,6 @@ function GroupPortal({ user, userProfile, auth, db }) {
                 setMessage("🔒 Request sent! An admin must approve you before you can enter.");
                 setJoinCode("");
             } else {
-                // 4. Public Group: Instant Join
                 await groupRef.update({
                     members: firebase.firestore.FieldValue.arrayUnion(userProfile.uid)
                 });
@@ -380,34 +451,31 @@ function GroupPortal({ user, userProfile, auth, db }) {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-            <div className="bg-white p-8 rounded-lg shadow-lg max-w-4xl w-full">
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4 transition-colors">
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-4xl w-full border border-gray-100 dark:border-gray-700">
                 
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-3xl font-black text-gray-800">Pub Ranker</h2>
-                    <button onClick={handleLogout} className="bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg font-bold hover:bg-red-100 transition">Log Out</button>
+                    <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Pub Ranker</h2>
+                    <button onClick={handleLogout} className="bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800 px-4 py-2 rounded-lg font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition">Log Out</button>
                 </div>
 
-                <p className="text-lg text-gray-600 mb-6">Welcome, <span className="font-bold text-gray-900">{userProfile.displayName}</span>!</p>
+                <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">Welcome, <span className="font-bold text-gray-900 dark:text-white">{userProfile.displayName}</span>!</p>
                 
-                {/* System Messages */}
                 {error && <div className="bg-red-50 text-red-600 border border-red-200 p-3 rounded-lg font-bold mb-6">{error}</div>}
                 {message && <div className="bg-blue-50 text-blue-700 border border-blue-200 p-3 rounded-lg font-bold mb-6">{message}</div>}
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    
-                    {/* LEFT COLUMN: Existing Groups */}
                     <div className="space-y-4">
-                        <h3 className="text-xl font-bold text-gray-800 border-b pb-2">Your Groups</h3>
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">Your Groups</h3>
                         {loadingGroups ? (
                             <LoadingScreen text="Loading groups..." />
                         ) : myGroups.length === 0 ? (
-                            <p className="text-gray-500 italic">You haven't joined any groups yet.</p>
+                            <p className="text-gray-500 dark:text-gray-400 italic">You haven't joined any groups yet.</p>
                         ) : (
                             <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
                                 {myGroups.map((group) => (
-                                    <button key={group.id} onClick={() => handleSelectGroup(group.id)} className="w-full text-left p-4 bg-gray-50 border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:border-blue-300 transition group flex justify-between items-center">
-                                        <span className="text-lg font-bold text-gray-800 group-hover:text-blue-600">{group.groupName}</span>
+                                    <button key={group.id} onClick={() => handleSelectGroup(group.id)} className="w-full text-left p-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-500 transition group flex justify-between items-center">
+                                        <span className="text-lg font-bold text-gray-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400">{group.groupName}</span>
                                         <span className="text-gray-400 group-hover:text-blue-500">→</span>
                                     </button>
                                 ))}
@@ -415,33 +483,28 @@ function GroupPortal({ user, userProfile, auth, db }) {
                         )}
                     </div>
 
-                    {/* RIGHT COLUMN: Join / Create */}
-                    <div className="space-y-8 bg-gray-50 p-6 rounded-xl border border-gray-100">
-                        
-                        {/* Join Group */}
+                    <div className="space-y-8 bg-gray-50 dark:bg-gray-700/50 p-6 rounded-2xl border border-gray-100 dark:border-gray-600">
                         <div className="space-y-3">
-                            <h3 className="text-xl font-bold text-gray-800">Join a Group</h3>
-                            <p className="text-sm text-gray-500">Enter an invite code from a friend.</p>
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-white">Join a Group</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Enter an invite code from a friend.</p>
                             <form onSubmit={handleJoinGroup} className="flex gap-2">
-                                <input type="text" value={joinCode} onChange={(e) => setJoinCode(e.target.value)} placeholder="e.g. 8xJ9pL..." className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                                <input type="text" value={joinCode} onChange={(e) => setJoinCode(e.target.value)} placeholder="e.g. 8xJ9pL..." className="flex-1 px-4 py-2 border dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
                                 <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition">Join</button>
                             </form>
                         </div>
 
-                        <div className="border-t border-gray-200"></div>
+                        <div className="border-t border-gray-200 dark:border-gray-600"></div>
 
-                        {/* Create Group */}
                         <div className="space-y-3">
-                            <h3 className="text-xl font-bold text-gray-800">Create a Group</h3>
-                            <p className="text-sm text-gray-500">Start a fresh leaderboard with your mates.</p>
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-white">Create a Group</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Start a fresh leaderboard with your mates.</p>
                             <form onSubmit={handleCreateGroup} className="flex gap-2">
-                                <input type="text" value={createGroupName} onChange={(e) => setCreateGroupName(e.target.value)} placeholder="e.g. The Friday Pint Club" className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
-                                <button type="submit" disabled={isCreating} className="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold hover:bg-gray-900 transition disabled:opacity-50">
+                                <input type="text" value={createGroupName} onChange={(e) => setCreateGroupName(e.target.value)} placeholder="e.g. The Friday Pint Club" className="flex-1 px-4 py-2 border dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                                <button type="submit" disabled={isCreating} className="bg-gray-800 dark:bg-gray-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-gray-900 transition disabled:opacity-50">
                                     {isCreating ? "..." : "Create"}
                                 </button>
                             </form>
                         </div>
-
                     </div>
                 </div>
             </div>

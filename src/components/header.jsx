@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { firebase } from '../firebase'; 
 
-export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile, isDarkMode, toggleDarkMode }) {
-    const [showProfile, setShowProfile] = useState(false);
+export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile, isDarkMode, toggleDarkMode, scores, pubs, criteria }) {    const [showProfile, setShowProfile] = useState(false);
     const [isNavOpen, setIsNavOpen] = useState(false); // For mobile menu toggle
     
     const NavButton = ({ name, targetPage, icon }) => {
@@ -137,53 +136,69 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
         
             {/* User Profile Modal */}
             {showProfile && (
-                <ProfileModal user={user} userProfile={userProfile} db={db} onClose={() => setShowProfile(false)} />
+                <ProfileModal user={user} userProfile={userProfile} db={db} onClose={() => setShowProfile(false)} scores={scores} pubs={pubs} />
             )}
         </>
     );
 }
 
 // --- PROFILE MODAL COMPONENT ---
-function ProfileModal({ user, userProfile, db, onClose }) {
+function ProfileModal({ user, userProfile, db, onClose, scores = {}, pubs = [] }) {
     const [nickname, setNickname] = useState(userProfile?.nickname || "");
     const [avatarUrl, setAvatarUrl] = useState(userProfile?.avatarUrl || "");
     const [bio, setBio] = useState(userProfile?.bio || "");
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState("");
-    const [message, setMessage] = useState("");
     
+    // --- CALCULATE BADGES ---
+    let pubsRated = new Set();
+    let perfectTens = 0;
+    let writtenReviews = 0;
+    
+    Object.values(scores).forEach(pubScores => {
+        Object.values(pubScores).forEach(critScores => {
+            const myScore = critScores.find(s => s.userId === user.uid);
+            if (myScore && myScore.value != null) {
+                pubsRated.add(myScore.pubId);
+                if (myScore.type === 'scale' && myScore.value === 10) perfectTens++;
+                if (myScore.type === 'text' && myScore.value.toString().trim().length > 0) writtenReviews++;
+            }
+        });
+    });
+
+    const pubsAdded = pubs.filter(p => p.addedBy === user.uid).length;
+    const ratedCount = pubsRated.size;
+
+    const allBadges = [
+        { emoji: '🍻', title: 'First Pint', desc: 'Rated your first pub', earned: ratedCount >= 1 },
+        { emoji: '🥉', title: 'Bronze Pint', desc: 'Rated 5+ pubs', earned: ratedCount >= 5 },
+        { emoji: '🥇', title: 'Gold Pint', desc: 'Rated 20+ pubs', earned: ratedCount >= 20 },
+        { emoji: '✍️', title: 'The Scribe', desc: 'Left a written review', earned: writtenReviews > 0 },
+        { emoji: '🎯', title: 'Bullseye', desc: 'Gave a perfect 10/10', earned: perfectTens > 0 },
+        { emoji: '🗺️', title: 'The Explorer', desc: 'Added 5 pubs to the database', earned: pubsAdded >= 5 },
+    ];
+
     const handleSave = async (e) => {
         e.preventDefault();
-        setError(""); setMessage(""); setSaving(true);
+        setSaving(true);
         try {
-            const userRef = db.collection("users").doc(user.uid);
-            await userRef.update({
+            await db.collection("users").doc(user.uid).update({
                 nickname: nickname.trim() || firebase.firestore.FieldValue.delete(),
                 avatarUrl: avatarUrl.trim() || firebase.firestore.FieldValue.delete(),
                 bio: bio.trim() || firebase.firestore.FieldValue.delete(),
             });
-            setMessage("Profile updated successfully!");
-            setTimeout(() => { onClose(); }, 1000);
-        } catch (e) {
-            console.error("Error updating profile", e);
-            setError("Could not save profile. Please try again.");
-        } finally {
-            setSaving(false);
-        }
+            setTimeout(() => { onClose(); }, 500);
+        } catch (e) { console.error(e); } 
+        finally { setSaving(false); }
     };
     
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 relative">
-                
+            <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 relative max-h-[90vh] overflow-y-auto">
                 <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white transition">✕</button>
 
                 <h3 className="text-2xl font-black text-gray-800 dark:text-white mb-6">Your Profile</h3>
         
-                {error && <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg font-bold text-sm border border-red-200">{error}</div>}
-                {message && <div className="mb-4 p-3 bg-green-50 text-green-600 rounded-lg font-bold text-sm border border-green-200">{message}</div>}
-        
-                <form onSubmit={handleSave} className="space-y-4">
+                <form onSubmit={handleSave} className="space-y-4 mb-8 border-b border-gray-200 dark:border-gray-700 pb-8">
                     <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-600 flex items-center gap-4 mb-2">
                         {avatarUrl ? (
                             <img src={avatarUrl} alt="Preview" className="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white dark:border-gray-700" onError={(e) => { e.target.style.display = "none"; }} />
@@ -199,26 +214,35 @@ function ProfileModal({ user, userProfile, db, onClose }) {
                     </div>
             
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Display Name (Nickname)</label>
-                        <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="e.g. The Pint Inspector" className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white transition" />
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Display Name</label>
+                        <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white" />
                     </div>
             
                     <div>
                         <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Avatar URL (Optional)</label>
-                        <input type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="Paste a square image link..." className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white transition" />
+                        <input type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white" />
                     </div>
             
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Short Bio</label>
-                        <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} placeholder="A short description about your drinking preferences..." className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white transition resize-none" />
-                    </div>
-            
-                    <div className="pt-4">
-                        <button type="submit" disabled={saving} className="w-full py-3 bg-blue-600 text-white rounded-xl text-lg font-black hover:bg-blue-700 transition shadow-md disabled:opacity-50">
-                            {saving ? "Saving..." : "Save Profile"}
+                    <div className="pt-2">
+                        <button type="submit" disabled={saving} className="w-full py-3 bg-blue-600 text-white rounded-xl font-black hover:bg-blue-700 transition shadow-md disabled:opacity-50">
+                            {saving ? "Saving..." : "Save Details"}
                         </button>
                     </div>
                 </form>
+
+                {/* THE TROPHY ROOM */}
+                <div>
+                    <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Trophy Cabinet</h4>
+                    <div className="grid grid-cols-3 gap-3">
+                        {allBadges.map((badge, idx) => (
+                            <div key={idx} className={`flex flex-col items-center p-3 rounded-xl border text-center transition-all ${badge.earned ? 'bg-gradient-to-br from-yellow-50 to-amber-100 border-yellow-200 dark:from-yellow-900/20 dark:to-amber-900/10 dark:border-yellow-700/50 shadow-sm' : 'bg-gray-50 border-gray-100 dark:bg-gray-800/50 dark:border-gray-700 opacity-50 grayscale'}`} title={badge.desc}>
+                                <span className="text-3xl mb-1 filter drop-shadow-sm">{badge.emoji}</span>
+                                <span className={`text-[10px] font-black uppercase tracking-wider leading-tight ${badge.earned ? 'text-yellow-800 dark:text-yellow-500' : 'text-gray-500 dark:text-gray-400'}`}>{badge.title}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
             </div>
         </div>
     );

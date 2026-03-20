@@ -310,6 +310,8 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                                 onPromotePub={handlePromotePub}
                                 onSelectPubForEdit={handleSelectPubForEdit}
                                 allUsers={allUsers} // <-- Make sure this is here!  
+                                pubsRef={pubsRef} 
+                                currentGroup={currentGroup}
                             />
                         );
 
@@ -403,6 +405,9 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
 				userProfile={userProfile}
                 isDarkMode={isDarkMode}           // <-- Add this
                 toggleDarkMode={toggleDarkMode}   // <-- Add this
+                scores={scores}
+                pubs={pubs}
+                criteria={criteria}
 				/>
 				{renderPage()}
 			</div>
