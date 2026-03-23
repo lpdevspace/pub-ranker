@@ -1,9 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { auth, db, firebase } from './firebase';
 import { LoadingScreen } from './App';
 
-// Import our installed libraries to replace the old HTML CDN links
-import Chart from 'chart.js/auto';
 import Header from './components/Header';
 import DashboardPage from './pages/DashboardPage';
 import MapPage from './pages/MapPage';
@@ -18,421 +16,169 @@ import AdminPage from './pages/AdminPage';
 import SuperAdminPage from './pages/SuperAdminPage';
 import FeedbackPage from './pages/FeedbackPage';
 
-export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMode, toggleDarkMode }) {            const [page, setPage] = useState("dashboard");
-            const [currentPub, setCurrentPub] = useState(null);
-            const [editingPub, setEditingPub] = useState(null);
+export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMode, toggleDarkMode }) {
+    const [page, setPage] = useState("dashboard");
+    const [currentPub, setCurrentPub] = useState(null);
+    const [editingPub, setEditingPub] = useState(null);
 
-            const groupRef = useMemo(() => db.collection('groups').doc(groupId), [groupId, db]);
-            const pubsRef = useMemo(() => groupRef.collection('pubs'), [groupRef]);
-            const criteriaRef = useMemo(() => groupRef.collection('criteria'), [groupRef]);
-            const scoresQuery = useMemo(() => db.collectionGroup('scores').where('groupId', '==', groupId), [groupId, db]);
+    const groupRef = useMemo(() => db.collection('groups').doc(groupId), [groupId, db]);
+    const pubsRef = useMemo(() => groupRef.collection('pubs'), [groupRef]);
+    const criteriaRef = useMemo(() => groupRef.collection('criteria'), [groupRef]);
+    const scoresQuery = useMemo(() => db.collectionGroup('scores').where('groupId', '==', groupId), [groupId, db]);
 
-            const [currentGroup, setCurrentGroup] = useState(null);
-            const [pubs, setPubs] = useState([]);
-            const [criteria, setCriteria] = useState([]);
-            const [scores, setScores] = useState({});
-            const [allUsers, setAllUsers] = useState({});
-            const [dataLoading, setDataLoading] = useState(true);
+    const [currentGroup, setCurrentGroup] = useState(null);
+    const [pubs, setPubs] = useState([]);
+    const [criteria, setCriteria] = useState([]);
+    const [scores, setScores] = useState({});
+    const [allUsers, setAllUsers] = useState({});
+    const [dataLoading, setDataLoading] = useState(true);
 
-            const canManageGroup = useMemo(() => {
-                if (!currentGroup) return false;
-				const groupOwnerId = currentGroup?.ownerUid || null;
-				const currentUserId = user?.uid || null;
-				const isOwner = !!groupOwnerId && !!currentUserId && groupOwnerId === currentUserId;
-                const isManager = currentGroup.managers?.includes(currentUserId);
-				return isOwner || isManager;
-            }, [currentGroup, user.uid]);
+    const canManageGroup = useMemo(() => {
+        if (!currentGroup) return false;
+        const groupOwnerId = currentGroup?.ownerUid || null;
+        const currentUserId = user?.uid || null;
+        const isOwner = !!groupOwnerId && !!currentUserId && groupOwnerId === currentUserId;
+        const isManager = currentGroup.managers?.includes(currentUserId);
+        return isOwner || isManager;
+    }, [currentGroup, user.uid]);
 
-            useEffect(() => {
-                const unsubscribe = groupRef.onSnapshot((doc) => {
-                    if (doc.exists) {
-                        setCurrentGroup({ id: doc.id, ...doc.data() });
-                    } else {
-                        console.error("Active group not found!");
-                        db.collection('users').doc(user.uid).update({ activeGroupId: null });
-                    }
-                }, (error) => {
-                    console.error("Error fetching group info:", error);
+    useEffect(() => {
+        const unsubscribe = groupRef.onSnapshot((doc) => {
+            if (doc.exists) setCurrentGroup({ id: doc.id, ...doc.data() });
+            else db.collection('users').doc(user.uid).update({ activeGroupId: null });
+        }, (error) => console.error("Error fetching group info:", error));
+        return unsubscribe;
+    }, [groupRef, user.uid, db]);
+
+    useEffect(() => {
+        setDataLoading(true);
+        const unsubscribe = pubsRef.onSnapshot((snapshot) => {
+            setPubs(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+            setDataLoading(false);
+        }, (error) => { console.error("Error fetching pubs:", error); setDataLoading(false); });
+        return unsubscribe;
+    }, [pubsRef]);
+
+    useEffect(() => {
+        const unsubscribe = criteriaRef.onSnapshot((snapshot) => {
+            let criteriaData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+            criteriaData.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            setCriteria(criteriaData);
+        }, (error) => console.error("Error fetching criteria:", error));
+        return unsubscribe;
+    }, [criteriaRef]);
+
+    useEffect(() => {
+        const unsubscribe = scoresQuery.onSnapshot((snapshot) => {
+            const scoresData = {};
+            snapshot.docs.forEach((doc) => {
+                const data = doc.data();
+                const { pubId, userId, criterionId } = data;
+                if (!pubId || !criterionId) return;
+                if (!scoresData[pubId]) scoresData[pubId] = {};
+                if (!scoresData[pubId][criterionId]) scoresData[pubId][criterionId] = [];
+                const userScoreIndex = scoresData[pubId][criterionId].findIndex((s) => s.userId === userId);
+                if (userScoreIndex > -1) scoresData[pubId][criterionId][userScoreIndex] = data;
+                else scoresData[pubId][criterionId].push(data);
+            });
+            setScores(scoresData);
+        }, (error) => console.error("Error fetching scores:", error));
+        return unsubscribe;
+    }, [scoresQuery]);
+
+    useEffect(() => {
+        if (!db) return;
+        const unsubscribe = db.collection('users').onSnapshot((snapshot) => {
+            const usersData = {};
+            snapshot.docs.forEach((doc) => { usersData[doc.id] = doc.data(); });
+            setAllUsers(usersData);
+        }, (error) => console.error("Error fetching users:", error));
+        return unsubscribe;
+    }, [db]);
+
+    const activeCriteria = useMemo(() => criteria.filter((c) => !c.archived), [criteria]);
+    const visitedPubs = useMemo(() => pubs.filter((p) => p.status === 'visited'), [pubs]);
+    const newPubs = useMemo(() => pubs.filter((p) => p.status !== 'visited'), [pubs]);
+
+    const criteriaWeightMap = useMemo(() => {
+        return criteria.reduce((acc, c) => {
+            acc[c.id] = c.weight ?? 1 > 0 ? c.weight ?? 1 : 1;
+            return acc;
+        }, {});
+    }, [criteria]);
+
+    const rankedVisitedPubs = useMemo(() => {
+        const pubScores = visitedPubs.map((pub) => {
+            let totalScore = 0; let totalWeight = 0; let yesNoData = {};
+            const pubScoresData = scores[pub.id] ?? {};
+            Object.entries(pubScoresData).forEach(([criterionId, criterionScores]) => {
+                let hasYes = false;
+                const weight = criteriaWeightMap[criterionId] ?? 1;
+                criterionScores.forEach((score) => {
+                    if (score.type === 'scale' && score.value !== null) { totalScore += score.value * weight; totalWeight += weight; }
+                    else if (score.type === 'price' && score.value !== null) { totalScore += (score.value * 2) * weight; totalWeight += weight; }
+                    if (score.type === 'yes-no' && score.value === true) hasYes = true;
                 });
-                return unsubscribe;
-            }, [groupRef, user.uid, db]);
+                if (hasYes) yesNoData[criterionId] = true;
+            });
+            return { ...pub, avgScore: totalWeight > 0 ? totalScore / totalWeight : 0, yesNoData };
+        });
+        return pubScores.sort((a, b) => b.avgScore - a.avgScore);
+    }, [visitedPubs, scores, criteriaWeightMap]);
 
-            useEffect(() => {
-                setDataLoading(true);
-                const unsubscribe = pubsRef.onSnapshot((snapshot) => {
-                    const pubsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-                    setPubs(pubsData);
-                    setDataLoading(false);
-                }, (error) => {
-                    console.error("Error fetching pubs:", error);
-                    setDataLoading(false);
-                });
-                return unsubscribe;
-            }, [pubsRef]);
+    const activeRaters = useMemo(() => {
+        const userSet = new Set();
+        Object.values(scores).forEach((pub) => {
+            Object.values(pub).forEach((crit) => { crit.forEach((score) => { userSet.add(score.userId); }); });
+        });
+        return userSet;
+    }, [scores]);
 
-            useEffect(() => {
-                const unsubscribe = criteriaRef.onSnapshot((snapshot) => {
-                    let criteriaData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-                    criteriaData.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-                    setCriteria(criteriaData);
-                }, (error) => {
-                    console.error("Error fetching criteria:", error);
-                });
-                return unsubscribe;
-            }, [criteriaRef]);
+    const handleSelectPub = (pub) => setCurrentPub(pub);
+    const handleSelectPubForEdit = (pub) => setEditingPub(pub);
 
-            useEffect(() => {
-                const unsubscribe = scoresQuery.onSnapshot((snapshot) => {
-                    const scoresData = {};
-                    snapshot.docs.forEach((doc) => {
-                        const data = doc.data();
-                        const pubId = data.pubId;
-                        const userId = data.userId;
-                        const criterionId = data.criterionId;
+    const handleUpdatePub = async (pubId, newName, newLocation, newLat, newLng, newPhotoURL, newGoogleLink) => {
+        let pubData = { name: newName, location: newLocation, photoURL: newPhotoURL, googleLink: newGoogleLink };
+        if (newLat && newLng) { pubData.lat = parseFloat(newLat); pubData.lng = parseFloat(newLng); } 
+        else { pubData.lat = firebase.firestore.FieldValue.delete(); pubData.lng = firebase.firestore.FieldValue.delete(); }
+        try { await pubsRef.doc(pubId).update(pubData); setEditingPub(null); } 
+        catch (e) { console.error("Error updating pub:", e); }
+    };
 
-                        if (!pubId || !criterionId) return;
+    const handlePromotePub = async (pubId) => {
+        try { await pubsRef.doc(pubId).update({ status: 'visited' }); } 
+        catch (e) { console.error("Error promoting pub:", e); }
+    };
 
-                        if (!scoresData[pubId]) scoresData[pubId] = {};
-                        if (!scoresData[pubId][criterionId]) scoresData[pubId][criterionId] = [];
+    const handleSwitchGroup = async () => {
+        try { await db.collection('users').doc(user.uid).update({ activeGroupId: null }); } 
+        catch (e) { console.error("Error switching group:", e); }
+    };
 
-                        const userScoreIndex = scoresData[pubId][criterionId].findIndex((s) => s.userId === userId);
+    if (dataLoading || !currentGroup) return <LoadingScreen text={`Loading group ${currentGroup?.name}...`} />;
 
-                        if (userScoreIndex > -1) {
-                            scoresData[pubId][criterionId][userScoreIndex] = data;
-                        } else {
-                            scoresData[pubId][criterionId].push(data);
-                        }
-                    });
-                    setScores(scoresData);
-                }, (error) => {
-                    console.error("Error fetching scores:", error);
-                });
+    const renderPage = () => {
+        if (currentPub) return <RateView pub={currentPub} criteria={activeCriteria} user={user} onBack={() => setCurrentPub(null)} groupRef={groupRef} groupId={groupId} db={db} />;
+        if (editingPub) return <EditPubView pub={editingPub} onBack={() => setEditingPub(null)} onSave={handleUpdatePub} />;
 
-                console.warn("");
-                console.warn("If you see a missing index error above, please click the link in the error message in your console to create the required Firebase index.");
-                console.warn("");
-
-                return unsubscribe;
-            }, [scoresQuery]);
-
-            useEffect(() => {
-                if (!db) return;
-
-                const unsubscribe = db
-                    .collection('users')
-                    .onSnapshot((snapshot) => {
-                        const usersData = {};
-                        snapshot.docs.forEach((doc) => {
-                            usersData[doc.id] = doc.data();
-                        });
-                        setAllUsers(usersData);
-                    }, (error) => {
-                        console.error("Error fetching users:", error);
-                    });
-
-                return unsubscribe;
-            }, [db]);
-
-            const activeCriteria = useMemo(() => criteria.filter((c) => !c.archived), [criteria]);
-            const visitedPubs = useMemo(() => pubs.filter((p) => p.status === 'visited'), [pubs]);
-            const newPubs = useMemo(() => pubs.filter((p) => p.status !== 'visited'), [pubs]);
-
-            const criteriaWeightMap = useMemo(() => {
-                return criteria.reduce((acc, c) => {
-                    acc[c.id] = c.weight ?? 1 > 0 ? c.weight ?? 1 : 1;
-                    return acc;
-                }, {});
-            }, [criteria]);
-
-            const rankedVisitedPubs = useMemo(() => {
-                const pubScores = visitedPubs.map((pub) => {
-                    let totalScore = 0;
-                    let totalWeight = 0;
-                    let yesNoData = {};
-
-                    const pubScoresData = scores[pub.id] ?? {};
-
-                    Object.entries(pubScoresData).forEach(([criterionId, criterionScores]) => {
-                        let hasYes = false;
-
-                        const weight = criteriaWeightMap[criterionId] ?? 1;
-
-                        criterionScores.forEach((score) => {
-                            if (score.type === 'scale' && score.value !== null) {
-                                totalScore += score.value * weight;
-                                totalWeight += weight;
-                            }
-                            else if (score.type === 'price' && score.value !== null) {
-                                const normalizedScore = score.value * 2;
-                                totalScore += normalizedScore * weight;
-                                totalWeight += weight;
-                            }
-
-                            if (score.type === 'yes-no' && score.value === true) hasYes = true;
-                        });
-
-                        if (hasYes) yesNoData[criterionId] = true;
-                    });
-
-                    const avg = totalWeight > 0 ? totalScore / totalWeight : 0;
-
-                    return { ...pub, avgScore: avg, yesNoData };
-                });
-
-                pubScores.sort((a, b) => b.avgScore - a.avgScore);
-                return pubScores;
-            }, [visitedPubs, scores, criteriaWeightMap]);
-
-            const activeRaters = useMemo(() => {
-                const userSet = new Set();
-                Object.values(scores).forEach((pub) => {
-                    Object.values(pub).forEach((crit) => {
-                        crit.forEach((score) => {
-                            userSet.add(score.userId);
-                        });
-                    });
-                });
-                return userSet;
-            }, [scores]);
-
-            const handleSelectPub = (pub) => setCurrentPub(pub);
-            const handleSelectPubForEdit = (pub) => setEditingPub(pub);
-
-            const handleUpdatePub = async (pubId, newName, newLocation, newLat, newLng, newPhotoURL, newGoogleLink) => {
-                let pubData = {
-                    name: newName,
-                    location: newLocation,
-                    photoURL: newPhotoURL,
-                    googleLink: newGoogleLink
-                };
-
-                if (newLat && newLng) {
-                    pubData.lat = parseFloat(newLat);
-                    pubData.lng = parseFloat(newLng);
-                } else {
-                    pubData.lat = firebase.firestore.FieldValue.delete();
-                    pubData.lng = firebase.firestore.FieldValue.delete();
-                }
-
-                try {
-                    await pubsRef.doc(pubId).update(pubData);
-                    setEditingPub(null);
-                } catch (updateError) {
-                    console.error("Error updating pub:", updateError);
-                }
-            };
-
-            const handlePromotePub = async (pubId) => {
-                try {
-                    await pubsRef.doc(pubId).update({ status: 'visited' });
-                } catch (error) {
-                    console.error("Error promoting pub:", error);
-                }
-            };
-
-            const handleSwitchGroup = async () => {
-                try {
-                    await db.collection('users').doc(user.uid).update({ activeGroupId: null });
-                } catch (e) {
-                    console.error("Error switching group:", e);
-                }
-            };
-
-            if (dataLoading || !currentGroup) return <LoadingScreen text={`Loading group ${currentGroup?.name}...`} />;
-
-            const renderPage = () => {
-                if (currentPub) {
-                    return (
-                        <RateView
-                            pub={currentPub}
-                            criteria={activeCriteria}
-                            user={user}
-                            onBack={() => setCurrentPub(null)}
-                            groupRef={groupRef}
-                            groupId={groupId}
-                            db={db}
-                        />
-                    );
-                }
-
-                if (editingPub) {
-                    return (
-                        <EditPubView
-                            pub={editingPub}
-                            onBack={() => setEditingPub(null)}
-                            onSave={handleUpdatePub}
-                        />
-                    );
-                }
-
-                switch (page) {
-                    case 'dashboard':
-                        return (
-                            <DashboardPage
-                                pubs={visitedPubs}
-                                newPubs={newPubs}
-                                criteria={activeCriteria}
-                                users={activeRaters}
-                                scores={scores}
-                                rankedPubs={rankedVisitedPubs}
-                                setPage={setPage}
-                                groupId={groupId}
-                                db={db}
-                            />
-                        );
-
-					case "pubs":
-					return (
-						<PubsPage
-						pubs={rankedVisitedPubs}
-						criteria={activeCriteria}
-						scores={scores}
-						onSelectPub={handleSelectPub}
-						onSelectPubForEdit={handleSelectPubForEdit}
-						canManageGroup={canManageGroup}
-						pubsRef={pubsRef}
-						allUsers={allUsers}
-						currentUser={user}
-						currentGroup={currentGroup}
-						groupRef={groupRef}
-                        userProfile={userProfile}
-                        groupId={groupId}
-                        db={db}
-						/>
-					);
-
-
-                    case 'toVisit':
-                        return (
-                            <PubsToVisitPage
-                                pubs={newPubs}
-                                canManageGroup={canManageGroup}
-                                onPromotePub={handlePromotePub}
-                                onSelectPubForEdit={handleSelectPubForEdit}
-                                allUsers={allUsers} // <-- Make sure this is here!  
-                                pubsRef={pubsRef} 
-                                currentGroup={currentGroup}
-                            />
-                        );
-
-                    case 'map':
-                        return (
-                            <MapPage
-                                pubs={pubs}
-                                criteria={activeCriteria}
-                                scores={scores}
-                                db={db}
-                                groupId={groupId}
-                                userProfile={userProfile}
-                            />
-                        );
-
-                    case 'individual':
-                        return (
-                            <IndividualRankingsPage
-                                scores={scores}
-                                pubs={pubs}
-                                criteria={criteria}
-                                allUsers={allUsers}
-                                activeRaters={activeRaters}
-                                criteriaWeightMap={criteriaWeightMap}
-                            />
-                        );
-						
-					case 'leaderboard':
-						return (
-							<LeaderboardPage
-								scores={scores}
-								allUsers={allUsers}
-								pubs={pubs}
-                                criteria={criteria}
-							/>
-						);
-                    case 'spin':
-                        return (
-                            <SpinTheWheelPage
-                                pubs={pubs}
-                                criteria={activeCriteria}
-                                scores={scores}
-                            />
-                        );
-                    
-                        case 'feedback': return <FeedbackPage db={db} userProfile={userProfile} />;
-
-                    case 'admin':
-                        return (
-                            <AdminPage
-                                criteria={criteria}
-                                pubs={pubs}
-                                user={user}
-                                currentGroup={currentGroup}
-                                pubsRef={pubsRef}
-                                criteriaRef={criteriaRef}
-                                groupRef={groupRef}
-                                allUsers={allUsers}
-                                db={db}
-                            />
-                        );
-
-                        case 'superadmin':
-                         return <SuperAdminPage db={db} userProfile={userProfile} />;
-                    default:
-                        return (
-                            <DashboardPage
-                                pubs={visitedPubs}
-                                newPubs={newPubs}
-                                criteria={activeCriteria}
-                                users={activeRaters}
-                                scores={scores}
-                                rankedPubs={rankedVisitedPubs}
-                                setPage={setPage}
-                            />
-                        );
-                }
-            };
-
-			return (
-			<div className="w-full">
-				<Header
-				user={user}
-				page={page}
-				setPage={setPage}
-				canManageGroup={canManageGroup}
-				groupName={currentGroup.groupName}
-				onSwitchGroup={handleSwitchGroup}
-				auth={auth}
-				db={db}
-				userProfile={userProfile}
-                isDarkMode={isDarkMode}           // <-- Add this
-                toggleDarkMode={toggleDarkMode}   // <-- Add this
-                scores={scores}
-                pubs={pubs}
-                criteria={criteria}
-				/>
-				{renderPage()}
-			</div>
-			);
-
+        switch (page) {
+            case 'dashboard': return <DashboardPage pubs={visitedPubs} newPubs={newPubs} criteria={activeCriteria} users={activeRaters} scores={scores} rankedPubs={rankedVisitedPubs} setPage={setPage} groupId={groupId} db={db} allUsers={allUsers} />;
+            case "pubs": return <PubsPage pubs={rankedVisitedPubs} criteria={activeCriteria} scores={scores} onSelectPub={handleSelectPub} onSelectPubForEdit={handleSelectPubForEdit} canManageGroup={canManageGroup} pubsRef={pubsRef} allUsers={allUsers} currentUser={user} currentGroup={currentGroup} groupRef={groupRef} userProfile={userProfile} groupId={groupId} db={db} />;
+            case 'toVisit': return <PubsToVisitPage pubs={newPubs} canManageGroup={canManageGroup} onPromotePub={handlePromotePub} onSelectPubForEdit={handleSelectPubForEdit} allUsers={allUsers} pubsRef={pubsRef} currentGroup={currentGroup} currentUser={user} />;            case 'map': return <MapPage pubs={pubs} criteria={activeCriteria} scores={scores} db={db} groupId={groupId} userProfile={userProfile} />;
+            case 'individual': return <IndividualRankingsPage scores={scores} pubs={pubs} criteria={criteria} allUsers={allUsers} activeRaters={activeRaters} criteriaWeightMap={criteriaWeightMap} />;
+            case 'leaderboard': return <LeaderboardPage scores={scores} allUsers={allUsers} pubs={pubs} criteria={criteria} />;
+            case 'spin': return <SpinTheWheelPage pubs={pubs} criteria={activeCriteria} scores={scores} />;
+            case 'feedback': return <FeedbackPage db={db} userProfile={userProfile} />;
+            case 'admin': return <AdminPage criteria={criteria} pubs={pubs} user={user} currentGroup={currentGroup} pubsRef={pubsRef} criteriaRef={criteriaRef} groupRef={groupRef} allUsers={allUsers} db={db} />;
+            case 'superadmin': return <SuperAdminPage db={db} userProfile={userProfile} />;
+            default: return <DashboardPage pubs={visitedPubs} newPubs={newPubs} criteria={activeCriteria} users={activeRaters} scores={scores} rankedPubs={rankedVisitedPubs} setPage={setPage} groupId={groupId} db={db} allUsers={allUsers} />;
         }
+    };
 
-        function Collapsible({ title, children, defaultOpen = false }) {
-            const [isOpen, setIsOpen] = useState(defaultOpen);
-
-            return (
-                <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                    <button
-                        className="w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 focus:outline-none"
-                        onClick={() => setIsOpen(!isOpen)}
-                    >
-                        <h2 className="text-xl font-semibold text-gray-700">{title}</h2>
-                        <span className={`text-2xl text-gray-500 transform transition-transform duration-300`}>
-                            {isOpen ? '▼' : '▶'}
-                        </span>
-                    </button>
-
-                    <div className={`transition-all duration-300 ease-in-out ${isOpen ? 'max-h-none' : 'max-h-0 overflow-hidden'}`}>
-                        {children}
-                    </div>
-                </div>
-            );
-        }
+    return (
+        <div className="w-full">
+            <Header user={user} page={page} setPage={setPage} canManageGroup={canManageGroup} groupName={currentGroup.groupName} onSwitchGroup={handleSwitchGroup} auth={auth} db={db} userProfile={userProfile} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} scores={scores} pubs={pubs} criteria={criteria} />
+            {renderPage()}
+        </div>
+    );
+}

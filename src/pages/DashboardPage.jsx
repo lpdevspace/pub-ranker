@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Chart from 'chart.js/auto';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-export function BarChart({ data }) {
+export function HorizontalBarChart({ data }) {
     const chartRef = useRef(null);
     const chartInstanceRef = useRef(null);
 
@@ -13,8 +11,18 @@ export function BarChart({ data }) {
             if (chartInstanceRef.current) chartInstanceRef.current.destroy();
             const ctx = chartRef.current.getContext('2d');
             chartInstanceRef.current = new Chart(ctx, {
-                type: 'bar', data: data,
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+                type: 'bar', 
+                data: data,
+                options: { 
+                    indexAxis: 'y', 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        x: { beginAtZero: true, max: 10 },
+                        y: { ticks: { font: { weight: 'bold' } } }
+                    } 
+                }
             });
         }
         return () => { if (chartInstanceRef.current) chartInstanceRef.current.destroy(); };
@@ -22,50 +30,36 @@ export function BarChart({ data }) {
     return <canvas ref={chartRef}></canvas>;
 }
 
-export function RadarChart({ data }) {
-    const chartRef = useRef(null);
-    const chartInstanceRef = useRef(null);
-
-    useEffect(() => {
-        if (chartRef.current) {
-            if (chartInstanceRef.current) chartInstanceRef.current.destroy();
-            const ctx = chartRef.current.getContext('2d');
-            chartInstanceRef.current = new Chart(ctx, {
-                type: 'radar', data: data,
-                options: { responsive: true, maintainAspectRatio: false, scales: { r: { beginAtZero: true, max: 10, pointLabels: { font: { size: 14 } } } } }
-            });
-        }
-        return () => { if (chartInstanceRef.current) chartInstanceRef.current.destroy(); };
-    }, [data]);
-    return <canvas ref={chartRef}></canvas>;
-}
-
-export function StatCard({ title, value, subValue }) {
+export function StatCard({ title, value, subValue, onClick }) {
     return (
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow transition-colors duration-300">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase truncate">{title}</h3>
-            <p className="text-3xl font-semibold text-gray-900 dark:text-white truncate">{value}</p>
-            {subValue && <p className="text-sm text-gray-500 dark:text-gray-400">{subValue}</p>}
+        <div 
+            onClick={onClick} 
+            className={`bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 transition-all duration-300 ${onClick ? 'cursor-pointer hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 hover:-translate-y-1' : ''}`}
+        >
+            <h3 className={`text-sm font-bold uppercase tracking-wider truncate ${onClick ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                {title} {onClick && '↗'}
+            </h3>
+            <p className="text-3xl font-black text-gray-900 dark:text-white truncate mt-1">{value}</p>
+            {subValue && <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1">{subValue}</p>}
         </div>
     );
 }
 
-export default function DashboardPage({ pubs, newPubs, criteria, users, scores, db, groupId, rankedPubs, setPage }) {
+export default function DashboardPage({ pubs, newPubs, criteria, users, scores, db, groupId, setPage, allUsers }) {
     const pubsArray = Array.isArray(pubs) ? pubs : Object.values(pubs || {});
     const newPubsArray = Array.isArray(newPubs) ? newPubs : Object.values(newPubs || {});
     const criteriaArray = Array.isArray(criteria) ? criteria : Object.values(criteria || {});
     const scoresObj = scores || {};
     const usersSize = users && typeof users.size === "number" ? users.size : 0;
     
-    const [weightOverrides, setWeightOverrides] = useState({});
-    const [suggestedPub, setSuggestedPub] = useState(null);
-    const [comparePub1, setComparePub1] = useState("");
-    const [comparePub2, setComparePub2] = useState("");
-    
     const [livePubId, setLivePubId] = useState("");
     const [recentCrawls, setRecentCrawls] = useState([]);
 
-    // Listen to live location & upcoming crawls
+    const getUserName = (userId) => {
+        const u = allUsers && allUsers[userId];
+        return u ? (u.nickname || u.displayName || u.email) : "A member";
+    };
+
     useEffect(() => {
         if (!db || !groupId) return;
         
@@ -89,16 +83,15 @@ export default function DashboardPage({ pubs, newPubs, criteria, users, scores, 
         try { await db.collection('groups').doc(groupId).update({ livePubId: e.target.value }); } 
         catch (error) { console.error("Error updating location:", error); }
     };
-
-    // --- GUINNESS INDEX ---
+    
     const { cheapestPint, priciestPint } = useMemo(() => {
-        const currencyCriteria = criteria.filter(c => c.type === 'currency').map(c => c.id);
+        const currencyCriteria = criteriaArray.filter(c => c.type === 'currency').map(c => c.id);
         if (currencyCriteria.length === 0) return { cheapestPint: null, priciestPint: null };
         let pubPrices = [];
-        pubs.forEach(pub => {
+        pubsArray.forEach(pub => {
             let total = 0, count = 0;
             currencyCriteria.forEach(cid => {
-                (scores[pub.id]?.[cid] || []).forEach(s => {
+                (scoresObj[pub.id]?.[cid] || []).forEach(s => {
                     if (s.value != null && !isNaN(s.value)) { total += s.value; count++; }
                 });
             });
@@ -107,48 +100,14 @@ export default function DashboardPage({ pubs, newPubs, criteria, users, scores, 
         if (pubPrices.length === 0) return { cheapestPint: null, priciestPint: null };
         pubPrices.sort((a, b) => a.avgPrice - b.avgPrice);
         return { cheapestPint: pubPrices[0], priciestPint: pubPrices[pubPrices.length - 1] };
-    }, [pubs, scores, criteria]);
-    
-    // --- WEIGHTS & RANKINGS ---
+    }, [pubsArray, scoresObj, criteriaArray]);
+
     const effectiveWeights = useMemo(() => {
         const map = {};
-        criteriaArray.forEach((c) => { map[c.id] = weightOverrides[c.id] != null ? weightOverrides[c.id] : (c.weight ?? 1); });
+        criteriaArray.forEach((c) => { map[c.id] = c.weight ?? 1; });
         return map;
-    }, [criteriaArray, weightOverrides]);
+    }, [criteriaArray]);
 
-    const tierData = useMemo(() => {
-        let god = 0, great = 0, average = 0, avoid = 0, totalRated = 0;
-        pubs.forEach(pub => {
-            let totalScore = 0, scoreCount = 0;
-            criteria.forEach(c => {
-                if (c.type === 'scale') { 
-                    (scores[pub.id]?.[c.id] || []).forEach(s => {
-                        if (s.value != null && !isNaN(s.value)) { totalScore += s.value; scoreCount++; }
-                    });
-                }
-            });
-            if (scoreCount > 0) {
-                const avg = totalScore / scoreCount;
-                totalRated++;
-                if (avg >= 8.5) god++; else if (avg >= 7.0) great++; else if (avg >= 5.0) average++; else avoid++;
-            }
-        });
-        return { god, great, average, avoid, totalRated };
-    }, [pubs, scores, criteria]);
-
-    const comparatorData = useMemo(() => {
-        if (!comparePub1 || !comparePub2 || comparePub1 === comparePub2) return [];
-        return criteria.filter(c => c.type === 'scale').map(c => {
-            const getAvg = (pubId) => {
-                const cScores = scores[pubId]?.[c.id] || [];
-                let total = 0, count = 0;
-                cScores.forEach(s => { if (s.value != null && !isNaN(s.value)) { total += s.value; count++; } });
-                return count > 0 ? (total / count) : 0;
-            };
-            return { subject: c.name, p1Score: getAvg(comparePub1), p2Score: getAvg(comparePub2) };
-        });
-    }, [comparePub1, comparePub2, pubs, scores, criteria]);
-    
     const weightedRankedPubs = useMemo(() => {
         if (!pubsArray.length) return [];
         const visitedPubs = pubsArray.filter((p) => p.status === "visited");
@@ -165,301 +124,177 @@ export default function DashboardPage({ pubs, newPubs, criteria, users, scores, 
         });
         return results.sort((a, b) => b.avgScore - a.avgScore);
     }, [pubsArray, scoresObj, effectiveWeights]);
+
+    const spotlightPub = weightedRankedPubs[0];
     
-    // --- CHARTS ---
     const pubChartData = useMemo(() => {
         const top = weightedRankedPubs.slice(0, 10);
         return {
-            labels: top.map((p) => p.name?.slice(0, 10) || ""),
-            datasets: [{ label: "Average Score (with weights)", data: top.map((p) => p.avgScore.toFixed(2)), backgroundColor: "rgba(54, 162, 235, 0.6)", borderColor: "rgba(54, 162, 235, 1)", borderWidth: 1 }]
-        };
-    }, [weightedRankedPubs]);
-    
-    const criteriaChartData = useMemo(() => {
-        const scaleCriteria = criteriaArray.filter((c) => c.type === "scale");
-        return {
-            labels: scaleCriteria.map((c) => c.name),
-            datasets: [{
-                label: "Average Score per Criterion",
-                data: scaleCriteria.map((c) => {
-                    let total = 0, count = 0;
-                    Object.values(scoresObj).forEach((pubScores) => {
-                        ((pubScores || {})[c.id] || []).forEach((s) => { if (s.type === "scale" && s.value != null) { total += s.value; count++; } });
-                    });
-                    return count > 0 ? (total / count).toFixed(2) : 0;
+            labels: top.map((p) => p.name || ""),
+            datasets: [{ 
+                label: "Average Score", 
+                data: top.map((p) => p.avgScore.toFixed(2)), 
+                backgroundColor: top.map(p => {
+                    if(p.avgScore >= 8.5) return "rgba(168, 85, 247, 0.8)";
+                    if(p.avgScore >= 7) return "rgba(59, 130, 246, 0.8)"; 
+                    if(p.avgScore >= 5) return "rgba(234, 179, 8, 0.8)"; 
+                    return "rgba(239, 68, 68, 0.8)";
                 }),
-                backgroundColor: "rgba(255, 99, 132, 0.2)", borderColor: "rgba(255, 99, 132, 1)", borderWidth: 1, pointBackgroundColor: "rgba(255, 99, 132, 1)"
+                borderRadius: 4
             }]
         };
-    }, [criteriaArray, scoresObj]);
-    
-    useEffect(() => {
-        if (!weightedRankedPubs.length) { setSuggestedPub(null); return; }
-        setSuggestedPub(weightedRankedPubs[Math.floor(Math.random() * Math.min(5, weightedRankedPubs.length))]);
     }, [weightedRankedPubs]);
     
-    // --- TIMELINE ACTIVITY FEED ---
     const timelineItems = useMemo(() => {
         let items = [];
         pubsArray.forEach(p => {
-            if (p.createdAt?.toMillis) items.push({ id: `pub_${p.id}`, emoji: '🍺', title: 'New Pub Added', text: p.name, time: p.createdAt.toMillis(), dateLabel: new Date(p.createdAt.toMillis()).toLocaleDateString() });
+            if (p.createdAt?.toMillis) {
+                const addedBy = p.addedBy ? getUserName(p.addedBy) : "Someone";
+                items.push({ id: `pub_${p.id}`, emoji: '🍺', title: 'New Pub Added', text: `${addedBy} added ${p.name} to the list.`, time: p.createdAt.toMillis(), dateLabel: new Date(p.createdAt.toMillis()).toLocaleDateString() });
+            }
         });
         recentCrawls.forEach(c => {
-            if (c.createdAt?.toMillis) items.push({ id: `crawl_${c.id}`, emoji: '🗺️', title: `${c.creatorName} planned a Crawl`, text: c.name, time: c.createdAt.toMillis(), dateLabel: new Date(c.createdAt.toMillis()).toLocaleDateString() });
+            if (c.createdAt?.toMillis) items.push({ id: `crawl_${c.id}`, emoji: '🗺️', title: `Crawl Planned`, text: `${c.creatorName} planned: ${c.name}`, time: c.createdAt.toMillis(), dateLabel: new Date(c.createdAt.toMillis()).toLocaleDateString() });
         });
         criteriaArray.forEach(c => {
-            if (c.createdAt?.toMillis) items.push({ id: `crit_${c.id}`, emoji: '📋', title: 'New Rating Category', text: c.name, time: c.createdAt.toMillis(), dateLabel: new Date(c.createdAt.toMillis()).toLocaleDateString() });
+            if (c.createdAt?.toMillis) items.push({ id: `crit_${c.id}`, emoji: '📋', title: 'Rules Updated', text: `New rating category: ${c.name}`, time: c.createdAt.toMillis(), dateLabel: new Date(c.createdAt.toMillis()).toLocaleDateString() });
         });
-        return items.sort((a, b) => b.time - a.time).slice(0, 10);
-    }, [pubsArray, recentCrawls, criteriaArray]);
-
-    // --- MINI MAP LOGIC (React-Leaflet) ---
-    const topMapPubs = weightedRankedPubs.slice(0, 5).filter(p => p.lat && p.lng);
-    const mapCenter = useMemo(() => {
-        if (topMapPubs.length === 0) return [51.505, -0.09]; // Default
-        const avgLat = topMapPubs.reduce((sum, p) => sum + p.lat, 0) / topMapPubs.length;
-        const avgLng = topMapPubs.reduce((sum, p) => sum + p.lng, 0) / topMapPubs.length;
-        return [avgLat, avgLng];
-    }, [topMapPubs]);
-
-    const createEmojiIcon = (emoji) => L.divIcon({ html: `<div class="text-3xl filter drop-shadow-md">${emoji}</div>`, className: 'custom-leaflet-icon', iconSize: [32, 32], iconAnchor: [16, 16] });
+        return items.sort((a, b) => b.time - a.time).slice(0, 15); 
+    }, [pubsArray, recentCrawls, criteriaArray, allUsers]);
 
     return (
-        <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Dashboard</h2>
+        <div className="space-y-8 animate-fadeIn">
+            <div>
+                <h2 className="text-3xl font-black text-gray-800 dark:text-white transition-colors">Group Dashboard</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Your city's drinking analytics.</p>
+            </div>
         
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard title="Visited Pubs" value={pubsArray.length} />
-                <StatCard title="Pubs to Visit" value={newPubsArray.length} />
+                <StatCard title="Visited Pubs" value={pubsArray.length} onClick={() => setPage('pubs')} />
+                <StatCard title="Pubs to Visit" value={newPubsArray.length} onClick={() => setPage('toVisit')} />
                 <StatCard title="Total Raters" value={usersSize} />
-                <StatCard title="Top Rated Pub" value={weightedRankedPubs[0]?.name || "N/A"} subValue={`Weighted Avg ${weightedRankedPubs[0]?.avgScore.toFixed(1) || 0}`} />
+                <StatCard title="Overall Average" value={weightedRankedPubs.length > 0 ? (weightedRankedPubs.reduce((sum, p) => sum + p.avgScore, 0) / weightedRankedPubs.length).toFixed(1) : 0} subValue="Group Wide" />
             </div>
 
-            {/* LIVE LOCATION */}
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow transition-colors duration-300 relative overflow-hidden mb-6 border border-gray-100 dark:border-gray-700">
-                {livePubId && <div className="absolute inset-0 bg-red-500 opacity-10 animate-pulse pointer-events-none"></div>}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors duration-300 relative overflow-hidden">
+                {livePubId && <div className="absolute inset-0 bg-red-500 opacity-5 animate-pulse pointer-events-none"></div>}
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4 relative z-10">
                     <div className="flex items-center gap-4">
                         <div className={`text-4xl ${livePubId ? 'animate-bounce' : 'grayscale opacity-50'}`}>📍</div>
                         <div>
                             <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Current Group Location</h3>
-                            {livePubId ? <p className="text-2xl font-black text-red-600 dark:text-red-400">{pubs.find(p => p.id === livePubId)?.name || "Unknown Pub"}</p> : <p className="text-lg font-bold text-gray-800 dark:text-gray-200">Not currently at a pub.</p>}
+                            {livePubId ? <p className="text-2xl font-black text-red-600 dark:text-red-400">{pubsArray.find(p => p.id === livePubId)?.name || "Unknown Pub"}</p> : <p className="text-lg font-bold text-gray-800 dark:text-gray-200">Not currently at a pub.</p>}
                         </div>
                     </div>
                     <div className="w-full md:w-auto">
-                        <select value={livePubId} onChange={handleSetLiveLocation} className="w-full md:w-64 px-4 py-2 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold cursor-pointer">
+                        <select value={livePubId} onChange={handleSetLiveLocation} className="w-full md:w-64 px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 bg-gray-50 dark:bg-gray-700 dark:text-white font-bold cursor-pointer shadow-sm">
                             <option value="">🏠 Everyone went home</option>
-                            <optgroup label="Active Pubs">{pubs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>
+                            <optgroup label="Active Pubs">{pubsArray.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>
                         </select>
                     </div>
                 </div>
             </div>
 
-            {/* GUINNESS INDEX */}
             {(cheapestPint || priciestPint) && (
-                <div className="bg-gradient-to-r from-yellow-800 to-yellow-600 dark:from-yellow-900 dark:to-yellow-800 p-1 rounded-lg shadow-lg">
-                    <div className="bg-white dark:bg-gray-800 rounded-md p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                        <div className="flex items-center gap-3">
-                            <span className="text-4xl">🍺</span>
+                <div className="bg-gradient-to-r from-yellow-800 to-yellow-600 dark:from-yellow-900 dark:to-yellow-800 p-1 rounded-2xl shadow-sm mb-2">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div className="flex items-center gap-4">
+                            <span className="text-5xl drop-shadow-md">🍺</span>
                             <div>
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-white uppercase tracking-wider">The Guinness Index</h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Tracking the exact price of a pint</p>
+                                <h3 className="text-xl font-black text-gray-800 dark:text-white uppercase tracking-wider">The Guinness Index</h3>
+                                <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Tracking the exact price of a pint</p>
                             </div>
                         </div>
-                        <div className="flex gap-6 w-full md:w-auto">
+                        <div className="flex gap-8 w-full md:w-auto">
                             {cheapestPint && (
-                                <div className="flex-1 md:flex-none border-r border-gray-200 dark:border-gray-700 pr-6">
-                                    <p className="text-xs text-green-600 dark:text-green-400 font-bold uppercase mb-1">Cheapest Pint</p>
-                                    <p className="text-2xl font-black text-gray-900 dark:text-white">£{cheapestPint.avgPrice.toFixed(2)}</p>
-                                    <p className="text-sm text-gray-600 dark:text-gray-300 truncate max-w-[150px]">{cheapestPint.pub.name}</p>
+                                <div className="flex-1 md:flex-none border-r border-gray-100 dark:border-gray-700 pr-8">
+                                    <p className="text-[11px] text-green-600 dark:text-green-400 font-black uppercase mb-1 tracking-wider">Cheapest Pint</p>
+                                    <p className="text-3xl font-black text-gray-900 dark:text-white">£{cheapestPint.avgPrice.toFixed(2)}</p>
+                                    <p className="text-sm font-bold text-gray-500 dark:text-gray-400 truncate max-w-[150px] mt-1">{cheapestPint.pub.name}</p>
                                 </div>
                             )}
                             {priciestPint && (
                                 <div className="flex-1 md:flex-none">
-                                    <p className="text-xs text-red-600 dark:text-red-400 font-bold uppercase mb-1">Priciest Pint</p>
-                                    <p className="text-2xl font-black text-gray-900 dark:text-white">£{priciestPint.avgPrice.toFixed(2)}</p>
-                                    <p className="text-sm text-gray-600 dark:text-gray-300 truncate max-w-[150px]">{priciestPint.pub.name}</p>
+                                    <p className="text-[11px] text-red-600 dark:text-red-400 font-black uppercase mb-1 tracking-wider">Priciest Pint</p>
+                                    <p className="text-3xl font-black text-gray-900 dark:text-white">£{priciestPint.avgPrice.toFixed(2)}</p>
+                                    <p className="text-sm font-bold text-gray-500 dark:text-gray-400 truncate max-w-[150px] mt-1">{priciestPint.pub.name}</p>
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
             )}
-        
-            {/* ROW 1: Suggestion, Map, Events */}
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                {/* 1. Suggestion */}
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow flex flex-col transition-colors duration-300">
-                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Tonight's Suggestion</h3>
-                    {suggestedPub ? (
-                        <div className="flex-1 flex flex-col justify-center">
-                            <div className="text-5xl text-center mb-4">🍺</div>
-                            <p className="text-2xl font-black text-center text-blue-700 dark:text-blue-400 mb-2">{suggestedPub.name}</p>
-                            <p className="text-center text-gray-600 dark:text-gray-300 mb-4">{suggestedPub.location}</p>
-                            <div className="mt-auto bg-blue-50 dark:bg-blue-900/30 p-3 rounded-lg text-center">
-                                <span className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase">Group Rating</span>
-                                <p className="text-xl font-bold text-blue-800 dark:text-blue-300">{suggestedPub.avgScore.toFixed(1)}/10</p>
-                            </div>
+                {/* CLICKABLE SPOTLIGHT CARD */}
+                <div 
+                    onClick={() => setPage('pubs')}
+                    className="bg-gradient-to-br from-blue-600 to-purple-700 p-1 rounded-2xl shadow-lg flex flex-col transition-all hover:-translate-y-1 hover:shadow-blue-500/30 duration-300 cursor-pointer group"
+                >
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 flex flex-col h-full relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
+                        
+                        <div className="flex justify-between items-center mb-4 relative z-10">
+                            <h3 className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 uppercase tracking-wider">🔥 Pub of the Month</h3>
+                            <span className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">↗</span>
                         </div>
-                    ) : <p className="text-gray-500 dark:text-gray-400 text-sm">Not enough data yet.</p>}
+                        
+                        {spotlightPub ? (
+                            <div className="flex-1 flex flex-col justify-center items-center text-center z-10">
+                                {spotlightPub.photoURL ? (
+                                    <img src={spotlightPub.photoURL} alt="Top Pub" className="w-24 h-24 rounded-full object-cover mb-4 border-4 border-white dark:border-gray-700 shadow-md group-hover:scale-105 transition-transform" />
+                                ) : (
+                                    <div className="text-6xl mb-4 drop-shadow-md group-hover:scale-105 transition-transform">👑</div>
+                                )}
+                                <p className="text-3xl font-black text-gray-900 dark:text-white mb-1 leading-tight">{spotlightPub.name}</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 font-semibold mb-6">📍 {spotlightPub.location}</p>
+                                
+                                <div className="mt-auto bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 px-6 py-3 rounded-2xl border border-blue-100 dark:border-blue-800 shadow-sm w-full">
+                                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">Group Rating</span>
+                                    <p className="text-3xl font-black text-blue-700 dark:text-blue-400">{spotlightPub.avgScore.toFixed(1)}<span className="text-lg text-blue-300">/10</span></p>
+                                </div>
+                            </div>
+                        ) : <p className="text-gray-500 dark:text-gray-400 text-sm my-auto text-center italic">Rate a pub to see it crowned here.</p>}
+                    </div>
                 </div>
         
-                {/* 2. Fixed React-Leaflet Mini Map */}
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow transition-colors duration-300 flex flex-col">
-                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">Top Rated Radar</h3>
-                    <div className="w-full h-48 rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden z-0">
-                        <MapContainer center={mapCenter} zoom={13} className="w-full h-full" scrollWheelZoom={false}>
-                            <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" attribution='&copy; CARTO' />
-                            {topMapPubs.map(pub => (
-                                <Marker key={pub.id} position={[pub.lat, pub.lng]} icon={createEmojiIcon('🍻')}>
-                                    <Popup><p className="font-bold">{pub.name}</p></Popup>
-                                </Marker>
-                            ))}
-                        </MapContainer>
-                    </div>
-                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">Showing your top 5 highest-rated pubs.</p>
-                </div>
-
-                {/* 3. Upcoming Crawls Panel */}
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow transition-colors duration-300 flex flex-col">
-                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-3">Upcoming Events</h3>
-                    <div className="flex-1 overflow-y-auto space-y-3">
-                        {recentCrawls.length === 0 ? (
-                            <div className="text-center mt-6">
-                                <span className="text-4xl block mb-2">🗺️</span>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">No crawls planned yet!</p>
-                            </div>
-                        ) : (
-                            recentCrawls.map(crawl => (
-                                <div key={crawl.id} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
-                                    <p className="font-bold text-gray-800 dark:text-white truncate">{crawl.name}</p>
-                                    <div className="flex justify-between items-center mt-1">
-                                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">
-                                            {new Date(crawl.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                        </span>
-                                        <span className="text-xs text-gray-500">{crawl.route.length} Stops</span>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* ROW 2: Activity Feed & Tiers */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
-                {/* 1. Instagram-Style Activity Feed */}
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow transition-colors duration-300">
-                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-6">Activity Feed</h3>
-                    {timelineItems.length === 0 ? (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">No recent activity.</p>
-                    ) : (
-                        <div className="relative border-l-2 border-gray-200 dark:border-gray-700 ml-4 space-y-6">
-                            {timelineItems.map((item) => (
-                                <div key={item.id} className="relative pl-6">
-                                    <span className="absolute -left-[20px] bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 rounded-full w-10 h-10 flex items-center justify-center text-xl shadow-sm z-10">
-                                        {item.emoji}
-                                    </span>
-                                    <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-600 shadow-sm mt-[-4px]">
-                                        <div className="flex justify-between items-start mb-1">
-                                            <p className="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">{item.title}</p>
-                                            <p className="text-[10px] text-gray-400 font-bold">{item.dateLabel}</p>
-                                        </div>
-                                        <p className="text-gray-800 dark:text-white font-semibold text-lg">{item.text}</p>
-                                    </div>
-                                </div>
-                            ))}
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 lg:col-span-2">
+                    <div className="flex justify-between items-end mb-4">
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-800 dark:text-white">The Top 10 Leaderboard</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Color-coded by quality tier.</p>
                         </div>
-                    )}
-                </div>
-
-                <div className="space-y-6">
-                    {/* Tier List */}
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow transition-colors duration-300">
-                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Pub Quality Tiers</h3>
-                        {tierData.totalRated > 0 ? (
-                            <div className="space-y-4">
-                                <div className="w-full h-6 flex rounded-full overflow-hidden shadow-inner bg-gray-200 dark:bg-gray-700">
-                                    <div style={{ width: `${(tierData.god / tierData.totalRated) * 100}%` }} className="bg-purple-500"></div>
-                                    <div style={{ width: `${(tierData.great / tierData.totalRated) * 100}%` }} className="bg-blue-500"></div>
-                                    <div style={{ width: `${(tierData.average / tierData.totalRated) * 100}%` }} className="bg-yellow-500"></div>
-                                    <div style={{ width: `${(tierData.avoid / tierData.totalRated) * 100}%` }} className="bg-red-500"></div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 text-center text-sm">
-                                    <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded font-bold text-purple-700 dark:text-purple-400">God Tier: {tierData.god}</div>
-                                    <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded font-bold text-blue-700 dark:text-blue-400">Great: {tierData.great}</div>
-                                    <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded font-bold text-yellow-700 dark:text-yellow-400">Avg: {tierData.average}</div>
-                                    <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded font-bold text-red-700 dark:text-red-400">Avoid: {tierData.avoid}</div>
-                                </div>
-                            </div>
-                        ) : <p className="text-sm text-gray-500 dark:text-gray-400">Rate pubs to build your tier list!</p>}
                     </div>
+                    <div className="h-72"><HorizontalBarChart data={pubChartData} /></div>
+                </div>
+            </div>
 
-                    {/* Head-to-Head */}
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow transition-colors duration-300">
-                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Head-to-Head Clash</h3>
-                        <div className="flex flex-col md:flex-row gap-4 mb-6 items-center">
-                            <select value={comparePub1} onChange={e => setComparePub1(e.target.value)} className="w-full flex-1 px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-blue-600 dark:text-blue-400 font-bold">
-                                <option value="">Pub 1...</option>{pubs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </select>
-                            <span className="font-black text-gray-300 dark:text-gray-600 italic">VS</span>
-                            <select value={comparePub2} onChange={e => setComparePub2(e.target.value)} className="w-full flex-1 px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-purple-600 dark:text-purple-400 font-bold">
-                                <option value="">Pub 2...</option>{pubs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </select>
-                        </div>
-                        {comparePub1 && comparePub2 && comparePub1 !== comparePub2 ? (
-                            <div className="space-y-4 max-w-lg mx-auto">
-                                {comparatorData.map(stat => (
-                                    <div key={stat.subject}>
-                                        <div className="flex justify-between text-xs font-bold text-gray-500 mb-1 px-1">
-                                            <span className="text-blue-600">{stat.p1Score > 0 ? stat.p1Score.toFixed(1) : '-'}</span>
-                                            <span className="uppercase">{stat.subject}</span>
-                                            <span className="text-purple-600">{stat.p2Score > 0 ? stat.p2Score.toFixed(1) : '-'}</span>
-                                        </div>
-                                        <div className="flex h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                                            <div className="w-1/2 border-r border-white flex justify-end"><div style={{ width: `${(stat.p1Score / 10) * 100}%` }} className="bg-blue-500 h-full"></div></div>
-                                            <div className="w-1/2 flex justify-start"><div style={{ width: `${(stat.p2Score / 10) * 100}%` }} className="bg-purple-500 h-full"></div></div>
-                                        </div>
+            {/* FULL WIDTH ACTIVITY FEED */}
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col h-full mt-6">
+                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Group Activity Feed</h3>
+                {timelineItems.length === 0 ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 text-center my-auto italic pb-6">No recent activity.</p>
+                ) : (
+                    <div className="relative border-l-2 border-gray-100 dark:border-gray-700 ml-4 space-y-6 flex-1 overflow-y-auto pr-4 pb-2">
+                        {timelineItems.map((item) => (
+                            <div key={item.id} className="relative pl-6 group">
+                                <span className="absolute -left-[18px] top-1 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 rounded-full w-9 h-9 flex items-center justify-center text-lg shadow-sm group-hover:scale-110 transition-transform z-10">
+                                    {item.emoji}
+                                </span>
+                                <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-600 shadow-sm transition-colors hover:border-blue-200 dark:hover:border-blue-800">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <p className="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">{item.title}</p>
+                                        <p className="text-[10px] text-gray-400 font-bold bg-white dark:bg-gray-800 px-2 py-0.5 rounded-full shadow-sm">{item.dateLabel}</p>
                                     </div>
-                                ))}
+                                    <p className="text-gray-800 dark:text-white font-semibold text-sm">{item.text}</p>
+                                </div>
                             </div>
-                        ) : <p className="text-gray-500 text-center text-sm italic">Select two pubs to battle!</p>}
+                        ))}
                     </div>
-                </div>
+                )}
             </div>
 
-            {/* Charts row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">Top Pubs</h3>
-                    <div className="h-72"><BarChart data={pubChartData} /></div>
-                </div>
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">Average by Criterion</h3>
-                    <div className="h-72"><RadarChart data={criteriaChartData} /></div>
-                </div>
-            </div>
-        
-            {/* Interactive criteria weight sliders */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4">
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Tweak Criteria Weights</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Adjust how important each criterion is. The Top Pubs chart updates instantly.</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {criteriaArray.map((c) => (
-                        <div key={c.id} className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                                <span className="font-bold text-gray-700 dark:text-gray-300">{c.name}</span>
-                                <span className="text-blue-600 font-black dark:text-blue-400">{(weightOverrides[c.id] ?? c.weight ?? 1).toFixed(1)}x</span>
-                            </div>
-                            <input type="range" min="0.1" max="3" step="0.1" value={weightOverrides[c.id] ?? c.weight ?? 1} onChange={(e) => handleWeightChange(c.id, e.target.value)} className="w-full accent-blue-600" />
-                        </div>
-                    ))}
-                </div>
-            </div>
         </div>
     );
 }

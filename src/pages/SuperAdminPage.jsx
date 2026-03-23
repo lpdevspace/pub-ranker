@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { firebase } from '../firebase';
 
 export default function SuperAdminPage({ db, userProfile }) {
-    const [activeTab, setActiveTab] = useState('overview'); // overview, pubs, users, feedback
+    const [activeTab, setActiveTab] = useState('overview'); 
     
     // Data States
     const [stats, setStats] = useState({ users: 0, groups: 0, pubs: 0 });
@@ -11,21 +11,20 @@ export default function SuperAdminPage({ db, userProfile }) {
     const [usersList, setUsersList] = useState([]);
     const [feedbackList, setFeedbackList] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [globalError, setGlobalError] = useState(""); // <-- NEW: Error tracking
     
     // Announcement State
     const [announcement, setAnnouncement] = useState("");
     const [isPublishing, setIsPublishing] = useState(false);
 
-    //Maintenance Mode
+    // Maintenance Mode
     const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
-    // Modal States
-    const [modalType, setModalType] = useState(null); 
-    const [selectedItem, setSelectedItem] = useState(null);
-    const [editString, setEditString] = useState("");
 
     const fetchGlobalData = async () => {
         try {
-            // Fetch everything
+            setGlobalError(""); // Reset errors
+            
+            // Fetch everything globally
             const [usersSnap, groupsSnap, pubsSnap, feedbackSnap, annDoc] = await Promise.all([
                 db.collection('users').get(),
                 db.collection('groups').get(),
@@ -36,7 +35,7 @@ export default function SuperAdminPage({ db, userProfile }) {
 
             setStats({ users: usersSnap.size, groups: groupsSnap.size, pubs: pubsSnap.size });
 
-            // Parse Groups
+            // Parse Groups safely
             const groupsData = groupsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             groupsData.sort((a, b) => (a.groupName || "").localeCompare(b.groupName || ""));
             setGroupsList(groupsData);
@@ -49,19 +48,25 @@ export default function SuperAdminPage({ db, userProfile }) {
             const usersData = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setUsersList(usersData);
 
-            // Parse Feedback
+            // Parse Feedback SAFELY (Bulletproof date checking to prevent silent crashes)
             const feedbackData = feedbackSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            feedbackData.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0)); // Newest first
+            feedbackData.sort((a, b) => {
+                const timeA = typeof a.createdAt?.toMillis === 'function' ? a.createdAt.toMillis() : 0;
+                const timeB = typeof b.createdAt?.toMillis === 'function' ? b.createdAt.toMillis() : 0;
+                return timeB - timeA;
+            });
             setFeedbackList(feedbackData);
 
             // Fetch current announcement and maintenance mode
-             if (annDoc.exists) {
-             setAnnouncement(annDoc.data().announcement || "");
-             setIsMaintenanceMode(annDoc.data().maintenanceMode || false);
-         }
+            if (annDoc.exists) {
+                setAnnouncement(annDoc.data().announcement || "");
+                setIsMaintenanceMode(annDoc.data().maintenanceMode || false);
+            }
             
         } catch (error) {
-            console.error("Error fetching data:", error);
+            console.error("SUPER ADMIN FETCH ERROR:", error);
+            // Print the exact error to the screen so we can debug it!
+            setGlobalError(error.message || "Unknown error occurred.");
         } finally {
             setLoading(false);
         }
@@ -80,7 +85,9 @@ export default function SuperAdminPage({ db, userProfile }) {
                 announcement: announcement.trim(), updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
             alert("Announcement published globally!");
-        } catch (error) { alert("Failed to publish."); }
+        } catch (error) { 
+            alert(`Failed to publish: ${error.message}`); 
+        }
         setIsPublishing(false);
     };
 
@@ -91,22 +98,24 @@ export default function SuperAdminPage({ db, userProfile }) {
         catch (error) { console.error(error); }
         setIsPublishing(false);
     };
-    // --- 🚧 MAINTENANCE MODE LOGIC ---
- const handleToggleMaintenance = async () => {
-     const newState = !isMaintenanceMode;
-     if (newState && !window.confirm("WARNING: Turning this on will instantly kick all non-admin users out of the app. Are you sure?")) return;
 
-     setIsMaintenanceMode(newState);
-     try {
-         await db.collection('global').doc('settings').set({ 
-             maintenanceMode: newState,
-             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-         }, { merge: true });
-     } catch (error) {
-         alert("Failed to update maintenance mode.");
-         setIsMaintenanceMode(!newState); // Revert on failure
-     }
- };
+    // --- 🚧 MAINTENANCE MODE LOGIC ---
+    const handleToggleMaintenance = async () => {
+        const newState = !isMaintenanceMode;
+        if (newState && !window.confirm("WARNING: Turning this on will instantly kick all non-admin users out of the app. Are you sure?")) return;
+
+        setIsMaintenanceMode(newState);
+        try {
+            await db.collection('global').doc('settings').set({ 
+                maintenanceMode: newState,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            alert(`Maintenance Mode is now ${newState ? 'ON' : 'OFF'}`);
+        } catch (error) {
+            alert(`Failed to update maintenance mode: ${error.message}`);
+            setIsMaintenanceMode(!newState); // Revert on failure
+        }
+    };
 
     // --- 🍻 PUB MODERATION ---
     const handleDeletePub = async (pubId) => {
@@ -115,7 +124,7 @@ export default function SuperAdminPage({ db, userProfile }) {
             await db.collection('pubs').doc(pubId).delete();
             setPubsList(pubsList.filter(p => p.id !== pubId));
             setStats(prev => ({ ...prev, pubs: prev.pubs - 1 }));
-        } catch (error) { alert("Failed to delete pub."); }
+        } catch (error) { alert(`Failed to delete pub: ${error.message}`); }
     };
 
     // --- 🔨 USER MODERATION (BAN HAMMER) ---
@@ -125,7 +134,7 @@ export default function SuperAdminPage({ db, userProfile }) {
         try {
             await db.collection('users').doc(user.id).update({ isBanned: !user.isBanned });
             setUsersList(usersList.map(u => u.id === user.id ? { ...u, isBanned: !user.isBanned } : u));
-        } catch (error) { alert("Failed to update user status."); }
+        } catch (error) { alert(`Failed to update user status: ${error.message}`); }
     };
 
     // --- 📥 FEEDBACK INBOX ---
@@ -133,7 +142,7 @@ export default function SuperAdminPage({ db, userProfile }) {
         try {
             await db.collection('feedback').doc(id).update({ resolved: !currentStatus });
             setFeedbackList(feedbackList.map(f => f.id === id ? { ...f, resolved: !currentStatus } : f));
-        } catch (error) { alert("Failed to update feedback."); }
+        } catch (error) { alert(`Failed to update feedback: ${error.message}`); }
     };
 
     const handleDeleteFeedback = async (id) => {
@@ -141,14 +150,27 @@ export default function SuperAdminPage({ db, userProfile }) {
         try {
             await db.collection('feedback').doc(id).delete();
             setFeedbackList(feedbackList.filter(f => f.id !== id));
-        } catch (error) { alert("Failed to delete feedback."); }
+        } catch (error) { alert(`Failed to delete feedback: ${error.message}`); }
     };
 
     if (!userProfile?.isSuperAdmin) return <div className="p-8 text-center text-red-500 font-bold text-xl">🛑 Access Denied.</div>;
+    
     if (loading) return <div className="p-8 text-center animate-pulse dark:text-gray-300">Fetching global metrics...</div>;
 
+    // --- NEW: FATAL ERROR DISPLAY ---
+    if (globalError) return (
+        <div className="p-8 text-center bg-red-50 dark:bg-red-900/20 m-6 rounded-xl border border-red-200">
+            <h3 className="text-2xl font-black text-red-600 mb-2">Database Connection Failed</h3>
+            <p className="text-gray-700 dark:text-gray-300 mb-4">The Super Admin dashboard could not fetch the global data.</p>
+            <div className="bg-red-100 dark:bg-red-900/40 p-4 rounded text-left font-mono text-sm text-red-800 dark:text-red-200 break-words">
+                <strong>Error Details:</strong> {globalError}
+            </div>
+            <p className="mt-4 text-sm font-bold text-gray-500">Note: If this says "Missing or insufficient permissions", your Firebase Security Rules are blocking your account from reading all collections globally.</p>
+        </div>
+    );
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fadeIn">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Platform Command Center</h2>
@@ -169,23 +191,19 @@ export default function SuperAdminPage({ db, userProfile }) {
                 </div>
             </div>
 
-            {/* ========================================= */}
-            {/* TAB 1: OVERVIEW & GROUPS                  */}
-            {/* ========================================= */}
-
             {/* --- DANGER ZONE: MAINTENANCE MODE --- */}
-                 <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-red-600 flex justify-between items-center">
-                     <div>
-                         <h3 className="text-lg font-bold text-gray-800 dark:text-white">Maintenance Mode</h3>
-                         <p className="text-xs text-gray-500 dark:text-gray-400">Instantly lock all non-admin users out of the app.</p>
-                     </div>
-                     <button 
-                         onClick={handleToggleMaintenance} 
-                         className={`px-6 py-2 rounded font-bold text-white transition-all ${isMaintenanceMode ? 'bg-red-600 hover:bg-red-700 animate-pulse' : 'bg-gray-400 hover:bg-gray-500'}`}
-                     >
-                         {isMaintenanceMode ? "🛑 ACTIVE: App Locked" : "Enable Lockout"}
-                     </button>
-                 </div>
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-red-600 flex justify-between items-center">
+                <div>
+                    <h3 className="text-lg font-bold text-gray-800 dark:text-white">Maintenance Mode</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Instantly lock all non-admin users out of the app.</p>
+                </div>
+                <button 
+                    onClick={handleToggleMaintenance} 
+                    className={`px-6 py-2 rounded font-bold text-white transition-all ${isMaintenanceMode ? 'bg-red-600 hover:bg-red-700 animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.6)]' : 'bg-gray-400 hover:bg-gray-500'}`}
+                >
+                    {isMaintenanceMode ? "🛑 ACTIVE: App Locked" : "Enable Lockout"}
+                </button>
+            </div>
 
             {activeTab === 'overview' && (
                 <div className="space-y-6 animate-fadeIn">
@@ -235,9 +253,7 @@ export default function SuperAdminPage({ db, userProfile }) {
                 </div>
             )}
 
-            {/* ========================================= */}
-            {/* TAB 2: GLOBAL PUB DIRECTORY               */}
-            {/* ========================================= */}
+            {/* TAB 2: GLOBAL PUB DIRECTORY */}
             {activeTab === 'pubs' && (
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden animate-fadeIn">
                     <div className="p-4 border-b border-gray-200 dark:border-gray-700"><h3 className="text-lg font-bold text-gray-800 dark:text-white">Global Pub Directory</h3></div>
@@ -261,9 +277,7 @@ export default function SuperAdminPage({ db, userProfile }) {
                 </div>
             )}
 
-            {/* ========================================= */}
-            {/* TAB 3: USER DIRECTORY & THE BAN HAMMER    */}
-            {/* ========================================= */}
+            {/* TAB 3: USER DIRECTORY & THE BAN HAMMER */}
             {activeTab === 'users' && (
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden animate-fadeIn">
                     <div className="p-4 border-b border-gray-200 dark:border-gray-700"><h3 className="text-lg font-bold text-gray-800 dark:text-white">User Directory</h3></div>
@@ -299,9 +313,7 @@ export default function SuperAdminPage({ db, userProfile }) {
                 </div>
             )}
 
-            {/* ========================================= */}
-            {/* TAB 4: FEEDBACK & BUG REPORTS INBOX       */}
-            {/* ========================================= */}
+            {/* TAB 4: FEEDBACK & BUG REPORTS INBOX */}
             {activeTab === 'feedback' && (
                 <div className="space-y-4 animate-fadeIn">
                     <div className="flex justify-between items-center mb-2">
@@ -332,7 +344,7 @@ export default function SuperAdminPage({ db, userProfile }) {
                                         </div>
                                     </div>
                                     <p className="text-gray-800 dark:text-gray-200 font-medium whitespace-pre-wrap">{item.message}</p>
-                                    <p className="text-xs text-gray-400 mt-2">{item.createdAt ? new Date(item.createdAt.toDate()).toLocaleString() : 'Recent'}</p>
+                                    <p className="text-xs text-gray-400 mt-2">{item.createdAt && typeof item.createdAt.toDate === 'function' ? new Date(item.createdAt.toDate()).toLocaleString() : 'Recent'}</p>
                                 </div>
                             ))}
                         </div>

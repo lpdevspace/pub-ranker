@@ -20,11 +20,19 @@ export default function AdminPage({
     const [editGroupCover, setEditGroupCover] = useState(currentGroup.coverPhoto || "");
     const [requireApproval, setRequireApproval] = useState(currentGroup.requireApproval || false);
     
-    // NEW PUBLIC DIRECTORY STATES
+    // PUBLIC DIRECTORY STATES
     const [city, setCity] = useState(currentGroup.city || "");
     const [isPublic, setIsPublic] = useState(currentGroup.isPublic || false);
     
     const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+    // --- DATABASE SYNC STATE ---
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [syncProgress, setSyncProgress] = useState("");
+
+    // --- NEW: GLOBAL WEIGHTS STATE ---
+    const [localWeights, setLocalWeights] = useState({});
+    const [savingWeights, setSavingWeights] = useState(false);
 
     // --- APPROVALS & TITLES STATE ---
     const [pendingMembers, setPendingMembers] = useState(currentGroup.pendingMembers || []);
@@ -50,7 +58,6 @@ export default function AdminPage({
     const [savingPub, setSavingPub] = useState(false);
     const [pubError, setPubError] = useState("");
     
-    // --- IMAGE UPLOAD STATE ---
     const [uploading, setUploading] = useState(false);
     
     const [managers, setManagers] = useState(currentGroup.managers || []);
@@ -62,7 +69,6 @@ export default function AdminPage({
     const inviteCode = currentGroup?.id || groupRef.id;
     const inviteUrl = `${window.location.origin}?invite=${inviteCode}`;
     
-    // Permissions
     const isCurrentUserOwner = currentGroup.ownerUid === user.uid;
     const isCurrentUserManager = currentGroup.managers?.includes(user.uid);
     const canManageSettings = isCurrentUserOwner || isCurrentUserManager;
@@ -79,7 +85,13 @@ export default function AdminPage({
         setIsPublic(currentGroup.isPublic || false);
     }, [currentGroup]);
 
-    // --- SETTINGS LOGIC ---
+    // Initialize the sliders with current Database weights
+    useEffect(() => {
+        const w = {};
+        criteria.forEach(c => { w[c.id] = c.weight ?? 1; });
+        setLocalWeights(w);
+    }, [criteria]);
+
     const handleSaveSettings = async () => {
         if (!editGroupName.trim()) return;
         setIsSavingSettings(true);
@@ -92,74 +104,127 @@ export default function AdminPage({
                 isPublic: isPublic
             });
             alert("Group settings updated successfully!");
-        } catch (e) {
-            console.error("Error saving settings", e);
-            alert("Failed to save settings.");
-        }
+        } catch (e) { console.error("Error saving settings", e); alert("Failed to save settings."); }
         setIsSavingSettings(false);
     };
 
-    // --- APPROVAL LOGIC ---
+    const handleSyncLegacyPubs = async () => {
+        // 1. Find pubs that don't have a placeId yet
+        const legacyPubs = pubs.filter(p => !p.placeId);
+        
+        if (legacyPubs.length === 0) {
+            alert("All your pubs are already synced with Google!");
+            return;
+        }
+
+        if (!window.confirm(`Found ${legacyPubs.length} pubs missing Google data. This will use your Google API quota. Do you want to proceed?`)) return;
+
+        setIsSyncing(true);
+        let successCount = 0;
+
+        try {
+            const { Place } = await window.google.maps.importLibrary("places");
+
+            // 2. Loop through them ONE BY ONE
+            for (let i = 0; i < legacyPubs.length; i++) {
+                const pub = legacyPubs[i];
+                setSyncProgress(`Syncing ${i + 1} of ${legacyPubs.length}: ${pub.name}...`);
+
+                try {
+                    const searchQuery = pub.location ? `${pub.name} in ${pub.location}` : pub.name;
+                    const request = {
+                        textQuery: searchQuery,
+                        fields: ['id', 'displayName', 'rating', 'photos', 'formattedAddress'],
+                    };
+
+                    const { places } = await Place.searchByText(request);
+
+                    if (places && places.length > 0) {
+                        const bestMatch = places[0];
+                        const updates = { placeId: bestMatch.id };
+
+                        if (bestMatch.rating) updates.googleRating = bestMatch.rating;
+                        
+                        // Only overwrite the photo if the pub doesn't already have a custom one
+                        if (bestMatch.photos && bestMatch.photos.length > 0 && !pub.photoURL) {
+                            updates.photoURL = bestMatch.photos[0].getURI({ maxWidth: 800 });
+                        }
+
+                        // 3. Update the specific document in Firebase
+                        await pubsRef.doc(pub.id).update(updates);
+                        successCount++;
+                    }
+                } catch (err) {
+                    console.error(`Failed to sync ${pub.name}:`, err);
+                }
+
+                // 4. The safety buffer: Wait 800ms before asking Google again
+                await new Promise(resolve => setTimeout(resolve, 800));
+            }
+
+            alert(`Sync complete! Successfully updated ${successCount} out of ${legacyPubs.length} legacy pubs.`);
+        } catch (error) {
+            console.error("Critical error during sync:", error);
+            alert("Failed to initialize Google Places API.");
+        } finally {
+            setIsSyncing(false);
+            setSyncProgress("");
+        }
+    };
+
+    // --- PERMANENTLY SAVE WEIGHTS ---
+    const handleSaveWeights = async () => {
+        setSavingWeights(true);
+        try {
+            const promises = criteria.map(c => {
+                if (localWeights[c.id] !== c.weight) {
+                    return criteriaRef.doc(c.id).update({ weight: localWeights[c.id] });
+                }
+                return null;
+            }).filter(Boolean);
+            await Promise.all(promises);
+            alert("Global weights updated successfully!");
+        } catch(e) { console.error("Error saving weights", e); } 
+        finally { setSavingWeights(false); }
+    };
+
     const handleApproveMember = async (uid) => {
         try {
-            await groupRef.update({
-                pendingMembers: firebase.firestore.FieldValue.arrayRemove(uid),
-                members: firebase.firestore.FieldValue.arrayUnion(uid)
-            });
-            await db.collection("users").doc(uid).update({
-                groups: firebase.firestore.FieldValue.arrayUnion(currentGroup.id)
-            });
+            await groupRef.update({ pendingMembers: firebase.firestore.FieldValue.arrayRemove(uid), members: firebase.firestore.FieldValue.arrayUnion(uid) });
+            await db.collection("users").doc(uid).update({ groups: firebase.firestore.FieldValue.arrayUnion(currentGroup.id) });
         } catch (e) { console.error("Error approving member", e); }
     };
 
     const handleRejectMember = async (uid) => {
         if (!window.confirm("Are you sure you want to reject this join request?")) return;
-        try {
-            await groupRef.update({ pendingMembers: firebase.firestore.FieldValue.arrayRemove(uid) });
-        } catch (e) { console.error("Error rejecting member", e); }
+        try { await groupRef.update({ pendingMembers: firebase.firestore.FieldValue.arrayRemove(uid) }); } 
+        catch (e) { console.error("Error rejecting member", e); }
     };
 
     const handleSaveTitle = async (uid) => {
-        try {
-            await groupRef.update({ [`memberTitles.${uid}`]: editingTitleText.trim() });
-            setEditingTitleId(null);
-        } catch (e) { console.error("Error saving title", e); }
+        try { await groupRef.update({ [`memberTitles.${uid}`]: editingTitleText.trim() }); setEditingTitleId(null); } 
+        catch (e) { console.error("Error saving title", e); }
     };
     
-    // --- NATIVE IMAGE UPLOAD LOGIC ---
     const handleImageUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-
-        if (!file.type.startsWith('image/')) {
-            alert("Please select an image file.");
-            return;
-        }
-
+        if (!file.type.startsWith('image/')) { alert("Please select an image file."); return; }
         setUploading(true);
         try {
             const options = { maxSizeMB: 0.8, maxWidthOrHeight: 1200, useWebWorker: true };
             const compressedFile = await imageCompression(file, options);
-            
             const fileRef = storage.ref(`pubs/${currentGroup.id}/${Date.now()}_${file.name}`);
             await fileRef.put(compressedFile);
-            
             const url = await fileRef.getDownloadURL();
             setNewPubPhotoURL(url);
-        } catch (err) {
-            console.error("Upload failed:", err);
-            alert("Failed to upload image.");
-        } finally {
-            setUploading(false);
-        }
+        } catch (err) { console.error("Upload failed:", err); alert("Failed to upload image."); } 
+        finally { setUploading(false); }
     };
 
     const handleAddCriterion = async (e) => {
         e.preventDefault();
-        if (!isCurrentUserOwner && !isCurrentUserManager) {
-            alert("Security Error: You do not have permission to add criteria.");
-            return;
-        }
+        if (!isCurrentUserOwner && !isCurrentUserManager) { alert("Security Error: You do not have permission to add criteria."); return; }
         setCriterionError("");
         if (!newCriterionName.trim()) return setCriterionError("Please enter a name.");
         setSavingCriterion(true);
@@ -185,23 +250,83 @@ export default function AdminPage({
     
     const handleAddPub = async (e) => {
         e.preventDefault();
-        if (!isCurrentUserOwner && !isCurrentUserManager) {
-            alert("Security Error: You do not have permission to add pubs.");
-            return;
-        }
+        if (!isCurrentUserOwner && !isCurrentUserManager) { alert("Security Error: You do not have permission to add pubs."); return; }
         setPubError("");
         if (!newPubName.trim()) return setPubError("Please enter a pub name.");
+        
         setSavingPub(true);
+        
         try {
-            const data = { name: newPubName.trim(), location: newPubLocation.trim() || "", status: "to-visit", addedBy: user.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+            let googlePhotoUrl = "";
+            let googleRating = null;
+            let placeId = "";
+            let fullAddress = newPubLocation.trim() || "";
+
+            // --- 1. NEW GOOGLE PLACES API FETCH ---
+            try {
+                if (window.google) {
+                    const { Place } = await window.google.maps.importLibrary("places");
+                    
+                    const searchQuery = fullAddress ? `${newPubName.trim()} in ${fullAddress}` : newPubName.trim();
+                    
+                    const request = {
+                        textQuery: searchQuery,
+                        fields: ['id', 'displayName', 'rating', 'photos', 'formattedAddress'], 
+                    };
+
+                    const { places } = await Place.searchByText(request);
+
+                    if (places && places.length > 0) {
+                        const bestMatch = places[0];
+                        placeId = bestMatch.id;
+                        googleRating = bestMatch.rating || null;
+                        
+                        if (bestMatch.formattedAddress) fullAddress = bestMatch.formattedAddress;
+
+                        if (bestMatch.photos && bestMatch.photos.length > 0) {
+                            googlePhotoUrl = bestMatch.photos[0].getURI({ maxWidth: 800 }); 
+                        }
+                    }
+                } else {
+                    console.warn("Google Maps API not loaded. Skipping Google data fetch.");
+                }
+            } catch (googleErr) {
+                console.error("Failed to fetch Google Data, continuing with manual data:", googleErr);
+            }
+
+            // --- 2. BUILD THE FIREBASE DOCUMENT ---
+            const data = { 
+                name: newPubName.trim(), 
+                location: fullAddress, 
+                status: "to-visit", 
+                addedBy: user.uid, 
+                createdAt: firebase.firestore.FieldValue.serverTimestamp() 
+            };
+
             if (newPubLat && newPubLng) { data.lat = parseFloat(newPubLat); data.lng = parseFloat(newPubLng); }
-            if (newPubPhotoURL.trim()) data.photoURL = newPubPhotoURL.trim();
+            
+            if (newPubPhotoURL.trim()) {
+                data.photoURL = newPubPhotoURL.trim();
+            } else if (googlePhotoUrl) {
+                data.photoURL = googlePhotoUrl;
+            }
+
             if (newPubGoogleLink.trim()) data.googleLink = newPubGoogleLink.trim();
+            if (placeId) data.placeId = placeId;
+            if (googleRating) data.googleRating = googleRating;
+
+            // --- 3. SAVE TO DATABASE ---
             await pubsRef.add(data);
+            
             setNewPubName(""); setNewPubLocation(""); setNewPubLat(""); setNewPubLng(""); setNewPubPhotoURL(""); setNewPubGoogleLink("");
             alert("Pub added successfully!");
-        } catch (e) { setPubError("Could not add pub."); } 
-        finally { setSavingPub(false); }
+            
+        } catch (e) { 
+            console.error("Error saving pub to Firebase:", e);
+            setPubError("Could not add pub."); 
+        } finally { 
+            setSavingPub(false); 
+        }
     };
     
     const handleRoleChange = async (memberId, role) => {
@@ -223,11 +348,8 @@ export default function AdminPage({
     };
     
     const handleCopyInvite = async () => {
-        try {
-            await navigator.clipboard.writeText(inviteUrl);
-            setCopyMessage("Invite link copied!");
-            setTimeout(() => setCopyMessage(""), 2000);
-        } catch (e) { setCopyMessage("Could not copy."); }
+        try { await navigator.clipboard.writeText(inviteUrl); setCopyMessage("Invite link copied!"); setTimeout(() => setCopyMessage(""), 2000); } 
+        catch (e) { setCopyMessage("Could not copy."); }
     };
     
     const getUserLabel = (uid) => {
@@ -239,9 +361,7 @@ export default function AdminPage({
         <div className="space-y-6 max-w-4xl mx-auto">
             <div>
                 <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Group Admin</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Managing <span className="font-bold text-blue-600 dark:text-blue-400">{currentGroup.groupName}</span>
-                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Managing <span className="font-bold text-blue-600 dark:text-blue-400">{currentGroup.groupName}</span></p>
             </div>
 
             <div className="flex overflow-x-auto bg-gray-200 dark:bg-gray-700 p-1 rounded-xl shadow-inner gap-1">
@@ -249,7 +369,8 @@ export default function AdminPage({
                     { id: 'settings', icon: '⚙️', label: 'Settings' },
                     { id: 'invites', icon: '📨', label: 'Invites' },
                     { id: 'members', icon: '👥', label: `Members (${members.length})` },
-                    { id: 'criteria', icon: '📋', label: `Criteria (${criteria.length})` },
+                    { id: 'criteria', icon: '📋', label: `Add Criteria` },
+                    { id: 'weights', icon: '⚖️', label: `Weights` },
                     { id: 'pubs', icon: '🍻', label: 'Add Pubs' },
                 ].map(tab => (
                     <button
@@ -258,9 +379,7 @@ export default function AdminPage({
                         className={`flex-1 min-w-[120px] py-2 px-4 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300 ${activeTab === tab.id ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
                     >
                         <span>{tab.icon}</span> {tab.label}
-                        {tab.id === 'members' && pendingMembers.length > 0 && (
-                            <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full ml-1 animate-pulse">{pendingMembers.length}</span>
-                        )}
+                        {tab.id === 'members' && pendingMembers.length > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full ml-1 animate-pulse">{pendingMembers.length}</span>}
                     </button>
                 ))}
             </div>
@@ -280,9 +399,7 @@ export default function AdminPage({
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Cover Photo URL (Displays on Dashboard)</label>
                                     <input type="text" value={editGroupCover} onChange={e => setEditGroupCover(e.target.value)} placeholder="https://..." className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white mb-3" />
-                                    {editGroupCover && (
-                                        <img src={editGroupCover} alt="Cover Preview" className="h-32 w-full object-cover rounded-lg shadow-sm border border-gray-200 dark:border-gray-600" onError={(e) => { e.target.style.display = "none"; }} />
-                                    )}
+                                    {editGroupCover && <img src={editGroupCover} alt="Cover Preview" className="h-32 w-full object-cover rounded-lg shadow-sm border border-gray-200 dark:border-gray-600" onError={(e) => { e.target.style.display = "none"; }} />}
                                 </div>
                             </div>
                         </div>
@@ -298,7 +415,6 @@ export default function AdminPage({
                             </label>
                         </div>
                         
-                        {/* --- NEW: CITY & PUBLIC TOGGLE --- */}
                         <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-xl border border-gray-200 dark:border-gray-600 space-y-6">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Group City / Region</label>
@@ -315,6 +431,27 @@ export default function AdminPage({
                                     <div className="w-14 h-7 bg-gray-300 dark:bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>
                                 </label>
                             </div>
+                        </div>
+
+                        {/* --- NEW: DATABASE MAINTENANCE SECTION --- */}
+                        <div className="bg-orange-50 dark:bg-orange-900/20 p-6 rounded-xl border border-orange-200 dark:border-orange-800 space-y-4 mb-6">
+                            <div>
+                                <h3 className="text-lg font-bold text-orange-800 dark:text-orange-400">Database Maintenance</h3>
+                                <p className="text-sm text-orange-600 dark:text-orange-300">If you have older pubs in your database that are missing cover photos and Google data, you can force a sync here.</p>
+                            </div>
+                            
+                            <button 
+                                onClick={handleSyncLegacyPubs} 
+                                disabled={isSyncing} 
+                                className="w-full py-3 bg-orange-500 text-white rounded-lg font-bold hover:bg-orange-600 transition disabled:opacity-50 flex flex-col items-center justify-center"
+                            >
+                                {isSyncing ? (
+                                    <>
+                                        <span>🔄 Syncing... Please do not close this page.</span>
+                                        <span className="text-xs font-normal mt-1 opacity-80">{syncProgress}</span>
+                                    </>
+                                ) : '🔄 Sync Legacy Pubs with Google'}
+                            </button>
                         </div>
 
                         <button onClick={handleSaveSettings} disabled={isSavingSettings} className="w-full py-3 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition disabled:opacity-50">
@@ -353,7 +490,6 @@ export default function AdminPage({
                 {/* --- TAB 3: MEMBERS --- */}
                 {activeTab === 'members' && (
                     <div className="space-y-6 animate-fadeIn">
-                        
                         {pendingMembers.length > 0 && (
                             <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 p-4 rounded-xl shadow-sm">
                                 <h3 className="text-lg font-bold text-orange-800 dark:text-orange-400 mb-3 flex items-center gap-2">
@@ -416,12 +552,7 @@ export default function AdminPage({
                                                                     {memberTitles[uid] || "No Title"}
                                                                 </span>
                                                                 {canManageSettings && (
-                                                                    <button 
-                                                                        onClick={() => { setEditingTitleId(uid); setEditingTitleText(memberTitles[uid] || ""); }} 
-                                                                        className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 text-xs transition"
-                                                                    >
-                                                                        ✏️
-                                                                    </button>
+                                                                    <button onClick={() => { setEditingTitleId(uid); setEditingTitleText(memberTitles[uid] || ""); }} className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 text-xs transition">✏️</button>
                                                                 )}
                                                             </div>
                                                         )}
@@ -473,11 +604,7 @@ export default function AdminPage({
                                         <option value="currency">Exact Price (£)</option>
                                         <option value="text">Written Review</option>
                                     </select>
-                                    <div className="relative">
-                                        <span className="absolute -top-2 left-2 bg-white dark:bg-gray-800 text-[10px] px-1 text-gray-500 font-bold">Weight</span>
-                                        <input type="number" min="0.1" step="0.1" value={newCriterionWeight} onChange={(e) => setNewCriterionWeight(e.target.value)} className="w-20 px-3 py-2 border dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 dark:text-white" />
-                                    </div>
-                                    <button type="submit" disabled={savingCriterion} className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition disabled:opacity-60">Add</button>
+                                    <button type="submit" disabled={savingCriterion} className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition disabled:opacity-60">Add Rule</button>
                                 </div>
                             </form>
                             {criterionError && <p className="text-xs text-red-500 mt-2 font-bold">{criterionError}</p>}
@@ -514,7 +641,43 @@ export default function AdminPage({
                     </div>
                 )}
 
-                {/* --- TAB 5: PUBS WITH NATIVE UPLOAD --- */}
+                {/* --- TAB 4.5: THE NEW WEIGHTS TAB --- */}
+                {activeTab === 'weights' && (
+                    <div className="space-y-6 animate-fadeIn">
+                        <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-xl border border-gray-200 dark:border-gray-600 space-y-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-800 dark:text-white">Global Criteria Weights</h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Adjust how important each criterion is. This will permanently alter the leaderboard rankings for everyone in the group.</p>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+                                {criteria.filter(c => !c.archived).map((c) => (
+                                    <div key={c.id} className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-600 shadow-sm hover:border-blue-300 transition-colors">
+                                        <div className="flex justify-between text-sm mb-3">
+                                            <span className="font-bold text-gray-700 dark:text-gray-300 truncate pr-2">{c.name}</span>
+                                            <span className="text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded font-black dark:text-blue-400">{(localWeights[c.id] ?? c.weight ?? 1).toFixed(1)}x</span>
+                                        </div>
+                                        <input 
+                                            type="range" 
+                                            min="0.1" 
+                                            max="3" 
+                                            step="0.1" 
+                                            value={localWeights[c.id] ?? c.weight ?? 1} 
+                                            onChange={(e) => setLocalWeights(prev => ({ ...prev, [c.id]: parseFloat(e.target.value) }))} 
+                                            className="w-full accent-blue-600 cursor-pointer" 
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button onClick={handleSaveWeights} disabled={savingWeights} className="w-full py-3 bg-blue-600 text-white rounded-xl font-black text-lg hover:bg-blue-700 transition shadow-md disabled:opacity-50 mt-6">
+                                {savingWeights ? 'Updating Database...' : '💾 Save & Update Leaderboard'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- TAB 5: PUBS --- */}
                 {activeTab === 'pubs' && (
                     <div className="space-y-6 animate-fadeIn">
                         <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-xl border border-gray-200 dark:border-gray-600">
@@ -560,29 +723,13 @@ export default function AdminPage({
                                             <span className="text-sm font-bold text-gray-600 dark:text-gray-300">
                                                 {uploading ? "Uploading Image..." : newPubPhotoURL ? "Change Photo" : "Upload or Take Photo"}
                                             </span>
-                                            <input 
-                                                type="file" 
-                                                accept="image/*" 
-                                                onChange={handleImageUpload} 
-                                                className="hidden" 
-                                                disabled={uploading} 
-                                            />
+                                            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={uploading} />
                                         </label>
 
                                         {newPubPhotoURL && (
                                             <div className="relative w-20 h-20 group">
-                                                <img 
-                                                    src={newPubPhotoURL} 
-                                                    alt="Preview" 
-                                                    className="w-full h-full object-cover rounded-xl shadow-md border-2 border-white dark:border-gray-600" 
-                                                />
-                                                <button 
-                                                    type="button"
-                                                    onClick={() => setNewPubPhotoURL("")}
-                                                    className="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition"
-                                                >
-                                                    ✕
-                                                </button>
+                                                <img src={newPubPhotoURL} alt="Preview" className="w-full h-full object-cover rounded-xl shadow-md border-2 border-white dark:border-gray-600" />
+                                                <button type="button" onClick={() => setNewPubPhotoURL("")} className="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition">✕</button>
                                             </div>
                                         )}
                                     </div>

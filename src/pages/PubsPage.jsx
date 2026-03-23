@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import ImageUploader from '../components/ImageUploader'; // <-- New Import
+import ImageUploader from '../components/ImageUploader';
+import { LiveGoogleStatus } from './PubsToVisitPage'; 
 
 export default function PubsPage({
     pubs,
@@ -73,6 +74,7 @@ export default function PubsPage({
         return true;
     }).sort((a, b) => {
         if (sortOption === "highest") return b.avgScore - a.avgScore;
+        if (sortOption === "google-highest") return (b.googleRating || 0) - (a.googleRating || 0);
         if (sortOption === "lowest") return a.avgScore - b.avgScore;
         if (sortOption === "alphabetical") return a.name.localeCompare(b.name);
         if (sortOption === "newest") return (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0);
@@ -126,7 +128,8 @@ export default function PubsPage({
                 )}
                 
                 <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold">
-                    <option value="highest">⭐ Highest Rated</option>
+                    <option value="highest">⭐ Highest Rated (Group)</option>
+                    <option value="google-highest">🌟 Highest Rated (Google)</option>
                     <option value="lowest">📉 Lowest Rated</option>
                     <option value="newest">🆕 Newest Added</option>
                     <option value="alphabetical">🔤 Alphabetical (A-Z)</option>
@@ -160,14 +163,25 @@ export default function PubsPage({
                             <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-1 truncate">{pub.name}</h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 truncate">📍 {pub.location || 'Unknown Location'}</p>
                             
-                            <div className="flex justify-between items-center mb-4">
+                            <div className="flex justify-between items-center mb-4 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
                                 <div>
-                                    <p className="text-xs text-gray-400 font-bold uppercase mb-1">Score</p>
-                                    <p className="font-black text-2xl text-blue-600 dark:text-blue-400">{pub.ratingCount > 0 ? pub.avgScore.toFixed(1) : '-'}</p>
+                                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider mb-0.5">Group Score</p>
+                                    <p className="font-black text-2xl text-blue-600 dark:text-blue-400 leading-none">
+                                        {pub.ratingCount > 0 ? pub.avgScore.toFixed(1) : '-'}
+                                        <span className="text-sm text-gray-400 font-bold">/10</span>
+                                    </p>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-xs text-gray-400 font-bold uppercase mb-1">Ratings</p>
-                                    <p className="font-bold text-lg text-gray-700 dark:text-gray-300">{pub.ratingCount}</p>
+                                <div className="text-right border-l border-gray-200 dark:border-gray-600 pl-4">
+                                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider mb-0.5">Google</p>
+                                    <p className="font-bold text-lg text-gray-700 dark:text-gray-300 leading-none">
+                                        {pub.googleRating ? (
+                                            <span className="flex items-center gap-1 justify-end">
+                                                <span className="text-yellow-500 text-sm">★</span> {pub.googleRating}
+                                            </span>
+                                        ) : (
+                                            <span className="text-sm text-gray-400 font-medium">N/A</span>
+                                        )}
+                                    </p>
                                 </div>
                             </div>
 
@@ -199,7 +213,10 @@ export default function PubsPage({
 
                         <h2 className="text-3xl font-black mb-1 text-gray-800 dark:text-white">{selectedPubForDetail.name}</h2>
                         <p className="text-gray-500 dark:text-gray-400 mb-6 font-medium flex items-center gap-2">📍 {selectedPubForDetail.location}</p>
-                
+
+                        {/* LIVE GOOGLE STATUS INTEGRATION */}
+                        <div className="mb-6"><LiveGoogleStatus pub={selectedPubForDetail} /></div>
+            
                         <div className="flex items-center justify-between mb-8 p-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl text-white shadow-lg">
                             <div>
                                 <p className="text-sm text-blue-100 uppercase font-bold tracking-wider mb-1">Overall Rating</p>
@@ -208,7 +225,7 @@ export default function PubsPage({
                             <div className="text-6xl opacity-50">🍻</div>
                         </div>
 
-                        {/* --- NEW: IMAGE UPLOADER INTEGRATION --- */}
+                        {/* IMAGE UPLOADER INTEGRATION */}
                         {canManageGroup && (
                             <div className="mb-8 bg-gray-50 dark:bg-gray-700/50 p-5 rounded-xl border border-gray-100 dark:border-gray-700">
                                 <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-3">Pub Photo</h3>
@@ -230,7 +247,6 @@ export default function PubsPage({
                                 />
                             </div>
                         )}
-                        {/* --- END IMAGE UPLOADER --- */}
                 
                         <div className="space-y-6">
                             <h3 className="text-2xl font-bold text-gray-800 dark:text-white border-b-2 border-gray-100 dark:border-gray-700 pb-2">Detailed Breakdown</h3>
@@ -268,7 +284,9 @@ export default function PubsPage({
                                                         <div key={s.id} className="flex items-center justify-between bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-100 dark:border-gray-600 shadow-sm">
                                                             <div className="flex gap-2">
                                                                 <span className="font-bold text-gray-800 dark:text-gray-200">{s.userName}:</span>
-                                                                <span>{data.type === "yes-no" ? s.value ? "✅ Yes" : "❌ No" : data.type === "currency" ? `£${parseFloat(s.value).toFixed(2)}` : s.value}</span>
+                                                                <span>
+                                                                    {data.type === "yes-no" ? s.value ? "✅ Yes" : "❌ No" : data.type === "currency" ? `£${parseFloat(s.value).toFixed(2)}` : s.value}
+                                                                </span>
                                                             </div>
                                                             {canDeleteScore(s, currentUser, currentGroup) && (
                                                                 <button className="px-2 py-1 text-xs font-bold rounded bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100" onClick={() => handleDeleteScore(s)}>Delete</button>

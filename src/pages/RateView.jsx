@@ -226,19 +226,19 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
                             </div>
                         )}
 
-                {/* THE NEW WRITTEN REVIEW INPUT */}
-                {criterion.type === "text" && (
+{/* THE NEW WRITTEN REVIEW INPUT */}
+                {crit.type === "text" && (
                 <div className="mb-6">
                     <textarea
-                        value={currentRating || ""}
-                        onChange={(e) => handleRate(criterion.id, e.target.value)}
+                        value={ratings[crit.id] || ""}
+                        onChange={(e) => handleRate(crit.id, e.target.value)}
                         placeholder="Leave your thoughts, review, or funny quotes here... (Max 250 chars)"
-                        maxLength={250} // <-- ADD THIS LINE
+                        maxLength={250} 
                         className="w-full h-32 p-4 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 bg-white dark:bg-gray-700 dark:text-white transition resize-none shadow-inner"
                     />
                     {/* Add a helpful character counter */}
-                    <p className={`text-xs text-right mt-1 font-bold ${currentRating?.length >= 240 ? 'text-red-500' : 'text-gray-400'}`}>
-                        {currentRating?.length || 0} / 250
+                    <p className={`text-xs text-right mt-1 font-bold ${(ratings[crit.id]?.length || 0) >= 240 ? 'text-red-500' : 'text-gray-400'}`}>
+                        {ratings[crit.id]?.length || 0} / 250
                     </p>
                 </div>
                 )}
