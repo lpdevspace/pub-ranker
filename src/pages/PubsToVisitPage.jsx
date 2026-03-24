@@ -8,6 +8,12 @@ export function LiveGoogleStatus({ pub }) {
     const [details, setDetails] = useState(null);
 
     useEffect(() => {
+
+        // --- GOOGLE KILL SWITCH ---
+        if (featureFlags?.disableGoogleAPI) {
+            setStatus("unknown");
+            return;
+        }
         // Gracefully hide if the Google Maps script isn't loaded yet
         if (!window.google || !window.google.maps || !window.google.maps.places) {
             setStatus("unknown");

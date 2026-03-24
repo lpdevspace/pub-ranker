@@ -16,7 +16,7 @@ import AdminPage from './pages/AdminPage';
 import SuperAdminPage from './pages/SuperAdminPage';
 import FeedbackPage from './pages/FeedbackPage';
 
-export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMode, toggleDarkMode }) {
+export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMode, toggleDarkMode, featureFlags }) {
     const [page, setPage] = useState("dashboard");
     const [currentPub, setCurrentPub] = useState(null);
     const [editingPub, setEditingPub] = useState(null);
@@ -73,6 +73,11 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
             const scoresData = {};
             snapshot.docs.forEach((doc) => {
                 const data = doc.data();
+                
+                // --- THIS IS THE MAGIC LINE YOU NEED ---
+                // It attaches the Firebase Document ID to the score so the Comment button knows where to save!
+                data.id = doc.id; 
+                
                 const { pubId, userId, criterionId } = data;
                 if (!pubId || !criterionId) return;
                 if (!scoresData[pubId]) scoresData[pubId] = {};
@@ -163,20 +168,19 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
 
         switch (page) {
             case 'dashboard': return <DashboardPage pubs={visitedPubs} newPubs={newPubs} criteria={activeCriteria} users={activeRaters} scores={scores} rankedPubs={rankedVisitedPubs} setPage={setPage} groupId={groupId} db={db} allUsers={allUsers} />;
-            case "pubs": return <PubsPage pubs={rankedVisitedPubs} criteria={activeCriteria} scores={scores} onSelectPub={handleSelectPub} onSelectPubForEdit={handleSelectPubForEdit} canManageGroup={canManageGroup} pubsRef={pubsRef} allUsers={allUsers} currentUser={user} currentGroup={currentGroup} groupRef={groupRef} userProfile={userProfile} groupId={groupId} db={db} />;
-            case 'toVisit': return <PubsToVisitPage pubs={newPubs} canManageGroup={canManageGroup} onPromotePub={handlePromotePub} onSelectPubForEdit={handleSelectPubForEdit} allUsers={allUsers} pubsRef={pubsRef} currentGroup={currentGroup} currentUser={user} />;            case 'map': return <MapPage pubs={pubs} criteria={activeCriteria} scores={scores} db={db} groupId={groupId} userProfile={userProfile} />;
-            case 'individual': return <IndividualRankingsPage scores={scores} pubs={pubs} criteria={criteria} allUsers={allUsers} activeRaters={activeRaters} criteriaWeightMap={criteriaWeightMap} />;
+            case "pubs": return <PubsPage pubs={rankedVisitedPubs} criteria={activeCriteria} scores={scores} onSelectPub={handleSelectPub} onSelectPubForEdit={handleSelectPubForEdit} canManageGroup={canManageGroup} pubsRef={pubsRef} allUsers={allUsers} currentUser={user} currentGroup={currentGroup} groupRef={groupRef} userProfile={userProfile} groupId={groupId} db={db} featureFlags={featureFlags} />;
+            case 'toVisit': return <PubsToVisitPage pubs={newPubs} canManageGroup={canManageGroup} onPromotePub={handlePromotePub} onSelectPubForEdit={handleSelectPubForEdit} allUsers={allUsers} pubsRef={pubsRef} currentGroup={currentGroup} currentUser={user} featureFlags={featureFlags} />;            case 'individual': return <IndividualRankingsPage scores={scores} pubs={pubs} criteria={criteria} allUsers={allUsers} activeRaters={activeRaters} criteriaWeightMap={criteriaWeightMap} />;
             case 'leaderboard': return <LeaderboardPage scores={scores} allUsers={allUsers} pubs={pubs} criteria={criteria} />;
             case 'spin': return <SpinTheWheelPage pubs={pubs} criteria={activeCriteria} scores={scores} />;
             case 'feedback': return <FeedbackPage db={db} userProfile={userProfile} />;
-            case 'admin': return <AdminPage criteria={criteria} pubs={pubs} user={user} currentGroup={currentGroup} pubsRef={pubsRef} criteriaRef={criteriaRef} groupRef={groupRef} allUsers={allUsers} db={db} />;
+            case 'admin': return <AdminPage criteria={criteria} pubs={pubs} user={user} currentGroup={currentGroup} pubsRef={pubsRef} criteriaRef={criteriaRef} groupRef={groupRef} allUsers={allUsers} db={db} featureFlags={featureFlags} />;
             case 'superadmin': return <SuperAdminPage db={db} userProfile={userProfile} />;
             default: return <DashboardPage pubs={visitedPubs} newPubs={newPubs} criteria={activeCriteria} users={activeRaters} scores={scores} rankedPubs={rankedVisitedPubs} setPage={setPage} groupId={groupId} db={db} allUsers={allUsers} />;
         }
     };
 
-    return (
-        <div className="w-full">
+ return (
+        <div className="w-full" style={{ '--theme-color': currentGroup.brandColor || '#2563eb' }}>
             <Header user={user} page={page} setPage={setPage} canManageGroup={canManageGroup} groupName={currentGroup.groupName} onSwitchGroup={handleSwitchGroup} auth={auth} db={db} userProfile={userProfile} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} scores={scores} pubs={pubs} criteria={criteria} />
             {renderPage()}
         </div>

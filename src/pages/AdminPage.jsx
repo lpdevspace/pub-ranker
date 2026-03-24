@@ -3,21 +3,14 @@ import { firebase, storage } from '../firebase';
 import imageCompression from 'browser-image-compression'; 
 
 export default function AdminPage({
-    criteria,
-    pubs,
-    user,
-    currentGroup,
-    pubsRef,
-    criteriaRef,
-    groupRef,
-    allUsers,
-    db,
+    criteria, pubs, user, currentGroup, pubsRef, criteriaRef, groupRef, allUsers, db, featureFlags
 }) {
     const [activeTab, setActiveTab] = useState('settings'); 
 
     // --- SETTINGS & BRAND STATE ---
     const [editGroupName, setEditGroupName] = useState(currentGroup.groupName || "");
     const [editGroupCover, setEditGroupCover] = useState(currentGroup.coverPhoto || "");
+    const [brandColor, setBrandColor] = useState(currentGroup.brandColor || "#2563eb"); // <-- ADD THIS
     const [requireApproval, setRequireApproval] = useState(currentGroup.requireApproval || false);
     
     // PUBLIC DIRECTORY STATES
@@ -99,6 +92,7 @@ export default function AdminPage({
             await groupRef.update({
                 groupName: editGroupName.trim(),
                 coverPhoto: editGroupCover.trim(),
+                brandColor: brandColor, // <-- ADD THIS
                 requireApproval: requireApproval,
                 city: city.trim(),
                 isPublic: isPublic
@@ -264,7 +258,7 @@ export default function AdminPage({
 
             // --- 1. NEW GOOGLE PLACES API FETCH ---
             try {
-                if (window.google) {
+                if (window.google && !featureFlags?.disableGoogleAPI) { // <-- ADDED FLAG CHECK
                     const { Place } = await window.google.maps.importLibrary("places");
                     
                     const searchQuery = fullAddress ? `${newPubName.trim()} in ${fullAddress}` : newPubName.trim();
@@ -395,6 +389,15 @@ export default function AdminPage({
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Group Name</label>
                                     <input type="text" value={editGroupName} onChange={e => setEditGroupName(e.target.value)} className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white" />
+                                </div>
+                                {/* --- NEW: BRAND COLOR PICKER --- */}
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Brand Theme Color</label>
+                                    <div className="flex items-center gap-3">
+                                        <input type="color" value={brandColor} onChange={e => setBrandColor(e.target.value)} className="h-10 w-16 p-1 border dark:border-gray-600 rounded cursor-pointer bg-white dark:bg-gray-800" />
+                                        <span className="text-sm font-mono text-gray-500">{brandColor.toUpperCase()}</span>
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-1">This color will be used for primary buttons and accents across your group's dashboard.</p>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Cover Photo URL (Displays on Dashboard)</label>

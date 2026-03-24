@@ -1,5 +1,11 @@
 @import "tailwindcss";
-@custom-variant dark (&:where(.dark, .dark *)); /* Add this line! */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* --- NEW: DYNAMIC BRAND COLOR --- */
+@theme {
+  /* This automatically creates Tailwind classes like bg-brand, text-brand, border-brand */
+  --color-brand: var(--theme-color, #2563eb); 
+}
 
 /* Add your custom CSS from the old HTML file below */
 .loader {

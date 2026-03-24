@@ -19,6 +19,7 @@ export default function App() {
     const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
     const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
     const [showAuth, setShowAuth] = useState(false);
+    const [featureFlags, setFeatureFlags] = useState({}); // <-- ADD THIS LINE
 
     useEffect(() => {
         if (isDarkMode) {
@@ -83,6 +84,7 @@ export default function App() {
             if (doc.exists) {
                 setGlobalAnnouncement(doc.data().announcement || "");
                 setIsMaintenanceMode(doc.data().maintenanceMode || false);
+                setFeatureFlags(doc.data().featureFlags || {}); // <-- ADD THIS LINE
             } else {
                 setGlobalAnnouncement("");
                 setIsMaintenanceMode(false);
@@ -116,7 +118,7 @@ export default function App() {
         </div>
     );
     else if (!userProfile.activeGroupId || !userProfile.groups.includes(userProfile.activeGroupId)) currentScreen = <div className="container mx-auto p-4 max-w-7xl"><GroupPortal user={user} userProfile={userProfile} auth={auth} db={db} /></div>;
-    else currentScreen = <div className="container mx-auto p-4 max-w-7xl"><MainApp user={user} userProfile={userProfile} groupId={userProfile.activeGroupId} auth={auth} db={db} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} /></div>;
+    else currentScreen = <div className="container mx-auto p-4 max-w-7xl"><MainApp user={user} userProfile={userProfile} groupId={userProfile.activeGroupId} auth={auth} db={db} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} featureFlags={featureFlags}/></div>;
 
     return (
         <>
@@ -281,6 +283,13 @@ function AuthScreen({ auth, onBack }) {
         catch (e) { setError(e.message); }
     };
 
+    const handleFacebookSignIn = async () => {
+        setError("");
+        const provider = new firebase.auth.FacebookAuthProvider();
+        try { await auth.signInWithPopup(provider); } 
+        catch (e) { setError(e.message); }
+    };
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
             <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl max-w-sm w-full relative">
@@ -294,6 +303,9 @@ function AuthScreen({ auth, onBack }) {
                     {/* APPLE BUTTON */}
                     <button onClick={handleAppleSignIn} className="w-full bg-black text-white py-3 rounded-xl font-bold hover:bg-gray-900 transition flex items-center justify-center gap-2 shadow-sm">
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.43.987 3.96.948 1.567-.04 2.613-1.5 3.616-2.978 1.155-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.55 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.56-1.702z"/></svg> Sign in with Apple
+                    </button>
+                    <button onClick={handleFacebookSignIn} className="w-full bg-[#1877F2] text-white py-3 rounded-xl font-bold hover:bg-[#166FE5] transition flex items-center justify-center gap-2 shadow-sm">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg> Sign in with Facebook
                     </button>
                 </div>
 
@@ -373,7 +385,7 @@ function GroupPortal({ user, userProfile, auth, db }) {
         catch (error) { console.error("Error signing out", error); }
     };
 
-    const handleCreateGroup = async (e) => {
+const handleCreateGroup = async (e) => {
         e.preventDefault();
         if (!createGroupName.trim()) return;
         setIsCreating(true);
@@ -391,6 +403,32 @@ function GroupPortal({ user, userProfile, auth, db }) {
                 requireApproval: false, 
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             });
+
+            // --- NEW: FETCH AND INJECT GLOBAL DEFAULT CRITERIA ---
+            try {
+                const defaultsSnap = await db.collection('global').doc('defaults').get();
+                if (defaultsSnap.exists && defaultsSnap.data().criteria) {
+                    const criteriaList = defaultsSnap.data().criteria;
+                    const batch = db.batch(); // Use a batch to write them all at once instantly!
+                    
+                    criteriaList.forEach((crit, index) => {
+                        const critRef = newGroupRef.collection('criteria').doc();
+                        batch.set(critRef, {
+                            name: crit.name,
+                            type: crit.type,
+                            weight: crit.weight || 1,
+                            archived: false,
+                            order: index,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    });
+                    
+                    await batch.commit();
+                }
+            } catch (defaultsError) {
+                console.error("Error attaching default criteria:", defaultsError);
+                // We don't fail group creation if this fails, we just log it.
+            }
 
             await userRef.update({
                 groups: firebase.firestore.FieldValue.arrayUnion(newGroupRef.id),
