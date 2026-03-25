@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { firebase } from '../firebase'; 
 
-export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile, isDarkMode, toggleDarkMode, scores, pubs, criteria }) {    const [showProfile, setShowProfile] = useState(false);
+export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile, isDarkMode, toggleDarkMode, scores, pubs, criteria }) {    
+    const [showProfile, setShowProfile] = useState(false);
     const [isNavOpen, setIsNavOpen] = useState(false); // For mobile menu toggle
+    
+    // --- NEW: Check if the user has ANY staff role ---
+    const isStaff = userProfile?.isSuperAdmin || userProfile?.isAdmin || userProfile?.isModerator;
     
     const NavButton = ({ name, targetPage, icon }) => {
         const isActive = page === targetPage;
@@ -121,8 +125,10 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                 <NavButton name="Admin" targetPage="admin" icon="⚙️" />
                             </div>
                         )}
-                        {userProfile?.isSuperAdmin && (
-                            <NavButton name="Super Admin" targetPage="superadmin" icon="👑" />
+                        
+                        {/* UPDATED: NOW SHOWS FOR ANY STAFF MEMBER */}
+                        {isStaff && (
+                            <NavButton name="Staff Menu" targetPage="superadmin" icon="🛡️" />
                         )}
                     </div>
                 </div>
