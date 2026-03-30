@@ -142,12 +142,23 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
     const handleSelectPub = (pub) => setCurrentPub(pub);
     const handleSelectPubForEdit = (pub) => setEditingPub(pub);
 
-    const handleUpdatePub = async (pubId, newName, newLocation, newLat, newLng, newPhotoURL, newGoogleLink) => {
-        let pubData = { name: newName, location: newLocation, photoURL: newPhotoURL, googleLink: newGoogleLink };
-        if (newLat && newLng) { pubData.lat = parseFloat(newLat); pubData.lng = parseFloat(newLng); } 
-        else { pubData.lat = firebase.firestore.FieldValue.delete(); pubData.lng = firebase.firestore.FieldValue.delete(); }
-        try { await pubsRef.doc(pubId).update(pubData); setEditingPub(null); } 
-        catch (e) { console.error("Error updating pub:", e); }
+    const handleSavePub = async (pubId, name, location, lat, lng, photoURL, googleLink, tags = []) => {
+        if (!pubsRef) return;
+        try {
+            await pubsRef.doc(pubId).update({
+                name,
+                location,
+                lat: parseFloat(lat) || null,
+                lng: parseFloat(lng) || null,
+                photoURL: photoURL || "",
+                googleLink: googleLink || "",
+                tags: tags // <-- ADD THIS LINE
+            });
+            setPage('pubs');
+        } catch (e) {
+            console.error("Error updating pub", e);
+            alert("Failed to update pub");
+        }
     };
 
     const handlePromotePub = async (pubId) => {
@@ -166,23 +177,26 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
         if (currentPub) return <RateView pub={currentPub} criteria={activeCriteria} user={user} onBack={() => setCurrentPub(null)} groupRef={groupRef} groupId={groupId} db={db} />;
         if (editingPub) return <EditPubView pub={editingPub} onBack={() => setEditingPub(null)} onSave={handleUpdatePub} />;
 
-        switch (page) {
+switch (page) {
             case 'dashboard': return <DashboardPage pubs={visitedPubs} newPubs={newPubs} criteria={activeCriteria} users={activeRaters} scores={scores} rankedPubs={rankedVisitedPubs} setPage={setPage} groupId={groupId} db={db} allUsers={allUsers} />;
-            case "pubs": return <PubsPage pubs={rankedVisitedPubs} criteria={activeCriteria} scores={scores} onSelectPub={handleSelectPub} onSelectPubForEdit={handleSelectPubForEdit} canManageGroup={canManageGroup} pubsRef={pubsRef} allUsers={allUsers} currentUser={user} currentGroup={currentGroup} groupRef={groupRef} userProfile={userProfile} groupId={groupId} db={db} featureFlags={featureFlags} />;
-            case 'toVisit': return <PubsToVisitPage pubs={newPubs} canManageGroup={canManageGroup} onPromotePub={handlePromotePub} onSelectPubForEdit={handleSelectPubForEdit} allUsers={allUsers} pubsRef={pubsRef} currentGroup={currentGroup} currentUser={user} featureFlags={featureFlags} />;            case 'individual': return <IndividualRankingsPage scores={scores} pubs={pubs} criteria={criteria} allUsers={allUsers} activeRaters={activeRaters} criteriaWeightMap={criteriaWeightMap} />;
-            case 'leaderboard': return <LeaderboardPage scores={scores} allUsers={allUsers} pubs={pubs} criteria={criteria} />;
+            case 'pubs': return <PubsPage pubs={rankedVisitedPubs} criteria={activeCriteria} scores={scores} onSelectPub={handleSelectPub} onSelectPubForEdit={handleSelectPubForEdit} canManageGroup={canManageGroup} pubsRef={pubsRef} allUsers={allUsers} currentUser={user} currentGroup={currentGroup} groupRef={groupRef} featureFlags={featureFlags} db={db} />;
+            case 'toVisit': return <PubsToVisitPage pubs={newPubs} canManageGroup={canManageGroup} onPromotePub={handlePromotePub} onSelectPubForEdit={handleSelectPubForEdit} allUsers={allUsers} pubsRef={pubsRef} currentGroup={currentGroup} currentUser={user} featureFlags={featureFlags} />;            
+            case 'rate': return <RateView pub={currentPub} criteria={activeCriteria} onBack={() => setPage('pubs')} onSave={handleSaveScores} existingScores={scores[currentPub?.id] || {}} />;
+            case 'editPub': return <EditPubView pub={editingPub} onBack={() => setPage('pubs')} onSave={handleSavePub} />;
+            case 'map': return <MapPage pubs={pubs} scores={scores} criteria={activeCriteria} db={db} groupId={groupId} userProfile={userProfile} />;
+            case 'individual': return <IndividualRankingsPage scores={scores} pubs={pubs} criteria={criteria} allUsers={allUsers} activeRaters={activeRaters} criteriaWeightMap={criteriaWeightMap} />;
+            case 'leaderboard': return <LeaderboardPage scores={scores} allUsers={allUsers} pubs={pubs} criteria={criteria} db={db} groupId={groupId} />;            
             case 'spin': return <SpinTheWheelPage pubs={pubs} criteria={activeCriteria} scores={scores} />;
             case 'feedback': return <FeedbackPage db={db} userProfile={userProfile} />;
             case 'admin': return <AdminPage criteria={criteria} pubs={pubs} user={user} currentGroup={currentGroup} pubsRef={pubsRef} criteriaRef={criteriaRef} groupRef={groupRef} allUsers={allUsers} db={db} featureFlags={featureFlags} />;
-            case 'superadmin': return <SuperAdminPage db={db} userProfile={userProfile} />;
+            case 'superadmin': return <SuperAdminPage db={db} userProfile={userProfile} user={user} />;
             default: return <DashboardPage pubs={visitedPubs} newPubs={newPubs} criteria={activeCriteria} users={activeRaters} scores={scores} rankedPubs={rankedVisitedPubs} setPage={setPage} groupId={groupId} db={db} allUsers={allUsers} />;
         }
     };
 
  return (
         <div className="w-full" style={{ '--theme-color': currentGroup.brandColor || '#2563eb' }}>
-            <Header user={user} page={page} setPage={setPage} canManageGroup={canManageGroup} groupName={currentGroup.groupName} onSwitchGroup={handleSwitchGroup} auth={auth} db={db} userProfile={userProfile} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} scores={scores} pubs={pubs} criteria={criteria} />
-            {renderPage()}
+        <Header user={user} page={page} setPage={setPage} canManageGroup={canManageGroup} groupName={currentGroup?.groupName || 'My Pub Group'} onSwitchGroup={() => setGroupId(null)} auth={auth} db={db} userProfile={userProfile} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} scores={scores} pubs={pubs} criteria={activeCriteria} groupId={groupId} />            {renderPage()}
         </div>
     );
 }

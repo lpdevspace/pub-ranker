@@ -1,319 +1,314 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 
-export default function LeaderboardPage({ scores, allUsers, pubs, criteria = [] }) {
-    // 1. THIS IS THE CORRECT SPOT FOR useState!
-    // It must be at the top level, outside of useMemo.
-    const [selectedUserId, setSelectedUserId] = useState(null);
+function PublicProfileModal({ member, onClose, customBadges }) {
+    if (!member) return null;
 
-    const { awards, dynamicAwards, userBadges } = useMemo(() => {
-        const userStats = {};
+    const { user, ratedCount, perfectTens, writtenReviews, pubsAdded, crawlsCreated, topPubs, totalPoints } = member;
+    const displayName = user?.nickname || user?.displayName || user?.email || "Unknown User";
 
-        // 1. Crunch the raw data
-        Object.entries(scores).forEach(([pubId, pubScores]) => {
-            Object.entries(pubScores).forEach(([criterionId, criterionScores]) => {
-                criterionScores.forEach((score) => {
-                    if (score.value == null) return;
+    const badges = customBadges && customBadges.length > 0 ? customBadges.map(b => {
+        let earned = false;
+        if (b.metric === 'rated') earned = ratedCount >= b.threshold;
+        else if (b.metric === 'reviews') earned = writtenReviews >= b.threshold;
+        else if (b.metric === 'added') earned = pubsAdded >= b.threshold;
+        else if (b.metric === 'tens') earned = perfectTens >= b.threshold;
+        else if (b.metric === 'crawls') earned = crawlsCreated >= b.threshold;
+        return { ...b, earned };
+    }) : [
+        { emoji: '🍻', title: 'First Pint', desc: 'Rated your first pub', earned: ratedCount >= 1 },
+        { emoji: '🥇', title: 'Gold Pint', desc: 'Rated 20+ pubs', earned: ratedCount >= 20 }
+    ];
+
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={onClose}>
+            <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white transition">✕</button>
+
+                <div className="flex flex-col items-center mb-6">
+                    {user?.avatarUrl ? (
+                        <img src={user.avatarUrl} alt="Avatar" className="w-24 h-24 rounded-full object-cover shadow-md border-4 border-brand mb-3" onError={(e) => { e.target.style.display = "none"; }} />
+                    ) : (
+                        <div className="w-24 h-24 rounded-full bg-brand flex items-center justify-center text-white text-4xl font-black shadow-md mb-3">
+                            {displayName.charAt(0).toUpperCase()}
+                        </div>
+                    )}
+                    <h3 className="text-2xl font-black text-gray-800 dark:text-white text-center">{displayName}</h3>
+                    {user?.bio && <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center italic">"{user.bio}"</p>}
                     
-                    if (!userStats[score.userId]) {
-                        userStats[score.userId] = {
-                            userId: score.userId,
-                            pubsRated: new Set(),
-                            totalScaleScore: 0,
-                            scaleScoreCount: 0,
-                            totalPriceScore: 0,
-                            priceScoreCount: 0,
-                            textReviewCount: 0,
-                            perfectTenCount: 0,
-                            highPriceCount: 0,
-                            noVoteCount: 0
-                        };
+                    <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-full border border-blue-100 dark:border-blue-900/50">
+                        <span className="font-black text-blue-700 dark:text-blue-400">{totalPoints}</span> <span className="text-xs text-blue-600 dark:text-blue-500 font-bold uppercase tracking-wider">Total Points</span>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                    <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl border border-gray-100 dark:border-gray-600 text-center">
+                        <p className="text-xl font-black text-gray-800 dark:text-white">{ratedCount}</p>
+                        <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Pubs Rated</p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl border border-gray-100 dark:border-gray-600 text-center">
+                        <p className="text-xl font-black text-gray-800 dark:text-white">{writtenReviews}</p>
+                        <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Reviews</p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl border border-gray-100 dark:border-gray-600 text-center">
+                        <p className="text-xl font-black text-gray-800 dark:text-white">{crawlsCreated}</p>
+                        <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Crawls Made</p>
+                    </div>
+                </div>
+
+                <div className="mb-6">
+                    <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 text-center">Trophy Cabinet</h4>
+                    <div className="grid grid-cols-3 gap-3">
+                        {badges.map((badge, idx) => (
+                            <div key={idx} className={`flex flex-col items-center p-2 rounded-xl border text-center transition-all ${badge.earned ? 'bg-gradient-to-br from-yellow-50 to-amber-100 border-yellow-200 dark:from-yellow-900/20 dark:to-amber-900/10 dark:border-yellow-700/50 shadow-sm' : 'bg-gray-50 border-gray-100 dark:bg-gray-800/50 dark:border-gray-700 opacity-50 grayscale'}`} title={badge.desc}>
+                                <span className="text-2xl mb-1 filter drop-shadow-sm">{badge.emoji}</span>
+                                <span className={`text-[9px] font-black uppercase tracking-wider leading-tight ${badge.earned ? 'text-yellow-800 dark:text-yellow-500' : 'text-gray-500 dark:text-gray-400'}`}>{badge.title}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {topPubs.length > 0 && (
+                    <div>
+                        <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 text-center">Personal Top 3 Pubs</h4>
+                        <div className="space-y-2">
+                            {topPubs.map((tp, idx) => (
+                                <div key={tp.pubId} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
+                                    <div className="flex items-center gap-3 truncate">
+                                        <span className="text-lg font-black text-gray-400">#{idx + 1}</span>
+                                        <span className="font-bold text-gray-800 dark:text-white truncate">{tp.pub?.name || 'Unknown Pub'}</span>
+                                    </div>
+                                    <span className="font-black text-brand bg-brand/10 px-2 py-1 rounded text-sm">{tp.avg.toFixed(1)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+export default function LeaderboardPage({ scores, allUsers, pubs, criteria, db, groupId }) {
+    const [activeTab, setActiveTab] = useState('pubs'); 
+    const [selectedUserForProfile, setSelectedUserForProfile] = useState(null);
+    
+    const [gamification, setGamification] = useState({ pointsPerPub: 5, pointsPerReview: 2, pointsPerAdd: 3, pointsPerCrawl: 5, badges: [] });
+    const [crawlsList, setCrawlsList] = useState([]);
+
+    useEffect(() => {
+        if (!db) return;
+        db.collection('global').doc('gamification').get().then(doc => {
+            if (doc.exists && doc.data()) {
+                setGamification(prev => ({ ...prev, ...doc.data() }));
+            }
+        }).catch(e => console.error("Error fetching gamification:", e));
+    }, [db]);
+
+    // --- FETCH MAP CRAWLS ---
+    useEffect(() => {
+        if (!db || !groupId) return;
+        const unsub = db.collection('crawls').where('groupId', '==', groupId).onSnapshot(snap => {
+            setCrawlsList(snap.docs.map(doc => doc.data()));
+        });
+        return () => unsub();
+    }, [db, groupId]);
+
+    const rankedPubs = useMemo(() => {
+        const enriched = pubs.map(pub => {
+            let totalScore = 0; let count = 0;
+            criteria.filter(c => c.type === 'scale').forEach(c => {
+                const cScores = scores[pub.id]?.[c.id] || [];
+                cScores.forEach(s => { if (s.value != null && !isNaN(s.value)) { totalScore += s.value; count++; } });
+            });
+            return { ...pub, avgScore: count > 0 ? (totalScore / count) : 0, ratingCount: count };
+        });
+        return enriched.filter(p => p.ratingCount > 0).sort((a, b) => b.avgScore - a.avgScore);
+    }, [pubs, scores, criteria]);
+
+    const rankedMembers = useMemo(() => {
+        const stats = {};
+        
+        Object.keys(allUsers).forEach(uid => {
+            stats[uid] = { uid, user: allUsers[uid], pubsRated: new Set(), perfectTens: 0, writtenReviews: 0, pubsAdded: 0, crawlsCreated: 0, personalPubScores: {} };
+        });
+
+        // Tally Map Crawls
+        crawlsList.forEach(c => {
+            if (c.createdBy && stats[c.createdBy]) stats[c.createdBy].crawlsCreated++;
+        });
+
+        pubs.forEach(pub => {
+            if (pub.addedBy && stats[pub.addedBy]) stats[pub.addedBy].pubsAdded++;
+        });
+
+        Object.entries(scores).forEach(([pubId, pubCriteria]) => {
+            Object.entries(pubCriteria).forEach(([critId, critScores]) => {
+                critScores.forEach(s => {
+                    if (!stats[s.userId]) return; 
+                    const st = stats[s.userId];
+                    st.pubsRated.add(pubId);
+
+                    if (s.type === 'scale') {
+                        if (s.value === 10) st.perfectTens++;
+                        if (!st.personalPubScores[pubId]) st.personalPubScores[pubId] = { total: 0, count: 0 };
+                        st.personalPubScores[pubId].total += s.value;
+                        st.personalPubScores[pubId].count++;
                     }
-                    
-                    userStats[score.userId].pubsRated.add(pubId);
-
-                    if (score.type === 'scale') {
-                        userStats[score.userId].totalScaleScore += score.value;
-                        userStats[score.userId].scaleScoreCount++;
-                        if (score.value === 10) userStats[score.userId].perfectTenCount++;
-                    } else if (score.type === 'price') {
-                        userStats[score.userId].totalPriceScore += score.value;
-                        userStats[score.userId].priceScoreCount++;
-                        if (score.value === 5) userStats[score.userId].highPriceCount++;
-                    } else if (score.type === 'text' && typeof score.value === 'string' && score.value.trim().length > 0) {
-                        userStats[score.userId].textReviewCount++;
-                    } else if (score.type === 'yes-no' && score.value === false) {
-                        userStats[score.userId].noVoteCount++;
+                    if (s.type === 'text' && s.value && s.value.toString().trim().length > 0) {
+                        st.writtenReviews++;
                     }
                 });
             });
         });
 
-        const statsArray = Object.values(userStats).map(stat => {
-            const pubsRatedCount = stat.pubsRated.size;
-            const badges = [];
+        return Object.values(stats).map(st => {
+            const topPubs = Object.entries(st.personalPubScores).map(([pId, data]) => {
+                return { pubId: pId, avg: data.total / data.count };
+            }).sort((a, b) => b.avg - a.avg).slice(0, 3).map(tp => {
+                const pubData = pubs.find(p => p.id === tp.pubId);
+                return { ...tp, pub: pubData };
+            });
+
+            const ratedCount = st.pubsRated.size;
             
-            if (pubsRatedCount >= 1) badges.push({ emoji: '🍻', title: 'First Pint (Rated a pub)' });
-            if (pubsRatedCount >= 5) badges.push({ emoji: '🥉', title: 'Bronze Pint (Rated 5+ Pubs)' });
-            if (pubsRatedCount >= 20) badges.push({ emoji: '🥇', title: 'Gold Pint (Rated 20+ Pubs)' });
-            if (stat.textReviewCount > 0) badges.push({ emoji: '✍️', title: 'The Scribe (Left a written review)' });
-            if (stat.perfectTenCount > 0) badges.push({ emoji: '🎯', title: 'Bullseye (Gave a 10/10 rating)' });
-            if (stat.highPriceCount > 0) badges.push({ emoji: '💸', title: 'High Roller (Rated a pub 5/5 for price)' });
-            if (stat.noVoteCount > 0) badges.push({ emoji: '🛑', title: 'The Veto (Voted No on a feature)' });
+            // CALCULATE TOTAL POINTS INCL CRAWLS
+            const totalPoints = (ratedCount * (gamification.pointsPerPub || 5)) + 
+                                (st.writtenReviews * (gamification.pointsPerReview || 2)) + 
+                                (st.pubsAdded * (gamification.pointsPerAdd || 3)) +
+                                (st.crawlsCreated * (gamification.pointsPerCrawl || 5));
 
-            return {
-                ...stat,
-                pubsRatedCount,
-                avgScaleScore: stat.scaleScoreCount > 0 ? (stat.totalScaleScore / stat.scaleScoreCount) : null,
-                avgPriceScore: stat.priceScoreCount > 0 ? (stat.totalPriceScore / stat.priceScoreCount) : null,
-                badges
-            };
-        });
-
-        const qualifiedUsers = statsArray.filter(s => s.pubsRatedCount >= 2);
-
-        // 2. Base Awards
-        const theRegular = [...statsArray].sort((a, b) => b.pubsRatedCount - a.pubsRatedCount)[0];
-        const harshCritic = [...qualifiedUsers].filter(s => s.avgScaleScore !== null).sort((a, b) => a.avgScaleScore - b.avgScaleScore)[0];
-        const easilyPleased = [...qualifiedUsers].filter(s => s.avgScaleScore !== null).sort((a, b) => b.avgScaleScore - a.avgScaleScore)[0];
-        const bigSpender = [...qualifiedUsers].filter(s => s.avgPriceScore !== null).sort((a, b) => b.avgPriceScore - a.avgPriceScore)[0];
-
-        const pubAddCounts = {};
-        pubs.forEach(pub => {
-            if (pub.addedBy) {
-                pubAddCounts[pub.addedBy] = (pubAddCounts[pub.addedBy] || 0) + 1;
-            }
-        });
-        const theExplorerUserId = Object.keys(pubAddCounts).sort((a, b) => pubAddCounts[b] - pubAddCounts[a])[0];
-        const theExplorer = theExplorerUserId ? { userId: theExplorerUserId, addedCount: pubAddCounts[theExplorerUserId] } : null;
-
-        // 3. NEW: DYNAMIC CRITERIA AWARDS!
-        const generatedAwards = criteria.filter(c => c.type === 'scale' || c.type === 'price').map(crit => {
-            const userAverages = statsArray.map(stat => {
-                let total = 0, count = 0;
-                Object.entries(scores).forEach(([pubId, pubScores]) => {
-                    const critScores = pubScores[crit.id] || [];
-                    const userScore = critScores.find(s => s.userId === stat.userId);
-                    if (userScore && userScore.value != null && !isNaN(userScore.value)) {
-                        total += userScore.value;
-                        count++;
-                    }
-                });
-                return { userId: stat.userId, avg: count > 0 ? total/count : null };
-            }).filter(u => u.avg !== null);
-
-            if (userAverages.length === 0) return null;
-
-            userAverages.sort((a, b) => b.avg - a.avg); // Sort highest to lowest
-            const winner = userAverages[0];
-
-            return {
-                id: crit.id,
-                title: `${crit.name} Fanatic`,
-                emoji: '✨',
-                description: `Highest average score for ${crit.name}`,
-                winner: { userId: winner.userId },
-                statLabel: "Avg Score",
-                statValue: winner.avg.toFixed(1)
-            };
-        }).filter(Boolean);
-
-        return {
-            awards: { theRegular, harshCritic, easilyPleased, bigSpender, theExplorer },
-            dynamicAwards: generatedAwards,
-            userBadges: statsArray.sort((a, b) => b.badges.length - a.badges.length)
-        };
-    }, [scores, pubs, criteria]);
-
-    const getUserDetails = (userId) => {
-        const u = allUsers[userId];
-        if (!u) return { name: "Unknown User", avatar: "" };
-        return { name: u.nickname || u.displayName || u.email || "Unknown User", avatar: u.avatarUrl || "" };
-    };
-
-    const AwardCard = ({ title, emoji, description, winner, statLabel, statValue }) => {
-        if (!winner) {
-            return (
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border-t-4 border-gray-300 dark:border-gray-600 flex flex-col items-center text-center opacity-60 transition-colors duration-300">
-                    <div className="text-4xl mb-2">{emoji}</div>
-                    <h3 className="text-xl font-bold text-gray-700 dark:text-gray-300">{title}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Not enough data yet.</p>
-                </div>
-            );
-        }
-
-        const user = getUserDetails(winner.userId);
-
-        return (
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border-t-4 border-blue-500 flex flex-col items-center text-center hover:shadow-lg transition transform hover:-translate-y-1 duration-300">
-                <div className="text-4xl mb-2">{emoji}</div>
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white">{title}</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">{description}</p>
-                
-                {user.avatar ? (
-                    <img src={user.avatar} alt={user.name} className="w-16 h-16 rounded-full object-cover border-2 border-blue-200 dark:border-blue-700 mb-3" />
-                ) : (
-                    <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xl mb-3 border-2 border-blue-200 dark:border-blue-700">
-                        {user.name.charAt(0).toUpperCase()}
-                    </div>
-                )}
-                
-                <h4 className="font-bold text-lg text-blue-700 dark:text-blue-400">{user.name}</h4>
-                <div className="mt-3 bg-blue-50 dark:bg-blue-900/30 px-4 py-2 rounded-full border border-blue-100 dark:border-blue-800">
-                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-300 mr-2">{statLabel}:</span>
-                    <span className="text-md font-bold text-blue-800 dark:text-blue-300">{statValue}</span>
-                </div>
-            </div>
-        );
-    };
+            return { ...st, ratedCount, topPubs, totalPoints };
+        }).filter(st => st.totalPoints > 0).sort((a, b) => b.totalPoints - a.totalPoints);
+    }, [scores, pubs, allUsers, gamification, crawlsList]); 
 
     return (
-        <div className="space-y-8">
-            {/* SECTION 1: THE HALL OF FAME */}
-            <div>
-                <div className="flex justify-between items-end mb-6">
-                    <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">The Hall of Fame</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Updates live as you rate pubs.</p>
-                </div>
+        <div className="space-y-6 animate-fadeIn relative">
+            {selectedUserForProfile && (
+                <PublicProfileModal member={selectedUserForProfile} onClose={() => setSelectedUserForProfile(null)} customBadges={gamification.badges} />
+            )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <AwardCard title="The Regular" emoji="🍻" description="Most unique pubs rated" winner={awards.theRegular} statLabel="Pubs Visited" statValue={awards.theRegular?.pubsRatedCount} />
-                    <AwardCard title="The Easily Pleased" emoji="🤩" description="Highest average score given" winner={awards.easilyPleased} statLabel="Avg Score" statValue={awards.easilyPleased?.avgScaleScore?.toFixed(1) + "/10"} />
-                    <AwardCard title="The Harsh Critic" emoji="🧐" description="Lowest average score given" winner={awards.harshCritic} statLabel="Avg Score" statValue={awards.harshCritic?.avgScaleScore?.toFixed(1) + "/10"} />
-                    <AwardCard title="The Big Spender" emoji="💸" description="Consistently rates expensive pubs" winner={awards.bigSpender} statLabel="Avg Price Rating" statValue={awards.bigSpender?.avgPriceScore?.toFixed(1) + "/5"} />
+            <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-4">
+                <div>
+                    <h2 className="text-3xl font-black text-gray-800 dark:text-white transition-colors">Leaderboards</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">See the top pints, and the top pintmen.</p>
                 </div>
             </div>
 
-            {/* SECTION 2: CATEGORY LEADERS (DYNAMIC AWARDS) */}
-            {dynamicAwards.length > 0 && (
-                <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6 transition-colors">Category Fanatics</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {dynamicAwards.map((award) => (
-                            <AwardCard 
-                                key={award.id} 
-                                title={award.title} 
-                                emoji={award.emoji} 
-                                description={award.description} 
-                                winner={award.winner} 
-                                statLabel={award.statLabel} 
-                                statValue={award.statValue} 
-                            />
-                        ))}
+            <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-xl max-w-md mx-auto shadow-inner">
+                <button onClick={() => setActiveTab('pubs')} className={`flex-1 py-2 text-sm font-black rounded-lg transition-all ${activeTab === 'pubs' ? 'bg-white dark:bg-gray-800 text-brand shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    🏆 Top Pubs
+                </button>
+                <button onClick={() => setActiveTab('members')} className={`flex-1 py-2 text-sm font-black rounded-lg transition-all ${activeTab === 'members' ? 'bg-white dark:bg-gray-800 text-brand shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    🍻 Top Members
+                </button>
+            </div>
+
+            {activeTab === 'pubs' && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fadeIn">
+                    <div className="bg-gradient-to-r from-brand to-purple-600 p-6 text-white text-center">
+                        <span className="text-5xl drop-shadow-lg mb-2 block">🏆</span>
+                        <h3 className="text-2xl font-black">Hall of Fame</h3>
+                        <p className="text-sm font-medium opacity-90">The absolute best pubs, ranked by average score.</p>
+                    </div>
+                    
+                    <div className="p-2 sm:p-4">
+                        {rankedPubs.length === 0 ? (
+                            <div className="text-center py-12 text-gray-500 font-medium">No pubs have been rated yet. Start drinking!</div>
+                        ) : (
+                            <div className="space-y-3">
+                                {rankedPubs.map((pub, index) => {
+                                    let medal = ""; let bgColor = "bg-gray-50 dark:bg-gray-700/50"; let borderColor = "border-gray-100 dark:border-gray-600";
+                                    if (index === 0) { medal = "🥇"; bgColor = "bg-yellow-50 dark:bg-yellow-900/10"; borderColor = "border-yellow-200 dark:border-yellow-800/50"; }
+                                    else if (index === 1) { medal = "🥈"; bgColor = "bg-gray-100 dark:bg-gray-600/30"; borderColor = "border-gray-300 dark:border-gray-500"; }
+                                    else if (index === 2) { medal = "🥉"; bgColor = "bg-orange-50 dark:bg-orange-900/10"; borderColor = "border-orange-200 dark:border-orange-800/50"; }
+                                    
+                                    return (
+                                        <div key={pub.id} className={`flex items-center p-4 rounded-xl border ${bgColor} ${borderColor} shadow-sm transition-transform hover:-translate-y-0.5`}>
+                                            <div className="w-12 flex-shrink-0 text-center font-black text-2xl text-gray-400 dark:text-gray-500">
+                                                {medal || `#${index + 1}`}
+                                            </div>
+                                            {pub.photoURL ? (
+                                                <img src={pub.photoURL} alt={pub.name} className="w-12 h-12 rounded-full object-cover ml-2 mr-4 shadow-sm border-2 border-white dark:border-gray-700" />
+                                            ) : (
+                                                <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-xl ml-2 mr-4 shadow-sm">🍺</div>
+                                            )}
+                                            <div className="flex-1 min-w-0 pr-4">
+                                                <h4 className="text-lg font-bold text-gray-800 dark:text-white truncate leading-tight mb-0.5">{pub.name}</h4>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{pub.location || 'Unknown'}</p>
+                                            </div>
+                                            <div className="text-right flex-shrink-0">
+                                                <span className="block text-2xl font-black text-brand drop-shadow-sm">{pub.avgScore.toFixed(1)}</span>
+                                                <span className="block text-[10px] text-gray-500 font-bold uppercase tracking-wider">{pub.ratingCount} Ratings</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
 
-            {/* SECTION 3: THE TROPHY CABINET */}
-            <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2 transition-colors">Trophy Cabinet</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Click on a user to view their stats!</p>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {userBadges.map((userStat) => {
-                        const user = getUserDetails(userStat.userId);
-                        return (
-                            <button 
-                                key={userStat.userId} 
-                                onClick={() => setSelectedUserId(userStat.userId)}
-                                className="w-full text-left bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
-                            >
-                                {/* 2. THIS IS THE MISSING CONTENT WE ADDED BACK! */}
-                                {user.avatar ? (
-                                    <img src={user.avatar} alt={user.name} className="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-gray-600 flex-shrink-0" />
-                                ) : (
-                                    <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-lg flex-shrink-0">
-                                        {user.name.charAt(0).toUpperCase()}
-                                    </div>
-                                )}
-                                <div className="flex-1 min-w-0">
-                                    <h4 className="font-bold text-gray-800 dark:text-white truncate">{user.name}</h4>
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                        {userStat.badges.length > 0 ? (
-                                            userStat.badges.map((badge, idx) => (
-                                                <span key={idx} title={badge.title} className="text-xl">
-                                                    {badge.emoji}
-                                                </span>
-                                            ))
-                                        ) : (
-                                            <span className="text-xs text-gray-400 dark:text-gray-500 italic">No badges yet</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* --- NEW: USER PROFILE MODAL --- */}
-            {selectedUserId && (() => {
-                const user = getUserDetails(selectedUserId);
-                const stat = userBadges.find(s => s.userId === selectedUserId);
-                
-                // Find their favorite pub (highest scale score)
-                let favoritePub = { name: "Hasn't rated enough", score: 0 };
-                Object.entries(scores).forEach(([pubId, pubScores]) => {
-                    let total = 0, count = 0;
-                    Object.values(pubScores).forEach(critScores => {
-                        const userScore = critScores.find(s => s.userId === selectedUserId && s.type === 'scale');
-                        if (userScore && userScore.value != null) { total += userScore.value; count++; }
-                    });
-                    if (count > 0) {
-                        const avg = total / count;
-                        if (avg > favoritePub.score) {
-                            favoritePub = { name: pubs.find(p => p.id === pubId)?.name || "Unknown Pub", score: avg };
-                        }
-                    }
-                });
-
-                return (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-70 backdrop-blur-sm animate-fadeIn">
-                        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden relative border border-gray-200 dark:border-gray-700">
-                            {/* Close Button */}
-                            <button onClick={() => setSelectedUserId(null)} className="absolute top-3 right-3 w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white transition-colors z-10">✕</button>
-                            
-                            {/* Header */}
-                            <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 flex flex-col items-center text-center">
-                                {user.avatar ? (
-                                    <img src={user.avatar} alt={user.name} className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-gray-800 shadow-lg mb-3" />
-                                ) : (
-                                    <div className="w-24 h-24 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center text-blue-600 dark:text-blue-400 font-black text-4xl shadow-lg mb-3 border-4 border-white dark:border-gray-800">
-                                        {user.name.charAt(0).toUpperCase()}
-                                    </div>
-                                )}
-                                <h3 className="text-2xl font-bold text-white">{user.name}</h3>
-                                <p className="text-blue-100 font-medium">{stat?.pubsRatedCount || 0} Pubs Rated</p>
-                            </div>
-
-                            {/* Body */}
-                            <div className="p-6 space-y-4">
-                                <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-1">Favorite Pub</p>
-                                    <p className="font-bold text-gray-800 dark:text-white text-lg flex items-center justify-between">
-                                        {favoritePub.name} 
-                                        {favoritePub.score > 0 && <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">{favoritePub.score.toFixed(1)}/10</span>}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider mb-2">Trophy Cabinet</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {stat?.badges.length > 0 ? (
-                                            stat.badges.map((badge, idx) => (
-                                                <div key={idx} title={badge.title} className="bg-gray-100 dark:bg-gray-700 p-2 rounded-lg text-2xl hover:scale-110 transition-transform cursor-help">
-                                                    {badge.emoji}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="text-sm text-gray-400 italic">No badges earned yet.</p>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            {activeTab === 'members' && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fadeIn">
+                    <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white text-center">
+                        <span className="text-5xl drop-shadow-lg mb-2 block">🍻</span>
+                        <h3 className="text-2xl font-black">The Top Crawlers</h3>
+                        <p className="text-sm font-medium opacity-90">Ranked by pubs visited, reviews written, and contributions.</p>
                     </div>
-                );
-            })()}
+                    
+                    <div className="p-2 sm:p-4">
+                        {rankedMembers.length === 0 ? (
+                            <div className="text-center py-12 text-gray-500 font-medium">No active members yet. Invite some friends!</div>
+                        ) : (
+                            <div className="space-y-3">
+                                {rankedMembers.map((member, index) => {
+                                    const { user, totalPoints, ratedCount, writtenReviews, crawlsCreated } = member;
+                                    const displayName = user?.nickname || user?.displayName || user?.email || "Unknown User";
+                                    let medal = ""; 
+                                    if (index === 0) medal = "👑";
+                                    else if (index === 1) medal = "🥈";
+                                    else if (index === 2) medal = "🥉";
+                                    
+                                    return (
+                                        <div 
+                                            key={member.uid} 
+                                            onClick={() => setSelectedUserForProfile(member)}
+                                            className="flex flex-col sm:flex-row sm:items-center p-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 shadow-sm hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md transition cursor-pointer"
+                                        >
+                                            <div className="flex items-center flex-1 min-w-0 mb-3 sm:mb-0">
+                                                <div className="w-8 flex-shrink-0 text-center font-black text-xl text-gray-400 dark:text-gray-500 mr-2">
+                                                    {medal || `#${index + 1}`}
+                                                </div>
+                                                {user?.avatarUrl ? (
+                                                    <img src={user.avatarUrl} alt={displayName} className="w-12 h-12 rounded-full object-cover mr-4 shadow-sm border-2 border-white dark:border-gray-600" />
+                                                ) : (
+                                                    <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-xl mr-4 shadow-sm">
+                                                        {displayName.charAt(0).toUpperCase()}
+                                                    </div>
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="text-lg font-bold text-gray-800 dark:text-white truncate leading-tight mb-0.5 group-hover:text-blue-600 transition-colors">{displayName}</h4>
+                                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">
+                                                        {ratedCount} Visited • {writtenReviews} Reviews • {crawlsCreated} Crawls
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center justify-between sm:justify-end sm:w-auto w-full border-t sm:border-t-0 sm:border-l border-gray-200 dark:border-gray-600 pt-3 sm:pt-0 sm:pl-4">
+                                                <span className="text-xs text-gray-500 sm:hidden uppercase font-bold tracking-wider">Score</span>
+                                                <div className="text-right">
+                                                    <span className="block text-2xl font-black text-blue-600 dark:text-blue-400 drop-shadow-sm leading-none">{totalPoints}</span>
+                                                    <span className="block text-[10px] text-gray-500 font-bold uppercase tracking-wider">Points</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { firebase } from '../firebase'; 
 
-export default function PubsPage({ pubs, scores, criteria, db, groupId, userProfile }) {
+export default function MapPage({ pubs, scores, criteria, db, groupId, userProfile }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [crawlMode, setCrawlMode] = useState(false);
     const [crawlRoute, setCrawlRoute] = useState([]); 
@@ -20,11 +20,11 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
     const [isSaving, setIsSaving] = useState(false);
     const [editingCrawlId, setEditingCrawlId] = useState(null);
 
-    // --- NEW: AUTO-ROUTE GENERATOR STATE ---
+    // Auto-Route Generator State
     const [showAutoModal, setShowAutoModal] = useState(false);
     const [autoCount, setAutoCount] = useState(4);
-    const [autoStatus, setAutoStatus] = useState("all"); // 'all', 'visited', 'to-visit'
-    const [autoFixedType, setAutoFixedType] = useState("none"); // 'none', 'start', 'end'
+    const [autoStatus, setAutoStatus] = useState("all"); 
+    const [autoFixedType, setAutoFixedType] = useState("none"); 
     const [autoFixedPubId, setAutoFixedPubId] = useState("");
 
     // Fetch Saved Crawls
@@ -75,7 +75,7 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
         alert("Itinerary copied to clipboard!");
     };
 
-    // --- NEW: THE ROUTE GENERATOR AI ENGINE ---
+    // The Route Generator AI Engine
     const getDistance = (lat1, lon1, lat2, lon2) => {
         const R = 6371; 
         const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -84,7 +84,6 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
         return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
     };
 
-    // Dynamically filter pubs for the Generator dropdown so users can't select invalid pubs
     const validAutoPubs = useMemo(() => {
         let pool = pubsWithStats.filter(p => p.lat && p.lng);
         if (autoStatus === 'visited') pool = pool.filter(p => p.status === 'visited');
@@ -94,9 +93,7 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
 
     const generateAutoCrawl = (e) => {
         e.preventDefault();
-        
         let poolLeft = [...validAutoPubs];
-
         if (poolLeft.length < autoCount) {
             alert(`Not enough pubs match your filters! Found ${poolLeft.length}, but you asked for ${autoCount}.`);
             return;
@@ -105,11 +102,9 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
         let route = [];
         let currentPub = null;
 
-        // Determine starting point
         if ((autoFixedType === 'start' || autoFixedType === 'end') && autoFixedPubId) {
             currentPub = poolLeft.find(p => p.id === autoFixedPubId);
         } else {
-            // Random start - prefer highly rated pubs if available
             const goodPubs = poolLeft.filter(p => (p.avg || 0) >= 7.0);
             currentPub = goodPubs.length > 0 ? goodPubs[Math.floor(Math.random() * goodPubs.length)] : poolLeft[Math.floor(Math.random() * poolLeft.length)];
         }
@@ -119,7 +114,6 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
         route.push(currentPub.id);
         poolLeft = poolLeft.filter(p => p.id !== currentPub.id);
 
-        // Nearest-Neighbor Algorithm
         while (route.length < autoCount && poolLeft.length > 0) {
             let closestPub = null;
             let minDistance = Infinity;
@@ -136,22 +130,17 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
                 route.push(closestPub.id);
                 currentPub = closestPub;
                 poolLeft = poolLeft.filter(p => p.id !== closestPub.id);
-            } else {
-                break;
-            }
+            } else break;
         }
 
-        // If they wanted to END at the specific pub, reverse the array!
-        if (autoFixedType === 'end') {
-            route.reverse();
-        }
+        if (autoFixedType === 'end') route.reverse();
 
         setCrawlRoute(route);
         setCrawlMode(true);
         setShowAutoModal(false);
     };
 
-    // --- EDIT & DELETE LOGIC ---
+    // Edit & Delete Logic
     const handleEditCrawl = (crawl) => {
         setEditingCrawlId(crawl.id);
         setCrawlName(crawl.name);
@@ -209,21 +198,48 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
                 <MapContainer center={defaultCenter} zoom={13} className="w-full h-full">
                     <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" attribution='&copy; CARTO' />
                     {crawlMode && crawlCoordinates.length > 1 && <Polyline positions={crawlCoordinates} color="#000000" weight={4} dashArray="10, 10" className="animate-pulse" />}
+                    
                     {pubsWithStats.map(pub => {
                         if (!pub.lat || !pub.lng) return null;
                         return (
                             <Marker key={pub.id} position={[pub.lat, pub.lng]} icon={createCustomIcon(pub)}>
+                                
+                                {/* --- UPDATED POPUP WITH IMAGE --- */}
                                 <Popup className="rounded-xl overflow-hidden">
-                                    <div className="text-center p-1">
-                                        <h3 className="font-bold text-lg">{pub.name}</h3>
-                                        <p className="text-sm text-gray-600 mb-2">{pub.avg ? `Score: ${pub.avg.toFixed(1)}/10` : 'Unrated'}</p>
+                                    <div className="text-center w-48 p-1">
+                                        
+                                        {/* Image Display */}
+                                        {pub.photoURL ? (
+                                            <img 
+                                                src={pub.photoURL} 
+                                                alt={pub.name} 
+                                                className="w-full h-28 object-cover rounded-lg mb-3 shadow-sm" 
+                                                onError={(e) => { e.target.style.display = "none"; }} 
+                                            />
+                                        ) : (
+                                            <div className="w-full h-28 bg-gray-100 rounded-lg mb-3 flex items-center justify-center text-4xl shadow-sm border border-gray-200">
+                                                🍺
+                                            </div>
+                                        )}
+                                        
+                                        {/* Pub Info */}
+                                        <h3 className="font-bold text-lg leading-tight mb-1 text-gray-800">{pub.name}</h3>
+                                        <p className="text-[11px] text-gray-500 mb-3 font-bold uppercase tracking-wider">
+                                            {pub.avg ? `Score: ${pub.avg.toFixed(1)}/10` : 'Unrated'}
+                                        </p>
+                                        
+                                        {/* Action Button */}
                                         {crawlMode && (
-                                            <button onClick={() => toggleCrawlStop(pub.id)} className={`w-full py-1 px-2 rounded font-bold text-white ${crawlRoute.includes(pub.id) ? 'bg-red-500' : 'bg-blue-600'}`}>
+                                            <button 
+                                                onClick={() => toggleCrawlStop(pub.id)} 
+                                                className={`w-full py-1.5 px-2 rounded-lg font-bold text-white transition-colors shadow-sm ${crawlRoute.includes(pub.id) ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+                                            >
                                                 {crawlRoute.includes(pub.id) ? 'Remove Stop' : 'Add to Crawl'}
                                             </button>
                                         )}
                                     </div>
                                 </Popup>
+
                             </Marker>
                         );
                     })}
@@ -266,7 +282,7 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
                             {crawlRoute.length === 0 ? (
                                 <p className="text-gray-500 text-center italic mt-10">Click on map pins to add stops to your crawl!</p>
                             ) : (
-                                <div className="space-y-3 flex-1 overflow-y-auto">
+                                <div className="space-y-3 flex-1 overflow-y-auto pr-2">
                                     {crawlRoute.map((id, index) => {
                                         const pub = pubsWithStats.find(p => p.id === id);
                                         return (
@@ -357,7 +373,7 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
                 </div>
             </div>
 
-            {/* --- NEW: AUTO GENERATOR MODAL --- */}
+            {/* AUTO GENERATOR MODAL */}
             {showAutoModal && (
                 <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-8 relative border border-gray-200 dark:border-gray-700">
@@ -367,7 +383,6 @@ export default function PubsPage({ pubs, scores, criteria, db, groupId, userProf
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Let the AI build the most geographically efficient route for you.</p>
                         
                         <form onSubmit={generateAutoCrawl} className="space-y-5">
-                            
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Number of Pubs</label>
                                 <div className="flex items-center gap-4">

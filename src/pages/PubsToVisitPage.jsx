@@ -3,17 +3,18 @@ import { firebase } from '../firebase';
 import ImageUploader from '../components/ImageUploader';
 
 // --- NEW: GOOGLE PLACES API COMPONENT ---
-export function LiveGoogleStatus({ pub }) {
+// ADDED featureFlags TO PROPS HERE
+export function LiveGoogleStatus({ pub, featureFlags }) {
     const [status, setStatus] = useState("loading"); 
     const [details, setDetails] = useState(null);
 
     useEffect(() => {
-
         // --- GOOGLE KILL SWITCH ---
         if (featureFlags?.disableGoogleAPI) {
             setStatus("unknown");
             return;
         }
+        
         // Gracefully hide if the Google Maps script isn't loaded yet
         if (!window.google || !window.google.maps || !window.google.maps.places) {
             setStatus("unknown");
@@ -42,7 +43,7 @@ export function LiveGoogleStatus({ pub }) {
                 setStatus("not_found");
             }
         });
-    }, [pub.name, pub.location]);
+    }, [pub.name, pub.location, featureFlags]);
 
     if (status === "loading") return <span className="text-xs text-gray-400 animate-pulse">Fetching live status...</span>;
     if (status === "unknown" || status === "not_found") return null;
@@ -62,9 +63,10 @@ export function LiveGoogleStatus({ pub }) {
     );
 }
 
-export default function PubsToVisitPage({ pubs, canManageGroup, onPromotePub, onSelectPubForEdit, allUsers, pubsRef, currentGroup, currentUser }) {
+// ADDED featureFlags TO PROPS HERE
+export default function PubsToVisitPage({ pubs, canManageGroup, onPromotePub, onSelectPubForEdit, allUsers, pubsRef, currentGroup, currentUser, featureFlags }) {
     const [searchTerm, setSearchTerm] = useState("");
-    const [sortOption, setSortOption] = useState("most-upvoted"); // NEW DEFAULT
+    const [sortOption, setSortOption] = useState("most-upvoted");
     const [editingPhotoId, setEditingPhotoId] = useState(null);
 
     const getUserName = (userId) => {
@@ -72,7 +74,6 @@ export default function PubsToVisitPage({ pubs, canManageGroup, onPromotePub, on
         return u ? (u.nickname || u.displayName || u.email) : "Unknown User";
     };
 
-    // --- NEW: UPVOTE LOGIC ---
     const handleToggleUpvote = async (pub) => {
         if (!pubsRef || !currentUser) return;
         const upvotes = pub.upvotes || [];
@@ -96,7 +97,6 @@ export default function PubsToVisitPage({ pubs, canManageGroup, onPromotePub, on
             const votesA = a.upvotes?.length || 0;
             const votesB = b.upvotes?.length || 0;
             if (votesB !== votesA) return votesB - votesA;
-            // Tie-breaker: newest
             return (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0);
         }
         if (sortOption === "alphabetical") return a.name.localeCompare(b.name);
@@ -145,7 +145,6 @@ export default function PubsToVisitPage({ pubs, canManageGroup, onPromotePub, on
                                 <div className="flex justify-between items-start gap-2 mb-1">
                                     <h3 className="text-xl font-black text-gray-800 dark:text-white truncate leading-tight">{pub.name}</h3>
                                     
-                                    {/* --- THE UPVOTE BUTTON --- */}
                                     <button 
                                         onClick={() => handleToggleUpvote(pub)} 
                                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-black transition-all shadow-sm text-sm flex-shrink-0 ${hasUpvoted ? 'bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:border-blue-800' : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-600'}`}
@@ -156,7 +155,6 @@ export default function PubsToVisitPage({ pubs, canManageGroup, onPromotePub, on
                                 
                                 <p className="text-sm text-gray-500 dark:text-gray-400 truncate font-semibold mb-2">📍 {pub.location || 'Unknown Location'}</p>
                                 
-                                {/* NEW: STATIC GOOGLE RATING */}
                                 {pub.googleRating && (
                                     <div className="flex items-center gap-1.5 mb-2">
                                         <span className="text-yellow-500 text-lg leading-none">★</span>
@@ -165,8 +163,8 @@ export default function PubsToVisitPage({ pubs, canManageGroup, onPromotePub, on
                                     </div>
                                 )}
 
-                                {/* LIVE GOOGLE STATUS INTEGRATION */}
-                                <LiveGoogleStatus pub={pub} />
+                                {/* PASSED featureFlags HERE */}
+                                <LiveGoogleStatus pub={pub} featureFlags={featureFlags} />
                                 
                                 <div className="mt-auto pt-4 mb-4">
                                     <p className="text-[11px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
@@ -190,7 +188,6 @@ export default function PubsToVisitPage({ pubs, canManageGroup, onPromotePub, on
                                     )}
                                 </div>
 
-                                {/* INLINE IMAGE UPLOADER */}
                                 {editingPhotoId === pub.id && (
                                     <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 animate-fadeIn">
                                         <ImageUploader 

@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { firebase } from '../firebase'; 
 
-export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile, isDarkMode, toggleDarkMode, scores, pubs, criteria }) {    
+export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile, isDarkMode, toggleDarkMode, scores, pubs, criteria, groupId }) {    
     const [showProfile, setShowProfile] = useState(false);
-    const [isNavOpen, setIsNavOpen] = useState(false); // For mobile menu toggle
+    const [isNavOpen, setIsNavOpen] = useState(false); 
     
-    // --- NEW: Check if the user has ANY staff role ---
     const isStaff = userProfile?.isSuperAdmin || userProfile?.isAdmin || userProfile?.isModerator;
     
     const NavButton = ({ name, targetPage, icon }) => {
@@ -34,13 +33,10 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
     
     return (
         <>
-            {/* Sticky Frosted Glass Header */}
             <header className="sticky top-0 z-[100] bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800 mb-6 transition-colors duration-300 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     
-                    {/* TOP ROW: Brand & User Actions */}
                     <div className="flex justify-between items-center h-20">
-                        {/* Brand */}
                         <div className="flex flex-col justify-center">
                             <h1 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 tracking-tight">
                                 Pub Ranker
@@ -50,13 +46,8 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                             </span>
                         </div>
 
-                        {/* Desktop User Actions */}
                         <div className="hidden md:flex items-center gap-3">
-                            <button 
-                                onClick={toggleDarkMode} 
-                                className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-                                title="Toggle Dark Mode"
-                            >
+                            <button onClick={toggleDarkMode} className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition" title="Toggle Dark Mode">
                                 {isDarkMode ? '☀️' : '🌙'}
                             </button>
 
@@ -64,7 +55,6 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                 Switch Group
                             </button>
                 
-                            {/* Profile Pill */}
                             <button onClick={() => setShowProfile(true)} className="flex items-center gap-2 pl-1 pr-4 py-1 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition group">
                                 {avatarUrl ? (
                                     <img src={avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover" />
@@ -83,7 +73,6 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                             </button>
                         </div>
 
-                        {/* Mobile Menu Toggle */}
                         <div className="md:hidden flex items-center gap-2">
                             <button onClick={() => setShowProfile(true)} className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden">
                                 {avatarUrl ? <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" /> : <span className="font-bold text-gray-700 dark:text-gray-300">{displayName.charAt(0).toUpperCase()}</span>}
@@ -94,7 +83,6 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                         </div>
                     </div>
 
-                    {/* Mobile Dropdown Actions (Only visible when hamburger clicked) */}
                     {isNavOpen && (
                         <div className="md:hidden py-4 border-t border-gray-200 dark:border-gray-800 flex flex-col gap-2 animate-fadeIn">
                             <button onClick={toggleDarkMode} className="w-full text-left px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-800 font-bold text-gray-700 dark:text-gray-300">
@@ -109,7 +97,6 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                         </div>
                     )}
 
-                    {/* BOTTOM ROW: Scrollable Navigation Pills */}
                     <div className="py-3 flex overflow-x-auto gap-2 hide-scrollbar pb-4 items-center">
                         <NavButton name="Dashboard" targetPage="dashboard" icon="📊" />
                         <NavButton name="Directory" targetPage="pubs" icon="🍻" />
@@ -126,7 +113,6 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                             </div>
                         )}
                         
-                        {/* UPDATED: NOW SHOWS FOR ANY STAFF MEMBER */}
                         {isStaff && (
                             <NavButton name="Staff Menu" targetPage="superadmin" icon="🛡️" />
                         )}
@@ -134,28 +120,46 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                 </div>
             </header>
             
-            {/* CSS for hiding scrollbar on the nav row */}
             <style dangerouslySetContent={{__html: `
                 .hide-scrollbar::-webkit-scrollbar { display: none; }
                 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
             `}} />
         
-            {/* User Profile Modal */}
             {showProfile && (
-                <ProfileModal user={user} userProfile={userProfile} db={db} onClose={() => setShowProfile(false)} scores={scores} pubs={pubs} />
+                <ProfileModal user={user} userProfile={userProfile} db={db} groupId={groupId} onClose={() => setShowProfile(false)} scores={scores} pubs={pubs} />
             )}
         </>
     );
 }
 
 // --- PROFILE MODAL COMPONENT ---
-function ProfileModal({ user, userProfile, db, onClose, scores = {}, pubs = [] }) {
+function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pubs = [] }) {
     const [nickname, setNickname] = useState(userProfile?.nickname || "");
     const [avatarUrl, setAvatarUrl] = useState(userProfile?.avatarUrl || "");
     const [bio, setBio] = useState(userProfile?.bio || "");
     const [saving, setSaving] = useState(false);
     
-    // --- CALCULATE BADGES ---
+    const [gamification, setGamification] = useState({ badges: [] });
+    const [crawlsCreated, setCrawlsCreated] = useState(0);
+    
+    useEffect(() => {
+        if (!db) return;
+        db.collection('global').doc('gamification').get().then(doc => {
+            if (doc.exists && doc.data()) {
+                setGamification(doc.data());
+            }
+        });
+    }, [db]);
+
+    // Fetch Crawls created by this user
+    useEffect(() => {
+        if (!db || !groupId || !user) return;
+        db.collection('crawls').where('groupId', '==', groupId).where('createdBy', '==', user.uid).get().then(snap => {
+            setCrawlsCreated(snap.size);
+        });
+    }, [db, groupId, user]);
+
+    // CALCULATE STATS
     let pubsRated = new Set();
     let perfectTens = 0;
     let writtenReviews = 0;
@@ -174,13 +178,17 @@ function ProfileModal({ user, userProfile, db, onClose, scores = {}, pubs = [] }
     const pubsAdded = pubs.filter(p => p.addedBy === user.uid).length;
     const ratedCount = pubsRated.size;
 
-    const allBadges = [
+    const badges = gamification.badges && gamification.badges.length > 0 ? gamification.badges.map(b => {
+        let earned = false;
+        if (b.metric === 'rated') earned = ratedCount >= b.threshold;
+        else if (b.metric === 'reviews') earned = writtenReviews >= b.threshold;
+        else if (b.metric === 'added') earned = pubsAdded >= b.threshold;
+        else if (b.metric === 'tens') earned = perfectTens >= b.threshold;
+        else if (b.metric === 'crawls') earned = crawlsCreated >= b.threshold;
+        return { ...b, earned };
+    }) : [
         { emoji: '🍻', title: 'First Pint', desc: 'Rated your first pub', earned: ratedCount >= 1 },
-        { emoji: '🥉', title: 'Bronze Pint', desc: 'Rated 5+ pubs', earned: ratedCount >= 5 },
-        { emoji: '🥇', title: 'Gold Pint', desc: 'Rated 20+ pubs', earned: ratedCount >= 20 },
-        { emoji: '✍️', title: 'The Scribe', desc: 'Left a written review', earned: writtenReviews > 0 },
-        { emoji: '🎯', title: 'Bullseye', desc: 'Gave a perfect 10/10', earned: perfectTens > 0 },
-        { emoji: '🗺️', title: 'The Explorer', desc: 'Added 5 pubs to the database', earned: pubsAdded >= 5 },
+        { emoji: '🥇', title: 'Gold Pint', desc: 'Rated 20+ pubs', earned: ratedCount >= 20 }
     ];
 
     const handleSave = async (e) => {
@@ -228,6 +236,11 @@ function ProfileModal({ user, userProfile, db, onClose, scores = {}, pubs = [] }
                         <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Avatar URL (Optional)</label>
                         <input type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white" />
                     </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Short Bio</label>
+                        <input type="text" value={bio} onChange={(e) => setBio(e.target.value)} maxLength="40" placeholder="e.g. Pale Ale Enthusiast" className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white" />
+                    </div>
             
                     <div className="pt-2">
                         <button type="submit" disabled={saving} className="w-full py-3 bg-blue-600 text-white rounded-xl font-black hover:bg-blue-700 transition shadow-md disabled:opacity-50">
@@ -236,11 +249,26 @@ function ProfileModal({ user, userProfile, db, onClose, scores = {}, pubs = [] }
                     </div>
                 </form>
 
-                {/* THE TROPHY ROOM */}
+                <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 text-center">Your Stats</h4>
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                    <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl border border-gray-100 dark:border-gray-600 text-center">
+                        <p className="text-xl font-black text-gray-800 dark:text-white">{ratedCount}</p>
+                        <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Pubs Rated</p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl border border-gray-100 dark:border-gray-600 text-center">
+                        <p className="text-xl font-black text-gray-800 dark:text-white">{writtenReviews}</p>
+                        <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Reviews</p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl border border-gray-100 dark:border-gray-600 text-center">
+                        <p className="text-xl font-black text-gray-800 dark:text-white">{crawlsCreated}</p>
+                        <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Crawls Made</p>
+                    </div>
+                </div>
+
                 <div>
-                    <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Trophy Cabinet</h4>
+                    <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 text-center">Trophy Cabinet</h4>
                     <div className="grid grid-cols-3 gap-3">
-                        {allBadges.map((badge, idx) => (
+                        {badges.map((badge, idx) => (
                             <div key={idx} className={`flex flex-col items-center p-3 rounded-xl border text-center transition-all ${badge.earned ? 'bg-gradient-to-br from-yellow-50 to-amber-100 border-yellow-200 dark:from-yellow-900/20 dark:to-amber-900/10 dark:border-yellow-700/50 shadow-sm' : 'bg-gray-50 border-gray-100 dark:bg-gray-800/50 dark:border-gray-700 opacity-50 grayscale'}`} title={badge.desc}>
                                 <span className="text-3xl mb-1 filter drop-shadow-sm">{badge.emoji}</span>
                                 <span className={`text-[10px] font-black uppercase tracking-wider leading-tight ${badge.earned ? 'text-yellow-800 dark:text-yellow-500' : 'text-gray-500 dark:text-gray-400'}`}>{badge.title}</span>

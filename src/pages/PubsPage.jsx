@@ -1,57 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import ImageUploader from '../components/ImageUploader';
 import { LiveGoogleStatus } from './PubsToVisitPage'; 
-import { firebase } from '../firebase'; // Need this for database arrays and timestamps
+import { firebase } from '../firebase'; 
 
-// --- NEW COMPONENT: INDIVIDUAL REVIEW CARD (WITH SOCIAL FEATURES) ---
-function ReviewCard({ score, currentUser, groupRef, allUsers, canDelete, onDelete, featureFlags }) {
+function ReviewCard({ score, currentUser = {}, groupRef, allUsers = {}, canDelete, onDelete, onReport, featureFlags }) {
     const [showComments, setShowComments] = useState(false);
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Check if the current user is in the reactions array
     const hasReacted = score.reactions?.includes(currentUser.uid);
 
-    // 1. CHEERS (REACTION) LOGIC
     const handleToggleReaction = async () => {
         const scoreRef = groupRef.collection("scores").doc(score.id);
         try {
-            if (hasReacted) {
-                await scoreRef.update({ reactions: firebase.firestore.FieldValue.arrayRemove(currentUser.uid) });
-            } else {
-                await scoreRef.update({ reactions: firebase.firestore.FieldValue.arrayUnion(currentUser.uid) });
-            }
+            if (hasReacted) await scoreRef.update({ reactions: firebase.firestore.FieldValue.arrayRemove(currentUser.uid) });
+            else await scoreRef.update({ reactions: firebase.firestore.FieldValue.arrayUnion(currentUser.uid) });
         } catch (e) { console.error("Error reacting", e); }
     };
 
-    // 2. LIVE FETCH COMMENTS
     useEffect(() => {
         if (!showComments) return;
-        const unsubscribe = groupRef.collection("scores").doc(score.id).collection("comments")
-            .orderBy("createdAt", "asc")
-            .onSnapshot(snap => {
+        const unsubscribe = groupRef.collection("scores").doc(score.id).collection("comments").orderBy("createdAt", "asc").onSnapshot(snap => {
                 setComments(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             });
         return () => unsubscribe();
     }, [showComments, groupRef, score.id]);
 
-// 3. POST NEW COMMENT
     const handleAddComment = async (e) => {
         e.preventDefault();
         if (!newComment.trim()) return;
         setIsSubmitting(true);
         try {
             await groupRef.collection("scores").doc(score.id).collection("comments").add({
-                text: newComment.trim(),
-                userId: currentUser.uid,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                text: newComment.trim(), userId: currentUser.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            setNewComment(""); // Clears the box on success!
-        } catch (e) { 
-            console.error("Error adding comment", e); 
-            alert("Failed to post comment: " + e.message); // <-- ADD THIS ALERT
-        }
+            setNewComment(""); 
+        } catch (e) { alert("Failed to post comment: " + e.message); }
         setIsSubmitting(false);
     };
 
@@ -59,40 +44,47 @@ function ReviewCard({ score, currentUser, groupRef, allUsers, canDelete, onDelet
 
     return (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600 relative transition-all">
-            <p className="font-bold text-brand mb-1 text-sm">{score.userName}</p>
-            <p className="text-gray-700 dark:text-gray-300 italic mb-1">"{score.value}"</p>
+            
+            <div className="absolute top-3 right-3 flex gap-2 items-center">
+                {currentUser.uid !== score.userId && onReport && (
+                    <button onClick={() => onReport('review', score)} className="text-sm opacity-30 hover:opacity-100 transition" title="Report Review">🚩</button>
+                )}
+                {canDelete && (
+                    <button onClick={() => onDelete(score)} className="text-[10px] text-red-500 hover:text-red-700 font-bold uppercase tracking-wider bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded">Delete</button>
+                )}
+            </div>
 
-            {/* --- FEATURE FLAGS IN ACTION --- */}
+            <p className="font-bold text-brand mb-1 text-sm pr-16">{score.userName}</p>
+            <p className="text-gray-700 dark:text-gray-300 italic mb-1 pr-16">"{score.value}"</p>
+
             {(featureFlags?.enableReactions || featureFlags?.enableComments) && (
                 <div className="flex gap-3 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                    
                     {featureFlags?.enableReactions && (
                         <button onClick={handleToggleReaction} className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-all ${hasReacted ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border border-orange-200 dark:border-orange-800' : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600 dark:text-gray-400'}`}>
-                            <span className={hasReacted ? 'scale-110 transition-transform' : ''}>🍻</span>
-                            {score.reactions?.length || 0}
+                            <span className={hasReacted ? 'scale-110 transition-transform' : ''}>🍻</span> {score.reactions?.length || 0}
                         </button>
                     )}
-
                     {featureFlags?.enableComments && (
                         <button onClick={() => setShowComments(!showComments)} className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-all ${showComments ? 'bg-brand text-white shadow-md' : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600 dark:text-gray-400'}`}>
                             💬 {comments.length > 0 ? comments.length : 'Reply'}
                         </button>
                     )}
-
                 </div>
             )}
 
-            {/* COMMENTS THREAD DROPDOWN */}
             {showComments && featureFlags?.enableComments && (
                 <div className="mt-3 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg animate-fadeIn border border-gray-100 dark:border-gray-700">
-                    {comments.length === 0 ? (
-                        <p className="text-xs text-gray-400 italic mb-2">No replies yet. Be the first!</p>
-                    ) : (
+                    {comments.length === 0 ? <p className="text-xs text-gray-400 italic mb-2">No replies yet. Be the first!</p> : (
                         <div className="space-y-2 mb-3 max-h-40 overflow-y-auto pr-2">
                             {comments.map(c => (
-                                <div key={c.id} className="text-sm bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-gray-100 dark:border-gray-600 shadow-sm">
-                                    <span className="font-black text-gray-700 dark:text-gray-300 mr-2">{getUserName(c.userId)}</span>
-                                    <span className="text-gray-600 dark:text-gray-400">{c.text}</span>
+                                <div key={c.id} className="text-sm bg-white dark:bg-gray-800 p-2.5 rounded-lg border border-gray-100 dark:border-gray-600 shadow-sm flex justify-between items-start gap-2">
+                                    <div>
+                                        <span className="font-black text-gray-700 dark:text-gray-300 mr-2">{getUserName(c.userId)}</span>
+                                        <span className="text-gray-600 dark:text-gray-400">{c.text}</span>
+                                    </div>
+                                    {currentUser.uid !== c.userId && onReport && (
+                                        <button onClick={() => onReport('comment', { id: c.id, value: c.text, scoreId: score.id })} className="text-xs opacity-30 hover:opacity-100 transition shrink-0 mt-0.5" title="Report Comment">🚩</button>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -103,20 +95,31 @@ function ReviewCard({ score, currentUser, groupRef, allUsers, canDelete, onDelet
                     </form>
                 </div>
             )}
-
-            {canDelete && (
-                <button onClick={() => onDelete(score)} className="absolute top-3 right-3 text-xs text-red-500 hover:text-red-700 font-bold uppercase tracking-wider">Delete</button>
-            )}
         </div>
     );
 }
 
-// --- MAIN PAGE ---
-export default function PubsPage({ pubs, criteria, scores, onSelectPub, onSelectPubForEdit, canManageGroup, pubsRef, allUsers, currentUser, currentGroup, groupRef, featureFlags }) {
+// --- MAIN PAGE (BULLETPROOF DEFAULTS) ---
+export default function PubsPage({ 
+    pubs = [], 
+    criteria = [], 
+    scores = {}, 
+    onSelectPub, 
+    onSelectPubForEdit, 
+    canManageGroup, 
+    pubsRef, 
+    allUsers = {}, 
+    currentUser = {}, 
+    currentGroup = {}, 
+    groupRef, 
+    featureFlags = {}, 
+    db 
+}) {
     const [selectedPubForDetail, setSelectedPubForDetail] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [yesNoFilter, setYesNoFilter] = useState("");
     const [sortOption, setSortOption] = useState("highest");
+    const [tagFilter, setTagFilter] = useState("");
 
     const handleDeleteScore = async (score) => {
         if (!groupRef || !score?.id) return;
@@ -132,6 +135,24 @@ export default function PubsPage({ pubs, criteria, scores, onSelectPub, onSelect
         catch (e) { console.error("Error deleting pub", e); }
     };
 
+    const handleReport = async (type, item) => {
+        if (!db) return alert("Database connection error. Try refreshing the page.");
+        if (!window.confirm(`Are you sure you want to report this ${type} to the moderation team?`)) return;
+        try {
+            await db.collection("reports").add({
+                type: type, 
+                targetId: item.id,
+                targetName: type === 'pub' ? item.name : (item.value || 'Written Review'),
+                reportedBy: currentUser.uid,
+                groupId: currentGroup.id, 
+                scoreId: item.scoreId || null,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                resolved: false
+            });
+            alert("Report submitted successfully. Our team will review it shortly.");
+        } catch (e) { alert("Failed to submit report."); console.error(e); }
+    };
+
     function canDeleteScore(score, user, currentGroup) {
         if (!user || !currentGroup) return false;
         return currentGroup.ownerUid === user.uid || currentGroup.managers?.includes(user.uid);
@@ -142,14 +163,16 @@ export default function PubsPage({ pubs, criteria, scores, onSelectPub, onSelect
         return u ? (u.nickname || u.displayName || u.email) : "Unknown User";
     };
 
-    const yesNoCriteria = criteria.filter((c) => c.type === "yes-no");
+    const yesNoCriteria = Array.isArray(criteria) ? criteria.filter((c) => c.type === "yes-no") : [];
 
-    const enrichedPubs = pubs.map(pub => {
+    const enrichedPubs = Array.isArray(pubs) ? pubs.map(pub => {
         let totalScore = 0; let count = 0;
-        criteria.filter(c => c.type === 'scale').forEach(c => {
-            const cScores = scores[pub.id]?.[c.id] || [];
-            cScores.forEach(s => { if (s.value != null && !isNaN(s.value)) { totalScore += s.value; count++; } });
-        });
+        if (Array.isArray(criteria)) {
+            criteria.filter(c => c.type === 'scale').forEach(c => {
+                const cScores = scores[pub.id]?.[c.id] || [];
+                cScores.forEach(s => { if (s.value != null && !isNaN(s.value)) { totalScore += s.value; count++; } });
+            });
+        }
         const avg = count > 0 ? (totalScore / count) : 0; 
         
         let tierLabel = 'Unrated', color = 'bg-gray-400';
@@ -160,10 +183,16 @@ export default function PubsPage({ pubs, criteria, scores, onSelectPub, onSelect
             else { tierLabel = 'Avoid'; color = 'bg-red-500'; }
         }
         return { ...pub, avgScore: avg, tierLabel, color, ratingCount: count };
-    });
+    }) : [];
 
     const filteredPubs = enrichedPubs.filter((pub) => {
-        if (!pub.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+        // Safe string check
+        const pubName = pub.name || "";
+        if (!pubName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+        
+        // Safe tag check
+        if (tagFilter && (!Array.isArray(pub.tags) || !pub.tags.includes(tagFilter))) return false;
+        
         if (yesNoFilter) {
             const pubScores = scores[pub.id] ?? {};
             const criterionScores = pubScores[yesNoFilter] ?? [];
@@ -171,10 +200,10 @@ export default function PubsPage({ pubs, criteria, scores, onSelectPub, onSelect
         }
         return true;
     }).sort((a, b) => {
-        if (sortOption === "highest") return b.avgScore - a.avgScore;
+        if (sortOption === "highest") return (b.avgScore || 0) - (a.avgScore || 0);
         if (sortOption === "google-highest") return (b.googleRating || 0) - (a.googleRating || 0);
-        if (sortOption === "lowest") return a.avgScore - b.avgScore;
-        if (sortOption === "alphabetical") return a.name.localeCompare(b.name);
+        if (sortOption === "lowest") return (a.avgScore || 0) - (b.avgScore || 0);
+        if (sortOption === "alphabetical") return (a.name || "").localeCompare(b.name || "");
         if (sortOption === "newest") return (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0);
         return 0;
     });
@@ -185,30 +214,32 @@ export default function PubsPage({ pubs, criteria, scores, onSelectPub, onSelect
         const b = {};
         const pubScores = scores[pub.id] ?? {};
         
-        criteria.forEach((crit) => {
-            const criterionScores = pubScores[crit.id] ?? [];
-            const mappedScores = criterionScores.map((s) => ({
-                id: s.id, value: s.value, userId: s.userId, userName: getUserName(s.userId), type: s.type, criterionId: s.criterionId,
-                reactions: s.reactions || [] // <-- MAP THE REACTIONS FROM DB
-            }));
+        if (Array.isArray(criteria)) {
+            criteria.forEach((crit) => {
+                const criterionScores = pubScores[crit.id] ?? [];
+                const mappedScores = criterionScores.map((s) => ({
+                    id: s.id, value: s.value, userId: s.userId, userName: getUserName(s.userId), type: s.type, criterionId: s.criterionId,
+                    reactions: s.reactions || [] 
+                }));
 
-            if (criterionScores.length === 0) {
-                b[crit.id] = { name: crit.name, type: crit.type, scores: [], average: 0 };
-            } else {
-                const usable = criterionScores.filter((s) => s.value != null);
-                const sum = usable.reduce((acc, s) => {
-                    if (s.type === "scale") return acc + s.value;
-                    if (s.type === "price") return acc + s.value / 2;
-                    return acc;
-                }, 0);
-                b[crit.id] = { name: crit.name, type: crit.type, scores: mappedScores, average: usable.length ? sum / usable.length : 0 };
-            }
-        });
+                if (criterionScores.length === 0) {
+                    b[crit.id] = { name: crit.name, type: crit.type, scores: [], average: 0 };
+                } else {
+                    const usable = criterionScores.filter((s) => s.value != null);
+                    const sum = usable.reduce((acc, s) => {
+                        if (s.type === "scale") return acc + s.value;
+                        if (s.type === "price") return acc + s.value / 2;
+                        return acc;
+                    }, 0);
+                    b[crit.id] = { name: crit.name, type: crit.type, scores: mappedScores, average: usable.length ? sum / usable.length : 0 };
+                }
+            });
+        }
         breakdown = b;
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-fadeIn">
             <div className="flex justify-between items-end mb-2">
                 <div>
                     <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Visited Pubs</h2>
@@ -216,22 +247,35 @@ export default function PubsPage({ pubs, criteria, scores, onSelectPub, onSelect
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row gap-4 transition-colors duration-300">
-                <input type="text" placeholder="Search pubs by name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white outline-none" />
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-wrap gap-3 transition-colors duration-300">
+                <input type="text" placeholder="Search pubs by name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="flex-1 min-w-[200px] px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white outline-none" />
                 
+                <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} className="px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold outline-none cursor-pointer">
+                    <option value="">🏷️ All Amenities</option>
+                    <option value="🍺 Beer Garden">🍺 Beer Garden</option>
+                    <option value="🐕 Dog Friendly">🐕 Dog Friendly</option>
+                    <option value="🎱 Pool Table">🎱 Pool Table</option>
+                    <option value="📺 Live Sports">📺 Live Sports</option>
+                    <option value="🎵 Live Music">🎵 Live Music</option>
+                    <option value="🍔 Food Served">🍔 Food Served</option>
+                    <option value="🎯 Darts">🎯 Darts</option>
+                    <option value="🍷 Cocktails">🍷 Cocktails</option>
+                    <option value="🔥 Open Fire">🔥 Open Fire</option>
+                </select>
+
                 {yesNoCriteria.length > 0 && (
-                    <select value={yesNoFilter} onChange={(e) => setYesNoFilter(e.target.value)} className="px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold min-w-[200px] outline-none cursor-pointer">
-                        <option value="">Filter: All Pubs</option>
-                        {yesNoCriteria.map((c) => <option key={c.id} value={c.id}>Must have: {c.name}</option>)}
+                    <select value={yesNoFilter} onChange={(e) => setYesNoFilter(e.target.value)} className="px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold outline-none cursor-pointer">
+                        <option value="">✅ Filter by Rating</option>
+                        {yesNoCriteria.map((c) => <option key={c.id} value={c.id}>Has: {c.name}</option>)}
                     </select>
                 )}
                 
                 <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold outline-none cursor-pointer">
-                    <option value="highest">⭐ Highest Rated (Group)</option>
-                    <option value="google-highest">🌟 Highest Rated (Google)</option>
+                    <option value="highest">⭐ Highest Rated</option>
+                    <option value="google-highest">🌟 Highest Google</option>
                     <option value="lowest">📉 Lowest Rated</option>
                     <option value="newest">🆕 Newest Added</option>
-                    <option value="alphabetical">🔤 Alphabetical (A-Z)</option>
+                    <option value="alphabetical">🔤 Alphabetical</option>
                 </select>
             </div>
 
@@ -258,11 +302,28 @@ export default function PubsPage({ pubs, criteria, scores, onSelectPub, onSelect
                             </div>
                         </div>
 
-                        <div className="p-5 flex flex-col flex-1">
-                            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-1 truncate">{pub.name}</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 truncate">📍 {pub.location || 'Unknown Location'}</p>
+                        <div className="p-5 flex flex-col flex-1 relative">
+                            <button onClick={(e) => { e.stopPropagation(); handleReport('pub', pub); }} className="absolute top-4 right-4 text-lg opacity-20 hover:opacity-100 transition hover:scale-110" title="Report Pub Name">🚩</button>
                             
-                            <div className="flex justify-between items-center mb-4 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-1 pr-6 truncate">{pub.name}</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 truncate">📍 {pub.location || 'Unknown Location'}</p>
+                            
+                            {Array.isArray(pub.tags) && pub.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mb-4">
+                                    {pub.tags.slice(0, 3).map(tag => (
+                                        <span key={tag} className="text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded font-bold whitespace-nowrap border border-blue-100 dark:border-blue-800">
+                                            {tag}
+                                        </span>
+                                    ))}
+                                    {pub.tags.length > 3 && (
+                                        <span className="text-[10px] bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 px-2 py-0.5 rounded font-bold">
+                                            +{pub.tags.length - 3}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                            
+                            <div className="flex justify-between items-center mb-4 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-100 dark:border-gray-600 mt-auto">
                                 <div>
                                     <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider mb-0.5">Group Score</p>
                                     <p className="font-black text-2xl text-brand leading-none">
@@ -284,7 +345,7 @@ export default function PubsPage({ pubs, criteria, scores, onSelectPub, onSelect
                                 </div>
                             </div>
 
-                            <div className="flex gap-2 mt-auto pt-4 border-t border-gray-100 dark:border-gray-700">
+                            <div className="flex gap-2 pt-4 border-t border-gray-100 dark:border-gray-700">
                                 <button onClick={() => onSelectPub(pub)} className="flex-1 bg-brand text-white font-bold py-2 rounded-lg hover:opacity-80 transition">Rate</button>
                                 {canManageGroup && (
                                     <>
@@ -310,10 +371,20 @@ export default function PubsPage({ pubs, criteria, scores, onSelectPub, onSelect
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 md:p-8 relative transition-colors duration-300 border border-gray-200 dark:border-gray-700">
                         <button onClick={() => setSelectedPubForDetail(null)} className="absolute top-4 right-4 text-gray-500 bg-gray-100 dark:bg-gray-700 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 dark:text-gray-300 transition shadow-sm">✕</button>
 
-                        <h2 className="text-3xl font-black mb-1 text-gray-800 dark:text-white">{selectedPubForDetail.name}</h2>
-                        <p className="text-gray-500 dark:text-gray-400 mb-6 font-medium flex items-center gap-2">📍 {selectedPubForDetail.location}</p>
+                        <h2 className="text-3xl font-black mb-1 text-gray-800 dark:text-white pr-8">{selectedPubForDetail.name}</h2>
+                        <p className="text-gray-500 dark:text-gray-400 mb-4 font-medium flex items-center gap-2">📍 {selectedPubForDetail.location}</p>
 
-                        <div className="mb-6"><LiveGoogleStatus pub={selectedPubForDetail} /></div>
+                        {Array.isArray(selectedPubForDetail.tags) && selectedPubForDetail.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-6">
+                                {selectedPubForDetail.tags.map(tag => (
+                                    <span key={tag} className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-3 py-1 rounded-full font-bold border border-blue-100 dark:border-blue-800">
+                                        {tag}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="mb-6"><LiveGoogleStatus pub={selectedPubForDetail} featureFlags={featureFlags} /></div>
             
                         <div className="flex items-center justify-between mb-8 p-6 bg-brand rounded-xl text-white shadow-lg">
                             <div>
@@ -374,6 +445,7 @@ export default function PubsPage({ pubs, criteria, scores, onSelectPub, onSelect
                                                             allUsers={allUsers} 
                                                             canDelete={canDeleteScore(s, currentUser, currentGroup)} 
                                                             onDelete={handleDeleteScore}
+                                                            onReport={handleReport}
                                                             featureFlags={featureFlags} 
                                                         />
                                                     ))}
@@ -392,10 +464,8 @@ export default function PubsPage({ pubs, criteria, scores, onSelectPub, onSelect
                                                                         </span>
                                                                     </div>
                                                                     
-                                                                    {/* SIMPLIFIED REACTION FOR NON-TEXT SCORES */}
                                                                     {featureFlags?.enableReactions && (
-                                                                        <button 
-                                                                            onClick={async () => {
+                                                                        <button onClick={async () => {
                                                                                 const scoreRef = groupRef.collection("scores").doc(s.id);
                                                                                 if (hasReacted) await scoreRef.update({ reactions: firebase.firestore.FieldValue.arrayRemove(currentUser.uid) });
                                                                                 else await scoreRef.update({ reactions: firebase.firestore.FieldValue.arrayUnion(currentUser.uid) });
@@ -406,9 +476,15 @@ export default function PubsPage({ pubs, criteria, scores, onSelectPub, onSelect
                                                                         </button>
                                                                     )}
                                                                 </div>
-                                                                {canDeleteScore(s, currentUser, currentGroup) && (
-                                                                    <button className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition" onClick={() => handleDeleteScore(s)}>Delete</button>
-                                                                )}
+                                                                
+                                                                <div className="flex items-center gap-2">
+                                                                    {currentUser.uid !== s.userId && (
+                                                                        <button onClick={() => handleReport('review', s)} className="text-xs opacity-30 hover:opacity-100 transition" title="Report this rating">🚩</button>
+                                                                    )}
+                                                                    {canDeleteScore(s, currentUser, currentGroup) && (
+                                                                        <button className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition" onClick={() => handleDeleteScore(s)}>Delete</button>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         );
                                                     })}
