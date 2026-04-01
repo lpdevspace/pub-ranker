@@ -54,6 +54,9 @@ export default function DashboardPage({ pubs, newPubs, criteria, users, scores, 
     
     const [livePubId, setLivePubId] = useState("");
     const [recentCrawls, setRecentCrawls] = useState([]);
+    
+    // --- NEW: UPCOMING EVENTS STATE ---
+    const [upcomingEvents, setUpcomingEvents] = useState([]);
 
     const getUserName = (userId) => {
         const u = allUsers && allUsers[userId];
@@ -76,7 +79,18 @@ export default function DashboardPage({ pubs, newPubs, criteria, users, scores, 
                 setRecentCrawls(crawls);
             });
 
-        return () => { unsubSettings(); unsubCrawls(); };
+        // --- NEW: FETCH UPCOMING EVENTS ---
+        const unsubEvents = db.collection('events')
+            .where('groupId', '==', groupId)
+            .orderBy('date', 'asc')
+            .onSnapshot(snap => {
+                const now = new Date().toISOString().split('T')[0];
+                const fetchedEvents = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const upcoming = fetchedEvents.filter(e => e.date >= now).slice(0, 5);
+                setUpcomingEvents(upcoming);
+            });
+
+        return () => { unsubSettings(); unsubCrawls(); unsubEvents(); };
     }, [db, groupId]);
 
     const handleSetLiveLocation = async (e) => {
@@ -159,8 +173,12 @@ export default function DashboardPage({ pubs, newPubs, criteria, users, scores, 
         criteriaArray.forEach(c => {
             if (c.createdAt?.toMillis) items.push({ id: `crit_${c.id}`, emoji: '📋', title: 'Rules Updated', text: `New rating category: ${c.name}`, time: c.createdAt.toMillis(), dateLabel: new Date(c.createdAt.toMillis()).toLocaleDateString() });
         });
+        // Include events in timeline
+        upcomingEvents.forEach(e => {
+            if (e.createdAt?.toMillis) items.push({ id: `event_${e.id}`, emoji: '📅', title: `Event Scheduled`, text: `${e.title} was added to the calendar.`, time: e.createdAt.toMillis(), dateLabel: new Date(e.createdAt.toMillis()).toLocaleDateString() });
+        });
         return items.sort((a, b) => b.time - a.time).slice(0, 15); 
-    }, [pubsArray, recentCrawls, criteriaArray, allUsers]);
+    }, [pubsArray, recentCrawls, criteriaArray, allUsers, upcomingEvents]);
 
     return (
         <div className="space-y-8 animate-fadeIn">
@@ -226,7 +244,6 @@ export default function DashboardPage({ pubs, newPubs, criteria, users, scores, 
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
                 {/* CLICKABLE SPOTLIGHT CARD */}
                 <div 
                     onClick={() => setPage('pubs')}
@@ -270,31 +287,68 @@ export default function DashboardPage({ pubs, newPubs, criteria, users, scores, 
                 </div>
             </div>
 
-            {/* FULL WIDTH ACTIVITY FEED */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col h-full mt-6">
-                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Group Activity Feed</h3>
-                {timelineItems.length === 0 ? (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 text-center my-auto italic pb-6">No recent activity.</p>
-                ) : (
-                    <div className="relative border-l-2 border-gray-100 dark:border-gray-700 ml-4 space-y-6 flex-1 overflow-y-auto pr-4 pb-2">
-                        {timelineItems.map((item) => (
-                            <div key={item.id} className="relative pl-6 group">
-                                <span className="absolute -left-[18px] top-1 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 rounded-full w-9 h-9 flex items-center justify-center text-lg shadow-sm group-hover:scale-110 transition-transform z-10">
-                                    {item.emoji}
-                                </span>
-                                <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-600 shadow-sm transition-colors hover:border-blue-200 dark:hover:border-blue-800">
-                                    <div className="flex justify-between items-start mb-1">
-                                        <p className="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">{item.title}</p>
-                                        <p className="text-[10px] text-gray-400 font-bold bg-white dark:bg-gray-800 px-2 py-0.5 rounded-full shadow-sm">{item.dateLabel}</p>
-                                    </div>
-                                    <p className="text-gray-800 dark:text-white font-semibold text-sm">{item.text}</p>
-                                </div>
-                            </div>
-                        ))}
+            {/* --- NEW GRID FOR EVENTS & ACTIVITY --- */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                
+                {/* UPCOMING EVENTS TILE */}
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col h-full lg:col-span-1">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-white">Upcoming Events</h3>
+                        <button onClick={() => setPage('events')} className="text-xs font-bold text-brand hover:underline">View All</button>
                     </div>
-                )}
-            </div>
+                    {upcomingEvents.length === 0 ? (
+                        <div className="text-center my-auto py-8">
+                            <span className="text-4xl mb-2 block opacity-50">📅</span>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">No events planned.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4 overflow-y-auto pr-2">
+                            {upcomingEvents.map(event => {
+                                const eventDate = new Date(event.date);
+                                const pub = pubsArray.find(p => p.id === event.pubId);
+                                return (
+                                    <div key={event.id} className="flex gap-3 items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-100 dark:border-gray-600 cursor-pointer hover:border-brand transition" onClick={() => setPage('events')}>
+                                        <div className="bg-brand text-white rounded-lg p-2 text-center min-w-[3rem] shadow-sm">
+                                            <p className="text-[10px] uppercase font-black leading-none">{eventDate.toLocaleDateString(undefined, { month: 'short' })}</p>
+                                            <p className="text-lg font-black leading-none mt-1">{eventDate.getDate()}</p>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-bold text-gray-800 dark:text-white truncate text-sm">{event.title}</h4>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">📍 {pub?.name || 'Unknown Pub'}</p>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+                </div>
 
+                {/* ACTIVITY FEED */}
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col h-full lg:col-span-2">
+                    <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Group Activity Feed</h3>
+                    {timelineItems.length === 0 ? (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center my-auto italic pb-6">No recent activity.</p>
+                    ) : (
+                        <div className="relative border-l-2 border-gray-100 dark:border-gray-700 ml-4 space-y-6 flex-1 overflow-y-auto pr-4 pb-2">
+                            {timelineItems.map((item) => (
+                                <div key={item.id} className="relative pl-6 group">
+                                    <span className="absolute -left-[18px] top-1 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 rounded-full w-9 h-9 flex items-center justify-center text-lg shadow-sm group-hover:scale-110 transition-transform z-10">
+                                        {item.emoji}
+                                    </span>
+                                    <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-600 shadow-sm transition-colors hover:border-blue-200 dark:hover:border-blue-800">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <p className="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">{item.title}</p>
+                                            <p className="text-[10px] text-gray-400 font-bold bg-white dark:bg-gray-800 px-2 py-0.5 rounded-full shadow-sm">{item.dateLabel}</p>
+                                        </div>
+                                        <p className="text-gray-800 dark:text-white font-semibold text-sm">{item.text}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+                
+            </div>
         </div>
     );
 }

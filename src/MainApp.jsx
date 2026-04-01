@@ -15,6 +15,7 @@ import SpinTheWheelPage from './pages/SpinTheWheelPage';
 import AdminPage from './pages/AdminPage';
 import SuperAdminPage from './pages/SuperAdminPage';
 import FeedbackPage from './pages/FeedbackPage';
+import EventsPage from './pages/EventsPage'; 
 
 export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMode, toggleDarkMode, featureFlags }) {
     const [page, setPage] = useState("dashboard");
@@ -187,6 +188,7 @@ switch (page) {
             case 'individual': return <IndividualRankingsPage scores={scores} pubs={pubs} criteria={criteria} allUsers={allUsers} activeRaters={activeRaters} criteriaWeightMap={criteriaWeightMap} />;
             case 'leaderboard': return <LeaderboardPage scores={scores} allUsers={allUsers} pubs={pubs} criteria={criteria} db={db} groupId={groupId} />;            
             case 'spin': return <SpinTheWheelPage pubs={pubs} criteria={activeCriteria} scores={scores} />;
+            case 'events': return <EventsPage db={db} groupId={groupId} pubs={pubs} user={user} canManageGroup={canManageGroup} allUsers={allUsers} />; // <-- ADD THIS LINE
             case 'feedback': return <FeedbackPage db={db} userProfile={userProfile} />;
             case 'admin': return <AdminPage criteria={criteria} pubs={pubs} user={user} currentGroup={currentGroup} pubsRef={pubsRef} criteriaRef={criteriaRef} groupRef={groupRef} allUsers={allUsers} db={db} featureFlags={featureFlags} />;
             case 'superadmin': return <SuperAdminPage db={db} userProfile={userProfile} user={user} />;

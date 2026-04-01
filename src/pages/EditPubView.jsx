@@ -7,7 +7,7 @@ const AVAILABLE_TAGS = [
 ];
 
 export default function EditPubView({ pub, onBack, onSave }) {
-    // --- NULL SAFETY NET ---
+    // --- ABSOLUTE NULL SAFETY NET ---
     const safePub = pub || {};
     
     const [name, setName] = useState(safePub.name || "");
@@ -17,15 +17,23 @@ export default function EditPubView({ pub, onBack, onSave }) {
     const [photoURL, setPhotoURL] = useState(safePub.photoURL || "");
     const [googleLink, setGoogleLink] = useState(safePub.googleLink || "");
     
-    const [tags, setTags] = useState(Array.isArray(safePub.tags) ? safePub.tags : []);
+    // --- BULLETPROOF TAG STATE ---
+    const initialTags = Array.isArray(safePub.tags) ? safePub.tags : [];
+    const [tags, setTags] = useState(initialTags);
     
+    // Failsafe to ensure tags is ALWAYS an array during render
+    const safeTags = Array.isArray(tags) ? tags : [];
+
     const handleToggleTag = (tag) => {
-        setTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+        setTags(prev => {
+            const prevTags = Array.isArray(prev) ? prev : [];
+            return prevTags.includes(tag) ? prevTags.filter(t => t !== tag) : [...prevTags, tag];
+        });
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSave(safePub.id, name, location, lat, lng, photoURL, googleLink, tags);
+        onSave(safePub.id, name, location, lat, lng, photoURL, googleLink, safeTags);
     };
     
     return (
@@ -65,7 +73,7 @@ export default function EditPubView({ pub, onBack, onSave }) {
                     <label className="block text-sm font-bold text-gray-800 dark:text-white mb-3">Amenities & Features</label>
                     <div className="flex flex-wrap gap-2">
                         {AVAILABLE_TAGS.map(tag => {
-                            const isSelected = tags.includes(tag);
+                            const isSelected = safeTags.includes(tag);
                             return (
                                 <button
                                     key={tag}

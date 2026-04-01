@@ -100,6 +100,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                     <div className="py-3 flex overflow-x-auto gap-2 hide-scrollbar pb-4 items-center">
                         <NavButton name="Dashboard" targetPage="dashboard" icon="📊" />
                         <NavButton name="Directory" targetPage="pubs" icon="🍻" />
+                        <NavButton name="Events" targetPage="events" icon="📅" />
                         <NavButton name="Hit List" targetPage="toVisit" icon="🎯" />
                         <NavButton name="Map Planner" targetPage="map" icon="🗺️" />
                         <NavButton name="Leaderboard" targetPage="leaderboard" icon="🏆" />
