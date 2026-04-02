@@ -74,9 +74,6 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
             const scoresData = {};
             snapshot.docs.forEach((doc) => {
                 const data = doc.data();
-                
-                // --- THIS IS THE MAGIC LINE YOU NEED ---
-                // It attaches the Firebase Document ID to the score so the Comment button knows where to save!
                 data.id = doc.id; 
                 
                 const { pubId, userId, criterionId } = data;
@@ -140,8 +137,15 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
         return userSet;
     }, [scores]);
 
-    const handleSelectPub = (pub) => setCurrentPub(pub);
-    const handleSelectPubForEdit = (pub) => setEditingPub(pub);
+    const handleSelectPub = (pub) => {
+        setCurrentPub(pub);
+        setPage('rate');
+    };
+    
+    const handleSelectPubForEdit = (pub) => {
+        setEditingPub(pub);
+        setPage('editPub');
+    };
 
     const handleSavePub = async (pubId, name, location, lat, lng, photoURL, googleLink, tags = []) => {
         if (!pubsRef) return;
@@ -153,13 +157,19 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                 lng: parseFloat(lng) || null,
                 photoURL: photoURL || "",
                 googleLink: googleLink || "",
-                tags: tags // <-- ADD THIS LINE
+                tags: tags 
             });
+            setEditingPub(null); // Clean up state
             setPage('pubs');
         } catch (e) {
             console.error("Error updating pub", e);
             alert("Failed to update pub");
         }
+    };
+
+    const handleSaveScores = () => {
+        setCurrentPub(null); // Clean up state
+        setPage('pubs');
     };
 
     const handlePromotePub = async (pubId) => {
@@ -175,20 +185,22 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
     if (dataLoading || !currentGroup) return <LoadingScreen text={`Loading group ${currentGroup?.name}...`} />;
 
     const renderPage = () => {
-        if (currentPub) return <RateView pub={currentPub} criteria={activeCriteria} user={user} onBack={() => setCurrentPub(null)} groupRef={groupRef} groupId={groupId} db={db} />;
-        if (editingPub) return <EditPubView pub={editingPub} onBack={() => setEditingPub(null)} onSave={handleUpdatePub} />;
-
-switch (page) {
+        // --- REMOVED THE TWO REDUNDANT CRASH-CAUSING LINES HERE ---
+        
+        switch (page) {
             case 'dashboard': return <DashboardPage pubs={visitedPubs} newPubs={newPubs} criteria={activeCriteria} users={activeRaters} scores={scores} rankedPubs={rankedVisitedPubs} setPage={setPage} groupId={groupId} db={db} allUsers={allUsers} />;
             case 'pubs': return <PubsPage pubs={rankedVisitedPubs} criteria={activeCriteria} scores={scores} onSelectPub={handleSelectPub} onSelectPubForEdit={handleSelectPubForEdit} canManageGroup={canManageGroup} pubsRef={pubsRef} allUsers={allUsers} currentUser={user} currentGroup={currentGroup} groupRef={groupRef} featureFlags={featureFlags} db={db} />;
             case 'toVisit': return <PubsToVisitPage pubs={newPubs} canManageGroup={canManageGroup} onPromotePub={handlePromotePub} onSelectPubForEdit={handleSelectPubForEdit} allUsers={allUsers} pubsRef={pubsRef} currentGroup={currentGroup} currentUser={user} featureFlags={featureFlags} />;            
-            case 'rate': return <RateView pub={currentPub} criteria={activeCriteria} onBack={() => setPage('pubs')} onSave={handleSaveScores} existingScores={scores[currentPub?.id] || {}} />;
-            case 'editPub': return <EditPubView pub={editingPub} onBack={() => setPage('pubs')} onSave={handleSavePub} />;
+            
+            // --- CORRECTED ROUTING FOR RATE & EDIT ---
+            case 'rate': return <RateView pub={currentPub} criteria={activeCriteria} onBack={() => { setCurrentPub(null); setPage('pubs'); }} onSave={handleSaveScores} existingScores={scores[currentPub?.id] || {}} />;
+            case 'editPub': return <EditPubView pub={editingPub} onBack={() => { setEditingPub(null); setPage('pubs'); }} onSave={handleSavePub} />;
+            
             case 'map': return <MapPage pubs={pubs} scores={scores} criteria={activeCriteria} db={db} groupId={groupId} userProfile={userProfile} />;
             case 'individual': return <IndividualRankingsPage scores={scores} pubs={pubs} criteria={criteria} allUsers={allUsers} activeRaters={activeRaters} criteriaWeightMap={criteriaWeightMap} />;
             case 'leaderboard': return <LeaderboardPage scores={scores} allUsers={allUsers} pubs={pubs} criteria={criteria} db={db} groupId={groupId} />;            
             case 'spin': return <SpinTheWheelPage pubs={pubs} criteria={activeCriteria} scores={scores} />;
-            case 'events': return <EventsPage db={db} groupId={groupId} pubs={pubs} user={user} canManageGroup={canManageGroup} allUsers={allUsers} />; // <-- ADD THIS LINE
+            case 'events': return <EventsPage db={db} groupId={groupId} pubs={pubs} user={user} canManageGroup={canManageGroup} allUsers={allUsers} />;
             case 'feedback': return <FeedbackPage db={db} userProfile={userProfile} />;
             case 'admin': return <AdminPage criteria={criteria} pubs={pubs} user={user} currentGroup={currentGroup} pubsRef={pubsRef} criteriaRef={criteriaRef} groupRef={groupRef} allUsers={allUsers} db={db} featureFlags={featureFlags} />;
             case 'superadmin': return <SuperAdminPage db={db} userProfile={userProfile} user={user} />;
@@ -196,9 +208,10 @@ switch (page) {
         }
     };
 
- return (
+    return (
         <div className="w-full" style={{ '--theme-color': currentGroup.brandColor || '#2563eb' }}>
-        <Header user={user} page={page} setPage={setPage} canManageGroup={canManageGroup} groupName={currentGroup?.groupName || 'My Pub Group'} onSwitchGroup={() => setGroupId(null)} auth={auth} db={db} userProfile={userProfile} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} scores={scores} pubs={pubs} criteria={activeCriteria} groupId={groupId} />            {renderPage()}
+            <Header user={user} page={page} setPage={setPage} canManageGroup={canManageGroup} groupName={currentGroup?.groupName || 'My Pub Group'} onSwitchGroup={() => setGroupId(null)} auth={auth} db={db} userProfile={userProfile} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} scores={scores} pubs={pubs} criteria={activeCriteria} groupId={groupId} />            
+            {renderPage()}
         </div>
     );
 }
