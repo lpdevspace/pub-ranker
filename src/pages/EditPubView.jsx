@@ -7,7 +7,9 @@ const AVAILABLE_TAGS = [
 ];
 
 export default function EditPubView({ pub, onBack, onSave }) {
-    // --- ABSOLUTE NULL SAFETY NET ---
+    // --- THIS IS THE CRITICAL SAFETY NET ---
+    // If 'pub' is null (which happens if you refresh the page or React renders too fast),
+    // it falls back to an empty object so it doesn't crash trying to read properties!
     const safePub = pub || {};
     
     const [name, setName] = useState(safePub.name || "");
@@ -17,11 +19,9 @@ export default function EditPubView({ pub, onBack, onSave }) {
     const [photoURL, setPhotoURL] = useState(safePub.photoURL || "");
     const [googleLink, setGoogleLink] = useState(safePub.googleLink || "");
     
-    // --- BULLETPROOF TAG STATE ---
     const initialTags = Array.isArray(safePub.tags) ? safePub.tags : [];
     const [tags, setTags] = useState(initialTags);
     
-    // Failsafe to ensure tags is ALWAYS an array during render
     const safeTags = Array.isArray(tags) ? tags : [];
 
     const handleToggleTag = (tag) => {
@@ -35,6 +35,20 @@ export default function EditPubView({ pub, onBack, onSave }) {
         e.preventDefault();
         onSave(safePub.id, name, location, lat, lng, photoURL, googleLink, safeTags);
     };
+
+    // If there is no pub ID (e.g. page was refreshed), show a graceful error instead of crashing
+    if (!safePub.id) {
+        return (
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md mx-auto text-center border border-gray-200 dark:border-gray-700 mt-12 animate-fadeIn">
+                <span className="text-5xl mb-4 block">🍺</span>
+                <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Pub Data Lost</h2>
+                <p className="text-gray-500 dark:text-gray-400 mb-6">It looks like the page was refreshed. Please go back to the directory and select the pub again to edit it.</p>
+                <button onClick={onBack} className="bg-brand text-white font-bold px-6 py-2 rounded-xl shadow hover:bg-blue-700 transition">
+                    Back to Directory
+                </button>
+            </div>
+        );
+    }
     
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl max-w-2xl mx-auto border border-gray-200 dark:border-gray-700 animate-fadeIn">
