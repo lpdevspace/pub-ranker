@@ -130,6 +130,16 @@ export default function SuperAdminPage({ db, userProfile, user }) {
         } catch (e) { alert("Failed to delete badge: " + e.message); }
     };
     const handleAddDefaultCriteria = async (e) => { e.preventDefault(); if (!newDefCritName.trim()) return; const newCrit = { name: newDefCritName.trim(), type: newDefCritType, weight: 1 }; const updated = [...defaultCriteria, newCrit]; setDefaultCriteria(updated); try { await db.collection('global').doc('defaults').set({ criteria: updated }, { merge: true }); setNewDefCritName(""); setNewDefCritType("scale"); } catch (error) { alert(`Failed to save: ${error.message}`); } };
+    const handleTogglePubLock = async (pub) => {
+        const action = pub.isLocked ? "Unlock" : "Lock & Verify";
+        if (!window.confirm(`Are you sure you want to ${action} ${pub.name}?`)) return;
+        try {
+            await db.collection('pubs').doc(pub.id).update({ isLocked: !pub.isLocked });
+            setPubsList(pubsList.map(p => p.id === pub.id ? { ...p, isLocked: !pub.isLocked } : p));
+        } catch (error) {
+            alert(`Failed to update pub: ${error.message}`);
+        }
+    };
     const handleDeleteDefaultCriteria = async (index) => { const updated = defaultCriteria.filter((_, i) => i !== index); setDefaultCriteria(updated); try { await db.collection('global').doc('defaults').set({ criteria: updated }, { merge: true }); } catch (error) { alert(`Failed to delete: ${error.message}`); } };
     const handlePublishAnnouncement = async () => { setIsPublishing(true); try { await db.collection('global').doc('settings').set({ announcement: announcement.trim(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }); alert("Announcement published globally!"); } catch (error) { alert(`Failed to publish: ${error.message}`); } setIsPublishing(false); };
     const handleClearAnnouncement = async () => { setAnnouncement(""); setIsPublishing(true); try { await db.collection('global').doc('settings').set({ announcement: "" }, { merge: true }); } catch (error) { console.error(error); } setIsPublishing(false); };
@@ -670,21 +680,44 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                 </div>
             )}
 
-            {activeTab === 'pubs' && isAdmin && (
+{activeTab === 'pubs' && isAdmin && (
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden animate-fadeIn">
-                    <div className="p-4 border-b border-gray-200 dark:border-gray-700"><h3 className="text-lg font-bold text-gray-800 dark:text-white">Global Pub Directory</h3></div>
+                    <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-white">Global Pub Directory</h3>
+                        <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-3 py-1 rounded-full font-bold">
+                            {pubsList.filter(p => p.isLocked).length} Verified Pubs
+                        </span>
+                    </div>
                     <div className="overflow-x-auto max-h-[600px]">
                         <table className="w-full text-left border-collapse text-sm">
-                            <thead className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 sticky top-0">
-                                <tr><th className="p-3">Photo</th><th className="p-3">Pub Name</th><th className="p-3">Location</th><th className="p-3 text-right">Action</th></tr>
+                            <thead className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 sticky top-0 z-10">
+                                <tr>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3">Photo</th>
+                                    <th className="p-3">Pub Name</th>
+                                    <th className="p-3">Location</th>
+                                    <th className="p-3 text-right">Actions</th>
+                                </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-gray-800 dark:text-gray-200">
                                 {pubsList.map(pub => (
-                                    <tr key={pub.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                        <td className="p-3 w-16">{pub.photoURL ? <img src={pub.photoURL} alt="pub" className="w-10 h-10 rounded object-cover" /> : <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded flex items-center justify-center text-xl">🍺</div>}</td>
+                                    <tr key={pub.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${pub.isLocked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+                                        <td className="p-3 text-center">
+                                            {pub.isLocked ? <span className="text-xl" title="Verified & Locked">🔒</span> : <span className="text-xl opacity-20" title="Unlocked">🔓</span>}
+                                        </td>
+                                        <td className="p-3 w-16">{pub.photoURL ? <img src={pub.photoURL} alt="pub" className="w-10 h-10 rounded object-cover shadow-sm" /> : <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded flex items-center justify-center text-xl">🍺</div>}</td>
                                         <td className="p-3 font-bold">{pub.name}</td>
                                         <td className="p-3 text-gray-500 dark:text-gray-400">{pub.location || 'Unknown'}</td>
-                                        <td className="p-3 text-right"><button onClick={() => handleDeletePub(pub.id)} className="text-red-500 hover:text-red-700 font-semibold text-xs bg-red-50 dark:bg-red-900/30 px-2 py-1 rounded">Delete</button></td>
+                                        <td className="p-3 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button onClick={() => handleTogglePubLock(pub)} className={`font-bold text-xs px-3 py-1.5 rounded transition shadow-sm ${pub.isLocked ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600' : 'bg-brand text-white hover:opacity-80'}`}>
+                                                    {pub.isLocked ? 'Unlock' : 'Verify'}
+                                                </button>
+                                                <button onClick={() => handleDeletePub(pub.id)} className="text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 font-bold text-xs px-3 py-1.5 rounded transition shadow-sm">
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>

@@ -7,7 +7,6 @@ const AVAILABLE_TAGS = [
 ];
 
 export default function EditPubView({ pub, onBack, onSave }) {
-    // 1. Initialize empty, safe states
     const [name, setName] = useState("");
     const [location, setLocation] = useState("");
     const [lat, setLat] = useState("");
@@ -15,8 +14,10 @@ export default function EditPubView({ pub, onBack, onSave }) {
     const [photoURL, setPhotoURL] = useState("");
     const [googleLink, setGoogleLink] = useState("");
     const [tags, setTags] = useState([]);
+    
+    // --- NEW: LOCK STATE ---
+    const [isLocked, setIsLocked] = useState(false);
 
-    // 2. Safely load the data ONLY after the component is safely mounted
     useEffect(() => {
         if (pub) {
             setName(pub.name || "");
@@ -26,6 +27,7 @@ export default function EditPubView({ pub, onBack, onSave }) {
             setPhotoURL(pub.photoURL || "");
             setGoogleLink(pub.googleLink || "");
             setTags(Array.isArray(pub.tags) ? pub.tags : []);
+            setIsLocked(pub.isLocked || false); // Catch the lock!
         }
     }, [pub]);
 
@@ -40,14 +42,12 @@ export default function EditPubView({ pub, onBack, onSave }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Extra failsafe to ensure we don't save a broken pub
         if (!pub || !pub.id) return; 
         
         const finalTags = Array.isArray(tags) ? tags : [];
         onSave(pub.id, name, location, lat, lng, photoURL, googleLink, finalTags);
     };
 
-    // 3. Graceful fallback if the pub data is lost (e.g. from a page refresh)
     if (!pub || !pub.id) {
         return (
             <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md mx-auto text-center border border-gray-200 dark:border-gray-700 mt-12 animate-fadeIn">
@@ -61,42 +61,51 @@ export default function EditPubView({ pub, onBack, onSave }) {
         );
     }
     
-    // 4. Render the safe form
     return (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl max-w-2xl mx-auto border border-gray-200 dark:border-gray-700 animate-fadeIn">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl max-w-2xl mx-auto border border-gray-200 dark:border-gray-700 animate-fadeIn relative overflow-hidden">
+            
+            {/* --- NEW: THE LOCK BANNER --- */}
+            {isLocked && (
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 -mx-6 -mt-6 mb-6 flex items-center justify-center gap-2 shadow-md">
+                    <span className="text-xl">🔒</span>
+                    <p className="font-bold text-sm tracking-wide">This pub is officially verified. Core details are locked.</p>
+                </div>
+            )}
+
             <h2 className="text-2xl font-black text-gray-800 dark:text-white mb-6">Edit Pub Details</h2>
         
             <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Pub Name</label>
-                        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. The Red Lion" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white" required />
+                        <input type="text" value={name} onChange={(e) => setName(e.target.value)} disabled={isLocked} placeholder="e.g. The Red Lion" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" required />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">City / Area</label>
-                        <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. London" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white" required />
+                        <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} disabled={isLocked} placeholder="e.g. London" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" required />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Latitude</label>
-                        <input type="number" step="0.0000001" value={lat} onChange={(e) => setLat(e.target.value)} placeholder="51.5074" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white" />
+                        <input type="number" step="0.0000001" value={lat} onChange={(e) => setLat(e.target.value)} disabled={isLocked} placeholder="51.5074" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Longitude</label>
-                        <input type="number" step="0.0000001" value={lng} onChange={(e) => setLng(e.target.value)} placeholder="-0.1278" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white" />
+                        <input type="number" step="0.0000001" value={lng} onChange={(e) => setLng(e.target.value)} disabled={isLocked} placeholder="-0.1278" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" />
                     </div>
                 </div>
 
                 <div>
                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Photo URL</label>
-                    <input type="url" value={photoURL} onChange={(e) => setPhotoURL(e.target.value)} placeholder="https://..." className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white" />
+                    <input type="url" value={photoURL} onChange={(e) => setPhotoURL(e.target.value)} disabled={isLocked} placeholder="https://..." className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" />
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Google Maps Link</label>
-                    <input type="url" value={googleLink} onChange={(e) => setGoogleLink(e.target.value)} placeholder="https://maps.app.goo.gl/..." className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white" />
+                    <input type="url" value={googleLink} onChange={(e) => setGoogleLink(e.target.value)} disabled={isLocked} placeholder="https://maps.app.goo.gl/..." className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" />
                 </div>
 
                 <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
                     <label className="block text-sm font-bold text-gray-800 dark:text-white mb-3">Amenities & Features</label>
+                    <p className="text-xs text-gray-500 mb-3 italic">You can update amenities even if the pub is verified.</p>
                     <div className="flex flex-wrap gap-2">
                         {AVAILABLE_TAGS.map(tag => {
                             const isSelected = tags.includes(tag);

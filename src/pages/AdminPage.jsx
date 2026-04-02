@@ -10,7 +10,7 @@ export default function AdminPage({
     // --- SETTINGS & BRAND STATE ---
     const [editGroupName, setEditGroupName] = useState(currentGroup.groupName || "");
     const [editGroupCover, setEditGroupCover] = useState(currentGroup.coverPhoto || "");
-    const [brandColor, setBrandColor] = useState(currentGroup.brandColor || "#2563eb"); // <-- ADD THIS
+    const [brandColor, setBrandColor] = useState(currentGroup.brandColor || "#2563eb"); 
     const [requireApproval, setRequireApproval] = useState(currentGroup.requireApproval || false);
     
     // PUBLIC DIRECTORY STATES
@@ -41,6 +41,12 @@ export default function AdminPage({
     
     const [editingCriterionId, setEditingCriterionId] = useState(null);
     const [editingCriterionName, setEditingCriterionName] = useState("");
+    
+    // --- GLOBAL PUB ARCHITECTURE STATE ---
+    const [masterSearchTerm, setMasterSearchTerm] = useState("");
+    const [masterResults, setMasterResults] = useState([]);
+    const [hasSearched, setHasSearched] = useState(false);
+    const [showManualForm, setShowManualForm] = useState(false);
     
     const [newPubName, setNewPubName] = useState("");
     const [newPubLocation, setNewPubLocation] = useState("");
@@ -78,7 +84,6 @@ export default function AdminPage({
         setIsPublic(currentGroup.isPublic || false);
     }, [currentGroup]);
 
-    // Initialize the sliders with current Database weights
     useEffect(() => {
         const w = {};
         criteria.forEach(c => { w[c.id] = c.weight ?? 1; });
@@ -92,7 +97,7 @@ export default function AdminPage({
             await groupRef.update({
                 groupName: editGroupName.trim(),
                 coverPhoto: editGroupCover.trim(),
-                brandColor: brandColor, // <-- ADD THIS
+                brandColor: brandColor, 
                 requireApproval: requireApproval,
                 city: city.trim(),
                 isPublic: isPublic
@@ -103,9 +108,7 @@ export default function AdminPage({
     };
 
     const handleSyncLegacyPubs = async () => {
-        // 1. Find pubs that don't have a placeId yet
         const legacyPubs = pubs.filter(p => !p.placeId);
-        
         if (legacyPubs.length === 0) {
             alert("All your pubs are already synced with Google!");
             return;
@@ -119,43 +122,28 @@ export default function AdminPage({
         try {
             const { Place } = await window.google.maps.importLibrary("places");
 
-            // 2. Loop through them ONE BY ONE
             for (let i = 0; i < legacyPubs.length; i++) {
                 const pub = legacyPubs[i];
                 setSyncProgress(`Syncing ${i + 1} of ${legacyPubs.length}: ${pub.name}...`);
 
                 try {
                     const searchQuery = pub.location ? `${pub.name} in ${pub.location}` : pub.name;
-                    const request = {
-                        textQuery: searchQuery,
-                        fields: ['id', 'displayName', 'rating', 'photos', 'formattedAddress'],
-                    };
-
+                    const request = { textQuery: searchQuery, fields: ['id', 'displayName', 'rating', 'photos', 'formattedAddress'] };
                     const { places } = await Place.searchByText(request);
 
                     if (places && places.length > 0) {
                         const bestMatch = places[0];
                         const updates = { placeId: bestMatch.id };
-
                         if (bestMatch.rating) updates.googleRating = bestMatch.rating;
-                        
-                        // Only overwrite the photo if the pub doesn't already have a custom one
                         if (bestMatch.photos && bestMatch.photos.length > 0 && !pub.photoURL) {
                             updates.photoURL = bestMatch.photos[0].getURI({ maxWidth: 800 });
                         }
-
-                        // 3. Update the specific document in Firebase
                         await pubsRef.doc(pub.id).update(updates);
                         successCount++;
                     }
-                } catch (err) {
-                    console.error(`Failed to sync ${pub.name}:`, err);
-                }
-
-                // 4. The safety buffer: Wait 800ms before asking Google again
+                } catch (err) { console.error(`Failed to sync ${pub.name}:`, err); }
                 await new Promise(resolve => setTimeout(resolve, 800));
             }
-
             alert(`Sync complete! Successfully updated ${successCount} out of ${legacyPubs.length} legacy pubs.`);
         } catch (error) {
             console.error("Critical error during sync:", error);
@@ -166,14 +154,11 @@ export default function AdminPage({
         }
     };
 
-    // --- PERMANENTLY SAVE WEIGHTS ---
     const handleSaveWeights = async () => {
         setSavingWeights(true);
         try {
             const promises = criteria.map(c => {
-                if (localWeights[c.id] !== c.weight) {
-                    return criteriaRef.doc(c.id).update({ weight: localWeights[c.id] });
-                }
+                if (localWeights[c.id] !== c.weight) return criteriaRef.doc(c.id).update({ weight: localWeights[c.id] });
                 return null;
             }).filter(Boolean);
             await Promise.all(promises);
@@ -208,7 +193,7 @@ export default function AdminPage({
         try {
             const options = { maxSizeMB: 0.8, maxWidthOrHeight: 1200, useWebWorker: true };
             const compressedFile = await imageCompression(file, options);
-            const fileRef = storage.ref(`pubs/${currentGroup.id}/${Date.now()}_${file.name}`);
+            const fileRef = storage.ref(`pubs/global/${Date.now()}_${file.name}`);
             await fileRef.put(compressedFile);
             const url = await fileRef.getDownloadURL();
             setNewPubPhotoURL(url);
@@ -241,6 +226,56 @@ export default function AdminPage({
         try { await criteriaRef.doc(id).update({ name: editingCriterionName.trim() }); setEditingCriterionId(null); } 
         catch(e) { console.error(e); }
     };
+
+    const searchMasterList = async (e) => {
+        e.preventDefault();
+        if (!masterSearchTerm.trim()) return;
+        setSavingPub(true);
+        try {
+            const snap = await db.collection('pubs').get();
+            const allGlobal = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const term = masterSearchTerm.toLowerCase();
+            const matches = allGlobal.filter(p => p.name.toLowerCase().includes(term) || (p.location && p.location.toLowerCase().includes(term)));
+            setMasterResults(matches);
+            setHasSearched(true);
+        } catch (err) {
+            console.error(err);
+            alert("Error searching master database.");
+        } finally {
+            setSavingPub(false);
+        }
+    };
+
+    const importPub = async (globalPub) => {
+        const existing = pubs.find(p => p.globalId === globalPub.id || p.name.toLowerCase() === globalPub.name.toLowerCase());
+        if (existing) return alert("This pub is already in your group!");
+
+        try {
+            await pubsRef.add({
+                name: globalPub.name || "",
+                location: globalPub.location || "",
+                lat: globalPub.lat || null,
+                lng: globalPub.lng || null,
+                photoURL: globalPub.photoURL || "",
+                googleLink: globalPub.googleLink || "",
+                placeId: globalPub.placeId || "",
+                googleRating: globalPub.googleRating || null,
+                tags: globalPub.tags || [],
+                globalId: globalPub.id,
+                addedBy: user.uid,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                status: "to-visit"
+            });
+            alert(`${globalPub.name} imported successfully!`);
+            setMasterSearchTerm("");
+            setMasterResults([]);
+            setHasSearched(false);
+            setShowManualForm(false);
+        } catch (err) {
+            console.error(err);
+            alert("Failed to import pub.");
+        }
+    };
     
     const handleAddPub = async (e) => {
         e.preventDefault();
@@ -256,70 +291,73 @@ export default function AdminPage({
             let placeId = "";
             let fullAddress = newPubLocation.trim() || "";
 
-            // --- 1. NEW GOOGLE PLACES API FETCH ---
             try {
-                if (window.google && !featureFlags?.disableGoogleAPI) { // <-- ADDED FLAG CHECK
+                if (window.google && !featureFlags?.disableGoogleAPI) { 
                     const { Place } = await window.google.maps.importLibrary("places");
-                    
                     const searchQuery = fullAddress ? `${newPubName.trim()} in ${fullAddress}` : newPubName.trim();
-                    
-                    const request = {
-                        textQuery: searchQuery,
-                        fields: ['id', 'displayName', 'rating', 'photos', 'formattedAddress'], 
-                    };
-
+                    const request = { textQuery: searchQuery, fields: ['id', 'displayName', 'rating', 'photos', 'formattedAddress'] };
                     const { places } = await Place.searchByText(request);
 
                     if (places && places.length > 0) {
                         const bestMatch = places[0];
                         placeId = bestMatch.id;
                         googleRating = bestMatch.rating || null;
-                        
                         if (bestMatch.formattedAddress) fullAddress = bestMatch.formattedAddress;
-
                         if (bestMatch.photos && bestMatch.photos.length > 0) {
                             googlePhotoUrl = bestMatch.photos[0].getURI({ maxWidth: 800 }); 
                         }
                     }
-                } else {
-                    console.warn("Google Maps API not loaded. Skipping Google data fetch.");
                 }
             } catch (googleErr) {
                 console.error("Failed to fetch Google Data, continuing with manual data:", googleErr);
             }
 
-            // --- 2. BUILD THE FIREBASE DOCUMENT ---
-            const data = { 
-                name: newPubName.trim(), 
-                location: fullAddress, 
-                status: "to-visit", 
-                addedBy: user.uid, 
-                createdAt: firebase.firestore.FieldValue.serverTimestamp() 
+            const pubData = {
+                name: newPubName.trim(),
+                location: fullAddress,
+                lat: newPubLat ? parseFloat(newPubLat) : null,
+                lng: newPubLng ? parseFloat(newPubLng) : null,
+                photoURL: newPubPhotoURL.trim() || googlePhotoUrl || "",
+                googleLink: newPubGoogleLink.trim() || "",
+                placeId: placeId || "",
+                googleRating: googleRating || null,
+                addedBy: user.uid,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             };
 
-            if (newPubLat && newPubLng) { data.lat = parseFloat(newPubLat); data.lng = parseFloat(newPubLng); }
-            
-            if (newPubPhotoURL.trim()) {
-                data.photoURL = newPubPhotoURL.trim();
-            } else if (googlePhotoUrl) {
-                data.photoURL = googlePhotoUrl;
-            }
+            const globalPubRef = await db.collection('pubs').add({
+                ...pubData,
+                isLocked: false 
+            });
 
-            if (newPubGoogleLink.trim()) data.googleLink = newPubGoogleLink.trim();
-            if (placeId) data.placeId = placeId;
-            if (googleRating) data.googleRating = googleRating;
-
-            // --- 3. SAVE TO DATABASE ---
-            await pubsRef.add(data);
+            await pubsRef.add({
+                ...pubData,
+                globalId: globalPubRef.id,
+                status: "to-visit"
+            });
             
             setNewPubName(""); setNewPubLocation(""); setNewPubLat(""); setNewPubLng(""); setNewPubPhotoURL(""); setNewPubGoogleLink("");
-            alert("Pub added successfully!");
+            setShowManualForm(false);
+            setMasterSearchTerm("");
+            setHasSearched(false);
+            alert("Pub created and added to your group successfully!");
             
         } catch (e) { 
             console.error("Error saving pub to Firebase:", e);
             setPubError("Could not add pub."); 
         } finally { 
             setSavingPub(false); 
+        }
+    };
+
+    // --- NEW: REMOVE PUB FROM GROUP HANDLER ---
+    const handleDeleteGroupPub = async (pubId, pubName) => {
+        if (!window.confirm(`Are you sure you want to completely remove "${pubName}" from your group? This will also remove any ratings associated with it.`)) return;
+        try {
+            await pubsRef.doc(pubId).delete();
+        } catch (error) {
+            console.error("Error removing pub:", error);
+            alert("Failed to remove pub.");
         }
     };
     
@@ -365,7 +403,8 @@ export default function AdminPage({
                     { id: 'members', icon: '👥', label: `Members (${members.length})` },
                     { id: 'criteria', icon: '📋', label: `Add Criteria` },
                     { id: 'weights', icon: '⚖️', label: `Weights` },
-                    { id: 'pubs', icon: '🍻', label: 'Add Pubs' },
+                    { id: 'pubs', icon: '➕', label: 'Add Pubs' },
+                    { id: 'manage-pubs', icon: '🍻', label: 'Manage Pubs' }, // <-- NEW TAB ADDED
                 ].map(tab => (
                     <button
                         key={tab.id}
@@ -390,7 +429,6 @@ export default function AdminPage({
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Group Name</label>
                                     <input type="text" value={editGroupName} onChange={e => setEditGroupName(e.target.value)} className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white" />
                                 </div>
-                                {/* --- NEW: BRAND COLOR PICKER --- */}
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Brand Theme Color</label>
                                     <div className="flex items-center gap-3">
@@ -436,7 +474,6 @@ export default function AdminPage({
                             </div>
                         </div>
 
-                        {/* --- NEW: DATABASE MAINTENANCE SECTION --- */}
                         <div className="bg-orange-50 dark:bg-orange-900/20 p-6 rounded-xl border border-orange-200 dark:border-orange-800 space-y-4 mb-6">
                             <div>
                                 <h3 className="text-lg font-bold text-orange-800 dark:text-orange-400">Database Maintenance</h3>
@@ -680,69 +717,193 @@ export default function AdminPage({
                     </div>
                 )}
 
-                {/* --- TAB 5: PUBS --- */}
+                {/* --- TAB 5: ADD PUBS --- */}
                 {activeTab === 'pubs' && (
                     <div className="space-y-6 animate-fadeIn">
                         <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-xl border border-gray-200 dark:border-gray-600">
-                            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Add a New Pub</h3>
-                            <form onSubmit={handleAddPub} className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Pub Name *</label>
-                                        <input type="text" maxLength={50} value={newPubName} onChange={(e) => setNewPubName(e.target.value)} className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white" required />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Location / Area</label>
-                                        <input type="text" maxLength={50} value={newPubLocation} onChange={(e) => setNewPubLocation(e.target.value)} className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">GPS Latitude</label>
-                                        <input type="text" value={newPubLat} onChange={(e) => setNewPubLat(e.target.value)} placeholder="e.g. 51.5074" className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white font-mono" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">GPS Longitude</label>
-                                        <input type="text" value={newPubLng} onChange={(e) => setNewPubLng(e.target.value)} placeholder="e.g. -0.1278" className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white font-mono" />
-                                    </div>
-                                </div>
-                                
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 block">
-                                        Pub Photo
-                                    </label>
-                                    <div className="flex items-center gap-4">
-                                        <label className={`flex-1 flex flex-col items-center justify-center px-4 py-4 rounded-xl border-2 border-dashed transition-all cursor-pointer ${
-                                            newPubPhotoURL 
-                                            ? 'border-green-500 bg-green-50 dark:bg-green-900/10' 
-                                            : 'border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-500 bg-gray-50 dark:bg-gray-700/50'
-                                        }`}>
-                                            {uploading ? (
-                                                <svg className="animate-spin mb-1 h-6 w-6 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                </svg>
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Add a Pub to Your Group</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Search the Global Master Database to save time and API quota, or manually create a new one.</p>
+
+                            {!showManualForm ? (
+                                <div className="space-y-6">
+                                    <form onSubmit={searchMasterList} className="flex gap-2">
+                                        <input 
+                                            type="text" 
+                                            value={masterSearchTerm} 
+                                            onChange={e => setMasterSearchTerm(e.target.value)} 
+                                            placeholder="Search global database (e.g., The Red Lion)..." 
+                                            className="flex-1 px-4 py-3 border dark:border-gray-600 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white shadow-sm" 
+                                            required 
+                                        />
+                                        <button type="submit" disabled={savingPub} className="bg-brand text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition disabled:opacity-50 shadow-md">
+                                            {savingPub ? "Searching..." : "🔍 Search"}
+                                        </button>
+                                    </form>
+
+                                    {hasSearched && (
+                                        <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6 animate-fadeIn">
+                                            <h4 className="font-bold text-gray-700 dark:text-gray-300 mb-3">Search Results ({masterResults.length})</h4>
+                                            
+                                            {masterResults.length === 0 ? (
+                                                <div className="text-center py-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                                                    <p className="text-gray-500 dark:text-gray-400 mb-4">No matching pubs found globally.</p>
+                                                    <button onClick={() => setShowManualForm(true)} className="bg-green-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-green-700 transition shadow-sm">
+                                                        ➕ Create Custom Pub
+                                                    </button>
+                                                </div>
                                             ) : (
-                                                <span className="text-2xl mb-1">📸</span>
+                                                <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                                                    {masterResults.map(pub => (
+                                                        <div key={pub.id} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:border-blue-300 transition group">
+                                                            <div className="flex items-center gap-4">
+                                                                {pub.photoURL ? (
+                                                                    <img src={pub.photoURL} alt={pub.name} className="w-12 h-12 rounded-full object-cover shadow-sm group-hover:scale-105 transition-transform" />
+                                                                ) : (
+                                                                    <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xl shadow-sm">🍺</div>
+                                                                )}
+                                                                <div>
+                                                                    <h5 className="font-bold text-gray-800 dark:text-white flex items-center gap-2 text-lg leading-tight">
+                                                                        {pub.name}
+                                                                        {pub.isLocked && <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider" title="Verified by Super Admin">🔒 Verified</span>}
+                                                                    </h5>
+                                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{pub.location || 'Unknown Location'}</p>
+                                                                </div>
+                                                            </div>
+                                                            <button onClick={() => importPub(pub)} className="bg-brand text-white px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-blue-700 transition shadow-sm ml-4 whitespace-nowrap">
+                                                                📥 Import
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    <div className="text-center pt-6 mt-4 border-t border-gray-200 dark:border-gray-700">
+                                                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">Didn't find what you're looking for?</p>
+                                                        <button onClick={() => setShowManualForm(true)} className="text-brand font-bold hover:underline">
+                                                            ➕ Create a brand new pub
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             )}
-                                            <span className="text-sm font-bold text-gray-600 dark:text-gray-300">
-                                                {uploading ? "Uploading Image..." : newPubPhotoURL ? "Change Photo" : "Upload or Take Photo"}
-                                            </span>
-                                            <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={uploading} />
-                                        </label>
-
-                                        {newPubPhotoURL && (
-                                            <div className="relative w-20 h-20 group">
-                                                <img src={newPubPhotoURL} alt="Preview" className="w-full h-full object-cover rounded-xl shadow-md border-2 border-white dark:border-gray-600" />
-                                                <button type="button" onClick={() => setNewPubPhotoURL("")} className="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition">✕</button>
-                                            </div>
-                                        )}
-                                    </div>
+                                        </div>
+                                    )}
                                 </div>
+                            ) : (
+                                <form onSubmit={handleAddPub} className="space-y-4 animate-fadeIn">
+                                    <button type="button" onClick={() => setShowManualForm(false)} className="text-sm font-bold text-gray-500 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white mb-2 inline-flex items-center gap-1 transition-colors">
+                                        ← Back to Global Search
+                                    </button>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Pub Name *</label>
+                                            <input type="text" maxLength={50} value={newPubName} onChange={(e) => setNewPubName(e.target.value)} className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white" required />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Location / Area</label>
+                                            <input type="text" maxLength={50} value={newPubLocation} onChange={(e) => setNewPubLocation(e.target.value)} className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">GPS Latitude</label>
+                                            <input type="text" value={newPubLat} onChange={(e) => setNewPubLat(e.target.value)} placeholder="e.g. 51.5074" className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white font-mono" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">GPS Longitude</label>
+                                            <input type="text" value={newPubLng} onChange={(e) => setNewPubLng(e.target.value)} placeholder="e.g. -0.1278" className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white font-mono" />
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 block">
+                                            Pub Photo
+                                        </label>
+                                        <div className="flex items-center gap-4">
+                                            <label className={`flex-1 flex flex-col items-center justify-center px-4 py-4 rounded-xl border-2 border-dashed transition-all cursor-pointer ${
+                                                newPubPhotoURL 
+                                                ? 'border-green-500 bg-green-50 dark:bg-green-900/10' 
+                                                : 'border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-500 bg-gray-50 dark:bg-gray-700/50'
+                                            }`}>
+                                                {uploading ? (
+                                                    <svg className="animate-spin mb-1 h-6 w-6 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                ) : (
+                                                    <span className="text-2xl mb-1">📸</span>
+                                                )}
+                                                <span className="text-sm font-bold text-gray-600 dark:text-gray-300">
+                                                    {uploading ? "Uploading Image..." : newPubPhotoURL ? "Change Photo" : "Upload or Take Photo"}
+                                                </span>
+                                                <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={uploading} />
+                                            </label>
 
-                                <button type="submit" disabled={savingPub} className="w-full py-3 bg-green-600 text-white rounded-lg font-bold text-lg hover:bg-green-700 transition disabled:opacity-60 shadow-md">
-                                    {savingPub ? "Saving..." : "🍻 Add Pub to Database"}
-                                </button>
-                                {pubError && <p className="text-sm text-red-500 text-center font-bold">{pubError}</p>}
-                            </form>
+                                            {newPubPhotoURL && (
+                                                <div className="relative w-20 h-20 group">
+                                                    <img src={newPubPhotoURL} alt="Preview" className="w-full h-full object-cover rounded-xl shadow-md border-2 border-white dark:border-gray-600" />
+                                                    <button type="button" onClick={() => setNewPubPhotoURL("")} className="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition">✕</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" disabled={savingPub} className="w-full py-3 bg-green-600 text-white rounded-lg font-bold text-lg hover:bg-green-700 transition disabled:opacity-60 shadow-md">
+                                        {savingPub ? "Saving..." : "🍻 Create Global Pub & Import"}
+                                    </button>
+                                    {pubError && <p className="text-sm text-red-500 text-center font-bold">{pubError}</p>}
+                                </form>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* --- TAB 6: MANAGE PUBS (NEW TAB) --- */}
+                {activeTab === 'manage-pubs' && (
+                    <div className="space-y-6 animate-fadeIn">
+                        <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-xl border border-gray-200 dark:border-gray-600">
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Manage Group Pubs</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">View and remove pubs from your group's Hit List or Visited directory.</p>
+                            
+                            {pubs.length === 0 ? (
+                                <p className="text-center text-gray-500 dark:text-gray-400 py-8 italic">No pubs in your group yet.</p>
+                            ) : (
+                                <div className="overflow-x-auto border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                            <tr>
+                                                <th className="p-3">Pub</th>
+                                                <th className="p-3">Location</th>
+                                                <th className="p-3">Status</th>
+                                                <th className="p-3 text-right">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                            {pubs.sort((a, b) => a.name.localeCompare(b.name)).map(pub => (
+                                                <tr key={pub.id} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                                                    <td className="p-3 flex items-center gap-3 font-bold text-gray-800 dark:text-white">
+                                                        {pub.photoURL ? (
+                                                            <img src={pub.photoURL} alt={pub.name} className="w-8 h-8 rounded-full object-cover shadow-sm" />
+                                                        ) : (
+                                                            <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-xs">🍺</div>
+                                                        )}
+                                                        {pub.name}
+                                                    </td>
+                                                    <td className="p-3 text-gray-500 dark:text-gray-400 truncate max-w-[150px]">{pub.location || 'Unknown'}</td>
+                                                    <td className="p-3">
+                                                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${pub.status === 'visited' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'}`}>
+                                                            {pub.status === 'visited' ? 'Visited' : 'Hit List'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-3 text-right">
+                                                        <button 
+                                                            onClick={() => handleDeleteGroupPub(pub.id, pub.name)}
+                                                            className="px-3 py-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded text-xs font-bold transition border border-red-100 dark:border-red-800"
+                                                        >
+                                                            Remove
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
