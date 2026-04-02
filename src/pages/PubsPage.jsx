@@ -3,6 +3,73 @@ import ImageUploader from '../components/ImageUploader';
 import { LiveGoogleStatus } from './PubsToVisitPage'; 
 import { firebase } from '../firebase'; 
 
+// --- UPDATED: LIVE WEATHER ENGINE (NOW SUPPORTS COMPACT MODE) ---
+function LiveWeatherStatus({ lat, lng, tags = [], compact = false }) {
+    const [weather, setWeather] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!lat || !lng) {
+            setLoading(false);
+            return;
+        }
+        
+        const fetchWeather = async () => {
+            try {
+                const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY; 
+                if (!apiKey) {
+                    console.warn("OpenWeather API key missing. Check your .env file.");
+                    setLoading(false);
+                    return;
+                }
+                const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric`);
+                if (!res.ok) throw new Error("Weather API Error");
+                const data = await res.json();
+                
+                if (data.main) {
+                    setWeather({
+                        temp: Math.round(data.main.temp),
+                        condition: data.weather[0].main,
+                        description: data.weather[0].description,
+                        icon: data.weather[0].icon
+                    });
+                }
+            } catch (e) {
+                console.error("Weather fetch error", e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchWeather();
+    }, [lat, lng]);
+
+    if (loading) return <div className={`text-xs text-gray-400 animate-pulse font-bold uppercase tracking-wider ${compact ? 'mb-3' : 'mt-2'}`}>Checking skies...</div>;
+    if (!weather) return null;
+
+    const hasBeerGarden = Array.isArray(tags) && tags.includes('🍺 Beer Garden');
+    const isGoodWeather = weather.temp >= 15 && !['Rain', 'Snow', 'Thunderstorm', 'Drizzle'].includes(weather.condition);
+
+    return (
+        <div className={`flex flex-col gap-2 animate-fadeIn ${compact ? 'mb-3' : 'mt-4'}`}>
+            <div className={`inline-flex items-center gap-2 bg-gradient-to-r from-sky-50 to-blue-50 dark:from-sky-900/30 dark:to-blue-900/20 rounded-xl border border-sky-100 dark:border-sky-800 shadow-sm w-fit ${compact ? 'p-1 pr-3' : 'p-2 pr-5'}`}>
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-0.5 shadow-sm border border-sky-50 dark:border-sky-700">
+                    <img src={`https://openweathermap.org/img/wn/${weather.icon}@2x.png`} alt={weather.condition} className={`${compact ? 'w-6 h-6' : 'w-10 h-10'} drop-shadow-sm`} />
+                </div>
+                <div>
+                    <p className={`${compact ? 'text-sm' : 'text-lg'} font-black text-sky-900 dark:text-sky-100 leading-none`}>{weather.temp}°C</p>
+                    {!compact && <p className="text-[10px] font-bold text-sky-700 dark:text-sky-400 uppercase tracking-wider mt-1">{weather.description}</p>}
+                </div>
+            </div>
+            
+            {hasBeerGarden && isGoodWeather && (
+                <div className={`inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-900 dark:from-amber-900/40 dark:to-yellow-900/30 dark:text-amber-400 rounded-xl border border-amber-300 dark:border-amber-700/50 font-black uppercase tracking-wider shadow-sm w-fit transform hover:scale-105 transition-transform ${compact ? 'px-2 py-1 text-[9px]' : 'px-4 py-2 text-xs'}`}>
+                    <span className={`${compact ? 'text-sm' : 'text-xl'} filter drop-shadow-sm`}>☀️</span> {compact ? 'Beer Garden Weather' : 'Prime Beer Garden Weather!'}
+                </div>
+            )}
+        </div>
+    );
+}
+
 function ReviewCard({ score, currentUser = {}, groupRef, allUsers = {}, canDelete, onDelete, onReport, featureFlags }) {
     const [showComments, setShowComments] = useState(false);
     const [comments, setComments] = useState([]);
@@ -99,7 +166,6 @@ function ReviewCard({ score, currentUser = {}, groupRef, allUsers = {}, canDelet
     );
 }
 
-// --- MAIN PAGE (BULLETPROOF DEFAULTS) ---
 export default function PubsPage({ 
     pubs = [], 
     criteria = [], 
@@ -186,13 +252,9 @@ export default function PubsPage({
     }) : [];
 
     const filteredPubs = enrichedPubs.filter((pub) => {
-        // Safe string check
         const pubName = pub.name || "";
         if (!pubName.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-        
-        // Safe tag check
         if (tagFilter && (!Array.isArray(pub.tags) || !pub.tags.includes(tagFilter))) return false;
-        
         if (yesNoFilter) {
             const pubScores = scores[pub.id] ?? {};
             const criterionScores = pubScores[yesNoFilter] ?? [];
@@ -309,7 +371,7 @@ export default function PubsPage({
                             <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 truncate">📍 {pub.location || 'Unknown Location'}</p>
                             
                             {Array.isArray(pub.tags) && pub.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mb-4">
+                                <div className="flex flex-wrap gap-1 mb-2">
                                     {pub.tags.slice(0, 3).map(tag => (
                                         <span key={tag} className="text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded font-bold whitespace-nowrap border border-blue-100 dark:border-blue-800">
                                             {tag}
@@ -322,6 +384,9 @@ export default function PubsPage({
                                     )}
                                 </div>
                             )}
+
+                            {/* --- LIVE WEATHER ON COMPACT CARD --- */}
+                            <LiveWeatherStatus lat={pub.lat} lng={pub.lng} tags={pub.tags} compact={true} />
                             
                             <div className="flex justify-between items-center mb-4 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-100 dark:border-gray-600 mt-auto">
                                 <div>
@@ -365,7 +430,6 @@ export default function PubsPage({
                 </div>
             )}
 
-            {/* DETAILED MODAL */}
             {selectedPubForDetail && breakdown && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto transition-opacity duration-300 animate-fadeIn">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 md:p-8 relative transition-colors duration-300 border border-gray-200 dark:border-gray-700">
@@ -375,7 +439,7 @@ export default function PubsPage({
                         <p className="text-gray-500 dark:text-gray-400 mb-4 font-medium flex items-center gap-2">📍 {selectedPubForDetail.location}</p>
 
                         {Array.isArray(selectedPubForDetail.tags) && selectedPubForDetail.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mb-6">
+                            <div className="flex flex-wrap gap-2 mb-4">
                                 {selectedPubForDetail.tags.map(tag => (
                                     <span key={tag} className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-3 py-1 rounded-full font-bold border border-blue-100 dark:border-blue-800">
                                         {tag}
@@ -384,7 +448,11 @@ export default function PubsPage({
                             </div>
                         )}
 
-                        <div className="mb-6"><LiveGoogleStatus pub={selectedPubForDetail} featureFlags={featureFlags} /></div>
+                        <div className="mb-6 flex flex-col sm:flex-row gap-3">
+                            <LiveGoogleStatus pub={selectedPubForDetail} featureFlags={featureFlags} />
+                            {/* --- FULL SIZED WEATHER BADGE IN MODAL --- */}
+                            <LiveWeatherStatus lat={selectedPubForDetail.lat} lng={selectedPubForDetail.lng} tags={selectedPubForDetail.tags} />
+                        </div>
             
                         <div className="flex items-center justify-between mb-8 p-6 bg-brand rounded-xl text-white shadow-lg">
                             <div>
@@ -465,7 +533,8 @@ export default function PubsPage({
                                                                     </div>
                                                                     
                                                                     {featureFlags?.enableReactions && (
-                                                                        <button onClick={async () => {
+                                                                        <button 
+                                                                            onClick={async () => {
                                                                                 const scoreRef = groupRef.collection("scores").doc(s.id);
                                                                                 if (hasReacted) await scoreRef.update({ reactions: firebase.firestore.FieldValue.arrayRemove(currentUser.uid) });
                                                                                 else await scoreRef.update({ reactions: firebase.firestore.FieldValue.arrayUnion(currentUser.uid) });
