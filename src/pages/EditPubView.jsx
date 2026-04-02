@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const AVAILABLE_TAGS = [
     '🍺 Beer Garden', '🐕 Dog Friendly', '🎱 Pool Table', 
@@ -7,42 +7,53 @@ const AVAILABLE_TAGS = [
 ];
 
 export default function EditPubView({ pub, onBack, onSave }) {
-    // --- THIS IS THE CRITICAL SAFETY NET ---
-    // If 'pub' is null (which happens if you refresh the page or React renders too fast),
-    // it falls back to an empty object so it doesn't crash trying to read properties!
-    const safePub = pub || {};
-    
-    const [name, setName] = useState(safePub.name || "");
-    const [location, setLocation] = useState(safePub.location || "");
-    const [lat, setLat] = useState(safePub.lat || "");
-    const [lng, setLng] = useState(safePub.lng || "");
-    const [photoURL, setPhotoURL] = useState(safePub.photoURL || "");
-    const [googleLink, setGoogleLink] = useState(safePub.googleLink || "");
-    
-    const initialTags = Array.isArray(safePub.tags) ? safePub.tags : [];
-    const [tags, setTags] = useState(initialTags);
-    
-    const safeTags = Array.isArray(tags) ? tags : [];
+    // 1. Initialize empty, safe states
+    const [name, setName] = useState("");
+    const [location, setLocation] = useState("");
+    const [lat, setLat] = useState("");
+    const [lng, setLng] = useState("");
+    const [photoURL, setPhotoURL] = useState("");
+    const [googleLink, setGoogleLink] = useState("");
+    const [tags, setTags] = useState([]);
+
+    // 2. Safely load the data ONLY after the component is safely mounted
+    useEffect(() => {
+        if (pub) {
+            setName(pub.name || "");
+            setLocation(pub.location || "");
+            setLat(pub.lat != null ? pub.lat : ""); 
+            setLng(pub.lng != null ? pub.lng : "");
+            setPhotoURL(pub.photoURL || "");
+            setGoogleLink(pub.googleLink || "");
+            setTags(Array.isArray(pub.tags) ? pub.tags : []);
+        }
+    }, [pub]);
 
     const handleToggleTag = (tag) => {
         setTags(prev => {
-            const prevTags = Array.isArray(prev) ? prev : [];
-            return prevTags.includes(tag) ? prevTags.filter(t => t !== tag) : [...prevTags, tag];
+            const currentTags = Array.isArray(prev) ? prev : [];
+            return currentTags.includes(tag) 
+                ? currentTags.filter(t => t !== tag) 
+                : [...currentTags, tag];
         });
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSave(safePub.id, name, location, lat, lng, photoURL, googleLink, safeTags);
+        // Extra failsafe to ensure we don't save a broken pub
+        if (!pub || !pub.id) return; 
+        
+        const finalTags = Array.isArray(tags) ? tags : [];
+        onSave(pub.id, name, location, lat, lng, photoURL, googleLink, finalTags);
     };
 
-    // If there is no pub ID (e.g. page was refreshed), show a graceful error instead of crashing
-    if (!safePub.id) {
+    // 3. Graceful fallback if the pub data is lost (e.g. from a page refresh)
+    if (!pub || !pub.id) {
         return (
             <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md mx-auto text-center border border-gray-200 dark:border-gray-700 mt-12 animate-fadeIn">
                 <span className="text-5xl mb-4 block">🍺</span>
-                <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Pub Data Lost</h2>
-                <p className="text-gray-500 dark:text-gray-400 mb-6">It looks like the page was refreshed. Please go back to the directory and select the pub again to edit it.</p>
+                <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Loading Pub...</h2>
+                <p className="text-gray-500 dark:text-gray-400 mb-6">If this takes too long, the data may have been lost. Please go back and try again.</p>
                 <button onClick={onBack} className="bg-brand text-white font-bold px-6 py-2 rounded-xl shadow hover:bg-blue-700 transition">
                     Back to Directory
                 </button>
@@ -50,6 +61,7 @@ export default function EditPubView({ pub, onBack, onSave }) {
         );
     }
     
+    // 4. Render the safe form
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl max-w-2xl mx-auto border border-gray-200 dark:border-gray-700 animate-fadeIn">
             <h2 className="text-2xl font-black text-gray-800 dark:text-white mb-6">Edit Pub Details</h2>
@@ -87,7 +99,7 @@ export default function EditPubView({ pub, onBack, onSave }) {
                     <label className="block text-sm font-bold text-gray-800 dark:text-white mb-3">Amenities & Features</label>
                     <div className="flex flex-wrap gap-2">
                         {AVAILABLE_TAGS.map(tag => {
-                            const isSelected = safeTags.includes(tag);
+                            const isSelected = tags.includes(tag);
                             return (
                                 <button
                                     key={tag}

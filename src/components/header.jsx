@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { firebase } from '../firebase'; 
 
-export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile, isDarkMode, toggleDarkMode, scores, pubs, criteria, groupId }) {    
+export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile, isDarkMode, toggleDarkMode, scores = {}, pubs = [], criteria = [], groupId }) {    
     const [showProfile, setShowProfile] = useState(false);
     const [isNavOpen, setIsNavOpen] = useState(false); 
     
@@ -100,8 +100,8 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                     <div className="py-3 flex overflow-x-auto gap-2 hide-scrollbar pb-4 items-center">
                         <NavButton name="Dashboard" targetPage="dashboard" icon="📊" />
                         <NavButton name="Directory" targetPage="pubs" icon="🍻" />
-                        <NavButton name="Events" targetPage="events" icon="📅" />
                         <NavButton name="Hit List" targetPage="toVisit" icon="🎯" />
+                        <NavButton name="Events" targetPage="events" icon="📅" />
                         <NavButton name="Map Planner" targetPage="map" icon="🗺️" />
                         <NavButton name="Leaderboard" targetPage="leaderboard" icon="🏆" />
                         <NavButton name="Versus" targetPage="individual" icon="🥊" />
@@ -133,7 +133,6 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
     );
 }
 
-// --- PROFILE MODAL COMPONENT ---
 function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pubs = [] }) {
     const [nickname, setNickname] = useState(userProfile?.nickname || "");
     const [avatarUrl, setAvatarUrl] = useState(userProfile?.avatarUrl || "");
@@ -152,7 +151,6 @@ function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pu
         });
     }, [db]);
 
-    // Fetch Crawls created by this user
     useEffect(() => {
         if (!db || !groupId || !user) return;
         db.collection('crawls').where('groupId', '==', groupId).where('createdBy', '==', user.uid).get().then(snap => {
@@ -160,14 +158,17 @@ function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pu
         });
     }, [db, groupId, user]);
 
-    // CALCULATE STATS
+    // SAFELY CALCULATE STATS
     let pubsRated = new Set();
     let perfectTens = 0;
     let writtenReviews = 0;
     
-    Object.values(scores).forEach(pubScores => {
-        Object.values(pubScores).forEach(critScores => {
-            const myScore = critScores.find(s => s.userId === user.uid);
+    const safeScores = scores || {};
+    Object.values(safeScores).forEach(pubScores => {
+        const safePubScores = pubScores || {};
+        Object.values(safePubScores).forEach(critScores => {
+            const safeCritScores = Array.isArray(critScores) ? critScores : [];
+            const myScore = safeCritScores.find(s => s.userId === user?.uid);
             if (myScore && myScore.value != null) {
                 pubsRated.add(myScore.pubId);
                 if (myScore.type === 'scale' && myScore.value === 10) perfectTens++;
@@ -176,7 +177,8 @@ function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pu
         });
     });
 
-    const pubsAdded = pubs.filter(p => p.addedBy === user.uid).length;
+    const safePubs = Array.isArray(pubs) ? pubs : [];
+    const pubsAdded = safePubs.filter(p => p.addedBy === user?.uid).length;
     const ratedCount = pubsRated.size;
 
     const badges = gamification.badges && gamification.badges.length > 0 ? gamification.badges.map(b => {
@@ -194,6 +196,7 @@ function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pu
 
     const handleSave = async (e) => {
         e.preventDefault();
+        if(!user?.uid) return;
         setSaving(true);
         try {
             await db.collection("users").doc(user.uid).update({
