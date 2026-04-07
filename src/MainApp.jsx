@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { auth, db, firebase } from './firebase';
 import { LoadingScreen } from './App';
 
-import Header from './components/Header';
+import Header from './components/header';
 import DashboardPage from './pages/DashboardPage';
 import MapPage from './pages/MapPage';
 import PubsPage from './pages/PubsPage';
@@ -18,7 +19,15 @@ import FeedbackPage from './pages/FeedbackPage';
 import EventsPage from './pages/EventsPage'; 
 
 export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMode, toggleDarkMode, featureFlags }) {
-    const [page, setPage] = useState("dashboard");
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    // This reads the URL to figure out what page is active (e.g., "/pubs" -> "pubs")
+    const page = location.pathname.substring(1) || "dashboard";
+
+    // This replaces your old setPage function so your child components don't break
+    const setPage = (targetPage) => navigate(`/${targetPage}`);
+
     const [currentPub, setCurrentPub] = useState(null);
     const [editingPub, setEditingPub] = useState(null);
 
@@ -184,34 +193,29 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
 
     if (dataLoading || !currentGroup) return <LoadingScreen text={`Loading group ${currentGroup?.name}...`} />;
 
-    const renderPage = () => {
-        // --- REMOVED THE TWO REDUNDANT CRASH-CAUSING LINES HERE ---
-        
-        switch (page) {
-            case 'dashboard': return <DashboardPage pubs={visitedPubs} newPubs={newPubs} criteria={activeCriteria} users={activeRaters} scores={scores} rankedPubs={rankedVisitedPubs} setPage={setPage} groupId={groupId} db={db} allUsers={allUsers} />;
-            case 'pubs': return <PubsPage pubs={rankedVisitedPubs} criteria={activeCriteria} scores={scores} onSelectPub={handleSelectPub} onSelectPubForEdit={handleSelectPubForEdit} canManageGroup={canManageGroup} pubsRef={pubsRef} allUsers={allUsers} currentUser={user} currentGroup={currentGroup} groupRef={groupRef} featureFlags={featureFlags} db={db} />;
-            case 'toVisit': return <PubsToVisitPage pubs={newPubs} canManageGroup={canManageGroup} onPromotePub={handlePromotePub} onSelectPubForEdit={handleSelectPubForEdit} allUsers={allUsers} pubsRef={pubsRef} currentGroup={currentGroup} currentUser={user} featureFlags={featureFlags} />;            
-            
-            // --- CORRECTED ROUTING FOR RATE & EDIT ---
-            case 'rate': return <RateView pub={currentPub} criteria={activeCriteria} onBack={() => { setCurrentPub(null); setPage('pubs'); }} onSave={handleSaveScores} existingScores={scores[currentPub?.id] || {}} />;
-            case 'editPub': return <EditPubView pub={editingPub} onBack={() => { setEditingPub(null); setPage('pubs'); }} onSave={handleSavePub} />;
-            
-            case 'map': return <MapPage pubs={pubs} scores={scores} criteria={activeCriteria} db={db} groupId={groupId} userProfile={userProfile} />;
-            case 'individual': return <IndividualRankingsPage scores={scores} pubs={pubs} criteria={criteria} allUsers={allUsers} activeRaters={activeRaters} criteriaWeightMap={criteriaWeightMap} />;
-            case 'leaderboard': return <LeaderboardPage scores={scores} allUsers={allUsers} pubs={pubs} criteria={criteria} db={db} groupId={groupId} />;            
-            case 'spin': return <SpinTheWheelPage pubs={pubs} criteria={activeCriteria} scores={scores} />;
-            case 'events': return <EventsPage db={db} groupId={groupId} pubs={pubs} user={user} canManageGroup={canManageGroup} allUsers={allUsers} />;
-            case 'feedback': return <FeedbackPage db={db} userProfile={userProfile} />;
-            case 'admin': return <AdminPage criteria={criteria} pubs={pubs} user={user} currentGroup={currentGroup} pubsRef={pubsRef} criteriaRef={criteriaRef} groupRef={groupRef} allUsers={allUsers} db={db} featureFlags={featureFlags} />;
-            case 'superadmin': return <SuperAdminPage db={db} userProfile={userProfile} user={user} />;
-            default: return <DashboardPage pubs={visitedPubs} newPubs={newPubs} criteria={activeCriteria} users={activeRaters} scores={scores} rankedPubs={rankedVisitedPubs} setPage={setPage} groupId={groupId} db={db} allUsers={allUsers} />;
-        }
-    };
-
     return (
         <div className="w-full" style={{ '--theme-color': currentGroup.brandColor || '#2563eb' }}>
-            <Header user={user} page={page} setPage={setPage} canManageGroup={canManageGroup} groupName={currentGroup?.groupName || 'My Pub Group'} onSwitchGroup={handleSwitchGroup} auth={auth} db={db} userProfile={userProfile} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} scores={scores} pubs={pubs} criteria={activeCriteria} groupId={groupId} />
-            {renderPage()}
+            <Header user={user} page={page} setPage={setPage} canManageGroup={canManageGroup} groupName={currentGroup?.groupName || 'My Pub Group'} onSwitchGroup={handleSwitchGroup} auth={auth} db={db} userProfile={userProfile} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} scores={scores} pubs={pubs} criteria={activeCriteria} groupId={groupId} />            
+            
+            <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<DashboardPage pubs={visitedPubs} newPubs={newPubs} criteria={activeCriteria} users={activeRaters} scores={scores} rankedPubs={rankedVisitedPubs} setPage={setPage} groupId={groupId} db={db} allUsers={allUsers} />} />
+                <Route path="/pubs" element={<PubsPage pubs={rankedVisitedPubs} criteria={activeCriteria} scores={scores} onSelectPub={handleSelectPub} onSelectPubForEdit={handleSelectPubForEdit} canManageGroup={canManageGroup} pubsRef={pubsRef} allUsers={allUsers} currentUser={user} currentGroup={currentGroup} groupRef={groupRef} featureFlags={featureFlags} db={db} />} />
+                <Route path="/toVisit" element={<PubsToVisitPage pubs={newPubs} canManageGroup={canManageGroup} onPromotePub={handlePromotePub} onSelectPubForEdit={handleSelectPubForEdit} allUsers={allUsers} pubsRef={pubsRef} currentGroup={currentGroup} currentUser={user} featureFlags={featureFlags} />} />
+                <Route path="/rate" element={<RateView pub={currentPub} criteria={activeCriteria} onBack={() => { setCurrentPub(null); setPage('pubs'); }} onSave={handleSaveScores} existingScores={scores[currentPub?.id] || {}} />} />
+                <Route path="/editPub" element={<EditPubView pub={editingPub} onBack={() => { setEditingPub(null); setPage('pubs'); }} onSave={handleSavePub} />} />
+                <Route path="/map" element={<MapPage pubs={pubs} scores={scores} criteria={activeCriteria} db={db} groupId={groupId} userProfile={userProfile} />} />
+                <Route path="/individual" element={<IndividualRankingsPage scores={scores} pubs={pubs} criteria={criteria} allUsers={allUsers} activeRaters={activeRaters} criteriaWeightMap={criteriaWeightMap} />} />
+                <Route path="/leaderboard" element={<LeaderboardPage scores={scores} allUsers={allUsers} pubs={pubs} criteria={criteria} db={db} groupId={groupId} />} />
+                <Route path="/spin" element={<SpinTheWheelPage pubs={pubs} criteria={activeCriteria} scores={scores} />} />
+                <Route path="/events" element={<EventsPage db={db} groupId={groupId} pubs={pubs} user={user} canManageGroup={canManageGroup} allUsers={allUsers} />} />
+                <Route path="/feedback" element={<FeedbackPage db={db} userProfile={userProfile} />} />
+                <Route path="/admin" element={<AdminPage criteria={criteria} pubs={pubs} user={user} currentGroup={currentGroup} pubsRef={pubsRef} criteriaRef={criteriaRef} groupRef={groupRef} allUsers={allUsers} db={db} featureFlags={featureFlags} />} />
+                <Route path="/superadmin" element={<SuperAdminPage db={db} userProfile={userProfile} user={user} />} />
+                
+                {/* Fallback route */}
+                <Route path="*" element={<DashboardPage pubs={visitedPubs} newPubs={newPubs} criteria={activeCriteria} users={activeRaters} scores={scores} rankedPubs={rankedVisitedPubs} setPage={setPage} groupId={groupId} db={db} allUsers={allUsers} />} />
+            </Routes>
         </div>
     );
 }
