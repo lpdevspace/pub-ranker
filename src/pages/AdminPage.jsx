@@ -1,53 +1,49 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { firebase, storage } from '../firebase'; 
 import imageCompression from 'browser-image-compression'; 
 
 export default function AdminPage({
-    criteria, pubs, user, currentGroup, pubsRef, criteriaRef, groupRef, allUsers, db, featureFlags
+    criteria, pubs, user, currentGroup, pubsRef, criteriaRef, groupRef, allUsers, db, featureFlags, scores = {} 
 }) {
     const [activeTab, setActiveTab] = useState('settings'); 
 
-    // --- SETTINGS & BRAND STATE ---
+    // --- SETTINGS STATES ---
     const [editGroupName, setEditGroupName] = useState(currentGroup.groupName || "");
     const [editGroupCover, setEditGroupCover] = useState(currentGroup.coverPhoto || "");
     const [brandColor, setBrandColor] = useState(currentGroup.brandColor || "#2563eb"); 
     const [requireApproval, setRequireApproval] = useState(currentGroup.requireApproval || false);
-    
-    // PUBLIC DIRECTORY STATES
     const [city, setCity] = useState(currentGroup.city || "");
     const [isPublic, setIsPublic] = useState(currentGroup.isPublic || false);
-    
     const [isSavingSettings, setIsSavingSettings] = useState(false);
-
-    // --- DATABASE SYNC STATE ---
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncProgress, setSyncProgress] = useState("");
 
-    // --- NEW: GLOBAL WEIGHTS STATE ---
+    // --- WEIGHTS STATE ---
     const [localWeights, setLocalWeights] = useState({});
     const [savingWeights, setSavingWeights] = useState(false);
 
-    // --- APPROVALS & TITLES STATE ---
+    // --- MEMBERS STATE ---
     const [pendingMembers, setPendingMembers] = useState(currentGroup.pendingMembers || []);
     const [memberTitles, setMemberTitles] = useState(currentGroup.memberTitles || {});
     const [editingTitleId, setEditingTitleId] = useState(null);
     const [editingTitleText, setEditingTitleText] = useState("");
+    const [managers, setManagers] = useState(currentGroup.managers || []);
+    const [members, setMembers] = useState(currentGroup.members || []);
 
+    // --- CRITERIA STATE ---
     const [newCriterionName, setNewCriterionName] = useState("");
     const [newCriterionType, setNewCriterionType] = useState("scale");
     const [newCriterionWeight, setNewCriterionWeight] = useState(1);
     const [savingCriterion, setSavingCriterion] = useState(false);
     const [criterionError, setCriterionError] = useState("");
-    
     const [editingCriterionId, setEditingCriterionId] = useState(null);
     const [editingCriterionName, setEditingCriterionName] = useState("");
     
-    // --- GLOBAL PUB ARCHITECTURE STATE ---
+    // --- PUBS STATE ---
     const [masterSearchTerm, setMasterSearchTerm] = useState("");
     const [masterResults, setMasterResults] = useState([]);
     const [hasSearched, setHasSearched] = useState(false);
     const [showManualForm, setShowManualForm] = useState(false);
-    
     const [newPubName, setNewPubName] = useState("");
     const [newPubLocation, setNewPubLocation] = useState("");
     const [newPubLat, setNewPubLat] = useState("");
@@ -56,14 +52,15 @@ export default function AdminPage({
     const [newPubGoogleLink, setNewPubGoogleLink] = useState("");
     const [savingPub, setSavingPub] = useState(false);
     const [pubError, setPubError] = useState("");
-    
     const [uploading, setUploading] = useState(false);
     
-    const [managers, setManagers] = useState(currentGroup.managers || []);
-    const [members, setMembers] = useState(currentGroup.members || []);
-    
+    // --- MISC STATES ---
     const [copyMessage, setCopyMessage] = useState("");
     const [showQr, setShowQr] = useState(false);
+
+    // --- AUDIT LOGS STATE ---
+    const [auditLogs, setAuditLogs] = useState([]);
+    const [loadingLogs, setLoadingLogs] = useState(false);
     
     const inviteCode = currentGroup?.id || groupRef.id;
     const inviteUrl = `${window.location.origin}?invite=${inviteCode}`;
@@ -90,6 +87,76 @@ export default function AdminPage({
         setLocalWeights(w);
     }, [criteria]);
 
+    // FETCH AUDIT LOGS
+    useEffect(() => {
+        if (activeTab === 'audit') {
+            setLoadingLogs(true);
+            const unsub = groupRef.collection('auditLogs')
+                .orderBy('timestamp', 'desc')
+                .limit(50)
+                .onSnapshot(snap => {
+                    setAuditLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                    setLoadingLogs(false);
+                });
+            return () => unsub();
+        }
+    }, [activeTab, groupRef]);
+
+    const getUserLabel = (uid) => {
+        const u = allUsers[uid];
+        return u?.displayName || u?.email || uid;
+    };
+
+    // MASTER LOGGING FUNCTION
+    const logAdminAction = async (actionTitle, details = "") => {
+        try {
+            await groupRef.collection('auditLogs').add({
+                action: actionTitle,
+                details: details,
+                adminId: user.uid,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } catch (e) {
+            console.error("Failed to write audit log:", e);
+        }
+    };
+
+    const simulatedLeaderboard = useMemo(() => {
+        if (!pubs || !scores) return [];
+        const visitedPubs = pubs.filter(p => p.status === 'visited');
+        return visitedPubs.map(pub => {
+            let totalScore = 0; let totalWeight = 0;
+            const pubScoresData = scores[pub.id] ?? {};
+            Object.entries(pubScoresData).forEach(([criterionId, criterionScores]) => {
+                const weight = localWeights[criterionId] ?? 1;
+                criterionScores.forEach((score) => {
+                    if (score.type === 'scale' && score.value !== null) { totalScore += score.value * weight; totalWeight += weight; }
+                    else if (score.type === 'price' && score.value !== null) { totalScore += (score.value * 2) * weight; totalWeight += weight; }
+                });
+            });
+            return { ...pub, avgScore: totalWeight > 0 ? totalScore / totalWeight : 0 };
+        }).sort((a, b) => b.avgScore - a.avgScore).slice(0, 5); 
+    }, [pubs, scores, localWeights]);
+
+    const handleExportData = () => {
+        let csv = "Pub Name,Location,Status,Added By\n";
+        pubs.forEach(p => {
+            const addedBy = allUsers[p.addedBy]?.displayName || allUsers[p.addedBy]?.email || "Unknown";
+            csv += `"${p.name}","${p.location}","${p.status}","${addedBy}"\n`;
+        });
+        
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `${currentGroup.groupName.replace(/\s+/g, '_')}_Pubs.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        logAdminAction("Exported Data", "Downloaded Group Data as CSV");
+    };
+
     const handleSaveSettings = async () => {
         if (!editGroupName.trim()) return;
         setIsSavingSettings(true);
@@ -102,6 +169,7 @@ export default function AdminPage({
                 city: city.trim(),
                 isPublic: isPublic
             });
+            logAdminAction("Updated Group Settings", "Changed branding or privacy settings");
             alert("Group settings updated successfully!");
         } catch (e) { console.error("Error saving settings", e); alert("Failed to save settings."); }
         setIsSavingSettings(false);
@@ -144,6 +212,7 @@ export default function AdminPage({
                 } catch (err) { console.error(`Failed to sync ${pub.name}:`, err); }
                 await new Promise(resolve => setTimeout(resolve, 800));
             }
+            logAdminAction("Database Maintenance", `Synced ${successCount} legacy pubs with Google Places API`);
             alert(`Sync complete! Successfully updated ${successCount} out of ${legacyPubs.length} legacy pubs.`);
         } catch (error) {
             console.error("Critical error during sync:", error);
@@ -162,6 +231,7 @@ export default function AdminPage({
                 return null;
             }).filter(Boolean);
             await Promise.all(promises);
+            logAdminAction("Updated Global Weights", "Adjusted the multiplier weights for the leaderboard");
             alert("Global weights updated successfully!");
         } catch(e) { console.error("Error saving weights", e); } 
         finally { setSavingWeights(false); }
@@ -171,20 +241,49 @@ export default function AdminPage({
         try {
             await groupRef.update({ pendingMembers: firebase.firestore.FieldValue.arrayRemove(uid), members: firebase.firestore.FieldValue.arrayUnion(uid) });
             await db.collection("users").doc(uid).update({ groups: firebase.firestore.FieldValue.arrayUnion(currentGroup.id) });
+            logAdminAction("Approved Member", `Allowed ${getUserLabel(uid)} to join the group`);
         } catch (e) { console.error("Error approving member", e); }
     };
 
     const handleRejectMember = async (uid) => {
         if (!window.confirm("Are you sure you want to reject this join request?")) return;
-        try { await groupRef.update({ pendingMembers: firebase.firestore.FieldValue.arrayRemove(uid) }); } 
+        try { 
+            await groupRef.update({ pendingMembers: firebase.firestore.FieldValue.arrayRemove(uid) }); 
+            logAdminAction("Rejected Member", `Denied entry to ${getUserLabel(uid)}`);
+        } 
         catch (e) { console.error("Error rejecting member", e); }
     };
 
     const handleSaveTitle = async (uid) => {
-        try { await groupRef.update({ [`memberTitles.${uid}`]: editingTitleText.trim() }); setEditingTitleId(null); } 
+        try { 
+            await groupRef.update({ [`memberTitles.${uid}`]: editingTitleText.trim() }); 
+            setEditingTitleId(null); 
+            logAdminAction("Changed Member Title", `Gave ${getUserLabel(uid)} the title "${editingTitleText.trim()}"`);
+        } 
         catch (e) { console.error("Error saving title", e); }
     };
+
+    const handleRoleChange = async (memberId, role) => {
+        if (!isCurrentUserOwner || (memberId === user.uid && role !== "owner")) return;
+        try {
+            if (role === "owner") await groupRef.update({ ownerUid: memberId, managers: firebase.firestore.FieldValue.arrayRemove(memberId) });
+            else if (role === "manager") await groupRef.update({ managers: firebase.firestore.FieldValue.arrayUnion(memberId) });
+            else if (role === "member") await groupRef.update({ managers: firebase.firestore.FieldValue.arrayRemove(memberId) });
+            
+            logAdminAction("Changed Role", `Made ${getUserLabel(memberId)} a ${role}`);
+        } catch (e) { console.error(e); }
+    };
     
+    const handleRemoveMember = async (memberId) => {
+        if (!isCurrentUserOwner || memberId === user.uid) return; 
+        if (!window.confirm("Are you sure you want to kick this member?")) return;
+        try {
+            await groupRef.update({ members: firebase.firestore.FieldValue.arrayRemove(memberId), managers: firebase.firestore.FieldValue.arrayRemove(memberId) });
+            await db.collection("users").doc(memberId).update({ groups: firebase.firestore.FieldValue.arrayRemove(currentGroup.id) });
+            logAdminAction("Kicked Member", `Removed ${getUserLabel(memberId)} from the group`);
+        } catch (e) { console.error(e); }
+    };
+
     const handleImageUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -212,18 +311,26 @@ export default function AdminPage({
                 name: newCriterionName.trim(), type: newCriterionType, weight: Number(newCriterionWeight) || 1,
                 archived: false, order: criteria.length, createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             });
+            logAdminAction("Added Criterion", `Created new rating category: ${newCriterionName.trim()}`);
             setNewCriterionName(""); setNewCriterionType("scale"); setNewCriterionWeight(1);
         } catch (e) { setCriterionError("Could not add criterion."); } 
         finally { setSavingCriterion(false); }
     };
     
-    const handleArchiveCriterion = async (id, archived) => {
-        try { await criteriaRef.doc(id).update({ archived }); } catch (e) { console.error(e); }
+    const handleArchiveCriterion = async (id, archived, name) => {
+        try { 
+            await criteriaRef.doc(id).update({ archived }); 
+            logAdminAction(archived ? "Archived Criterion" : "Restored Criterion", `Target: ${name}`);
+        } catch (e) { console.error(e); }
     };
-    
+
     const handleSaveCriterionEdit = async (id) => {
         if (!editingCriterionName.trim()) return;
-        try { await criteriaRef.doc(id).update({ name: editingCriterionName.trim() }); setEditingCriterionId(null); } 
+        try { 
+            await criteriaRef.doc(id).update({ name: editingCriterionName.trim() }); 
+            setEditingCriterionId(null); 
+            logAdminAction("Edited Criterion", `Changed name to: ${editingCriterionName.trim()}`);
+        } 
         catch(e) { console.error(e); }
     };
 
@@ -266,6 +373,7 @@ export default function AdminPage({
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 status: "to-visit"
             });
+            logAdminAction("Imported Pub", `Added ${globalPub.name} from the Global Database`);
             alert(`${globalPub.name} imported successfully!`);
             setMasterSearchTerm("");
             setMasterResults([]);
@@ -336,6 +444,8 @@ export default function AdminPage({
                 status: "to-visit"
             });
             
+            logAdminAction("Created Pub", `Created ${newPubName.trim()} entirely manually`);
+            
             setNewPubName(""); setNewPubLocation(""); setNewPubLat(""); setNewPubLng(""); setNewPubPhotoURL(""); setNewPubGoogleLink("");
             setShowManualForm(false);
             setMasterSearchTerm("");
@@ -350,45 +460,22 @@ export default function AdminPage({
         }
     };
 
-    // --- NEW: REMOVE PUB FROM GROUP HANDLER ---
     const handleDeleteGroupPub = async (pubId, pubName) => {
         if (!window.confirm(`Are you sure you want to completely remove "${pubName}" from your group? This will also remove any ratings associated with it.`)) return;
         try {
             await pubsRef.doc(pubId).delete();
+            logAdminAction("Deleted Pub", `Removed ${pubName} from the group directory`);
         } catch (error) {
             console.error("Error removing pub:", error);
             alert("Failed to remove pub.");
         }
     };
-    
-    const handleRoleChange = async (memberId, role) => {
-        if (!isCurrentUserOwner || (memberId === user.uid && role !== "owner")) return;
-        try {
-            if (role === "owner") await groupRef.update({ ownerUid: memberId, managers: firebase.firestore.FieldValue.arrayRemove(memberId) });
-            else if (role === "manager") await groupRef.update({ managers: firebase.firestore.FieldValue.arrayUnion(memberId) });
-            else if (role === "member") await groupRef.update({ managers: firebase.firestore.FieldValue.arrayRemove(memberId) });
-        } catch (e) { console.error(e); }
-    };
-    
-    const handleRemoveMember = async (memberId) => {
-        if (!isCurrentUserOwner || memberId === user.uid) return; 
-        if (!window.confirm("Are you sure you want to kick this member?")) return;
-        try {
-            await groupRef.update({ members: firebase.firestore.FieldValue.arrayRemove(memberId), managers: firebase.firestore.FieldValue.arrayRemove(memberId) });
-            await db.collection("users").doc(memberId).update({ groups: firebase.firestore.FieldValue.arrayRemove(currentGroup.id) });
-        } catch (e) { console.error(e); }
-    };
-    
+
     const handleCopyInvite = async () => {
         try { await navigator.clipboard.writeText(inviteUrl); setCopyMessage("Invite link copied!"); setTimeout(() => setCopyMessage(""), 2000); } 
         catch (e) { setCopyMessage("Could not copy."); }
     };
-    
-    const getUserLabel = (uid) => {
-        const u = allUsers[uid];
-        return u?.displayName || u?.email || uid;
-    };
-    
+
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
             <div>
@@ -396,7 +483,7 @@ export default function AdminPage({
                 <p className="text-sm text-gray-500 dark:text-gray-400">Managing <span className="font-bold text-blue-600 dark:text-blue-400">{currentGroup.groupName}</span></p>
             </div>
 
-            <div className="flex overflow-x-auto bg-gray-200 dark:bg-gray-700 p-1 rounded-xl shadow-inner gap-1">
+            <div className="flex overflow-x-auto bg-gray-200 dark:bg-gray-700 p-1 rounded-xl shadow-inner gap-1 hide-scrollbar">
                 {[
                     { id: 'settings', icon: '⚙️', label: 'Settings' },
                     { id: 'invites', icon: '📨', label: 'Invites' },
@@ -404,7 +491,8 @@ export default function AdminPage({
                     { id: 'criteria', icon: '📋', label: `Add Criteria` },
                     { id: 'weights', icon: '⚖️', label: `Weights` },
                     { id: 'pubs', icon: '➕', label: 'Add Pubs' },
-                    { id: 'manage-pubs', icon: '🍻', label: 'Manage Pubs' }, // <-- NEW TAB ADDED
+                    { id: 'manage-pubs', icon: '🍻', label: 'Manage Pubs' },
+                    { id: 'audit', icon: '🕵️', label: 'Audit Logs' }, 
                 ].map(tab => (
                     <button
                         key={tab.id}
@@ -419,7 +507,7 @@ export default function AdminPage({
 
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 transition-colors duration-300 min-h-[400px]">
                 
-                {/* --- TAB 1: SETTINGS --- */}
+                {/* --- TAB: SETTINGS --- */}
                 {activeTab === 'settings' && (
                     <div className="space-y-6 animate-fadeIn">
                         <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-xl border border-gray-200 dark:border-gray-600">
@@ -474,6 +562,16 @@ export default function AdminPage({
                             </div>
                         </div>
 
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl border border-blue-200 dark:border-blue-800 space-y-4 mb-6">
+                            <div>
+                                <h3 className="text-lg font-bold text-blue-800 dark:text-blue-400">Export Group Data</h3>
+                                <p className="text-sm text-blue-600 dark:text-blue-300">Download a .csv file of all your pubs, locations, and their statuses for use in Excel.</p>
+                            </div>
+                            <button onClick={handleExportData} className="w-full py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition flex flex-col items-center justify-center">
+                                📥 Download CSV
+                            </button>
+                        </div>
+
                         <div className="bg-orange-50 dark:bg-orange-900/20 p-6 rounded-xl border border-orange-200 dark:border-orange-800 space-y-4 mb-6">
                             <div>
                                 <h3 className="text-lg font-bold text-orange-800 dark:text-orange-400">Database Maintenance</h3>
@@ -500,7 +598,7 @@ export default function AdminPage({
                     </div>
                 )}
 
-                {/* --- TAB 2: INVITES --- */}
+                {/* --- TAB: INVITES --- */}
                 {activeTab === 'invites' && (
                     <div className="space-y-6 animate-fadeIn">
                         <div>
@@ -527,7 +625,7 @@ export default function AdminPage({
                     </div>
                 )}
 
-                {/* --- TAB 3: MEMBERS --- */}
+                {/* --- TAB: MEMBERS --- */}
                 {activeTab === 'members' && (
                     <div className="space-y-6 animate-fadeIn">
                         {pendingMembers.length > 0 && (
@@ -629,7 +727,7 @@ export default function AdminPage({
                     </div>
                 )}
 
-                {/* --- TAB 4: CRITERIA --- */}
+                {/* --- TAB: CRITERIA --- */}
                 {activeTab === 'criteria' && (
                     <div className="space-y-6 animate-fadeIn">
                         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600">
@@ -672,7 +770,7 @@ export default function AdminPage({
                                             </div>
                                         )}
                                     </div>
-                                    <button onClick={() => canManageSettings && handleArchiveCriterion(c.id, !c.archived)} disabled={!canManageSettings} className={`px-4 py-2 rounded-lg text-xs font-bold transition ${!canManageSettings ? 'opacity-50 cursor-not-allowed' : ''} ${c.archived ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-red-50 text-red-600 hover:bg-red-100"}`}>
+                                    <button onClick={() => canManageSettings && handleArchiveCriterion(c.id, !c.archived, c.name)} disabled={!canManageSettings} className={`px-4 py-2 rounded-lg text-xs font-bold transition ${!canManageSettings ? 'opacity-50 cursor-not-allowed' : ''} ${c.archived ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-red-50 text-red-600 hover:bg-red-100"}`}>
                                         {c.archived ? "Restore" : "Archive"}
                                     </button>
                                 </div>
@@ -681,10 +779,29 @@ export default function AdminPage({
                     </div>
                 )}
 
-                {/* --- TAB 4.5: THE NEW WEIGHTS TAB --- */}
+                {/* --- TAB: WEIGHTS --- */}
                 {activeTab === 'weights' && (
                     <div className="space-y-6 animate-fadeIn">
                         <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-xl border border-gray-200 dark:border-gray-600 space-y-4">
+                            
+                            <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/10 dark:to-purple-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/50 mb-6">
+                                <h4 className="text-sm font-bold text-blue-800 dark:text-blue-400 mb-3 uppercase tracking-wider flex items-center gap-2">
+                                    🔮 Live Preview (Top 5)
+                                </h4>
+                                <div className="space-y-2">
+                                    {simulatedLeaderboard.length === 0 ? (
+                                        <p className="text-xs text-gray-500 italic">Rate some pubs to see the preview.</p>
+                                    ) : (
+                                        simulatedLeaderboard.map((pub, idx) => (
+                                            <div key={pub.id} className="flex justify-between items-center text-sm bg-white dark:bg-gray-800 p-2 rounded shadow-sm">
+                                                <span className="font-bold text-gray-700 dark:text-gray-200"><span className="text-gray-400 mr-2">#{idx + 1}</span> {pub.name}</span>
+                                                <span className="font-black text-blue-600 dark:text-blue-400">{pub.avgScore.toFixed(2)}</span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
                             <div>
                                 <h3 className="text-lg font-bold text-gray-800 dark:text-white">Global Criteria Weights</h3>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Adjust how important each criterion is. This will permanently alter the leaderboard rankings for everyone in the group.</p>
@@ -717,7 +834,7 @@ export default function AdminPage({
                     </div>
                 )}
 
-                {/* --- TAB 5: ADD PUBS --- */}
+                {/* --- TAB: ADD PUBS --- */}
                 {activeTab === 'pubs' && (
                     <div className="space-y-6 animate-fadeIn">
                         <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-xl border border-gray-200 dark:border-gray-600">
@@ -853,7 +970,7 @@ export default function AdminPage({
                     </div>
                 )}
 
-                {/* --- TAB 6: MANAGE PUBS (NEW TAB) --- */}
+                {/* --- TAB: MANAGE PUBS --- */}
                 {activeTab === 'manage-pubs' && (
                     <div className="space-y-6 animate-fadeIn">
                         <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-xl border border-gray-200 dark:border-gray-600">
@@ -905,6 +1022,47 @@ export default function AdminPage({
                                 </div>
                             )}
                         </div>
+                    </div>
+                )}
+
+                {/* --- TAB: AUDIT LOGS (NEW) --- */}
+                {activeTab === 'audit' && (
+                    <div className="space-y-6 animate-fadeIn">
+                        <div className="flex justify-between items-center mb-2">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-800 dark:text-white">Audit Logs</h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">A security record of all administrative actions taken in the group.</p>
+                            </div>
+                        </div>
+
+                        {loadingLogs ? (
+                            <p className="text-center text-gray-500 py-8">Loading secure logs...</p>
+                        ) : auditLogs.length === 0 ? (
+                            <p className="text-center text-gray-500 py-8 italic">No admin actions have been logged yet.</p>
+                        ) : (
+                            <div className="relative border-l-2 border-gray-200 dark:border-gray-700 ml-3 space-y-6 max-h-[500px] overflow-y-auto pr-4 pb-4">
+                                {auditLogs.map(log => {
+                                    const logTime = log.timestamp?.toDate ? log.timestamp.toDate() : new Date();
+                                    return (
+                                        <div key={log.id} className="relative pl-6">
+                                            <span className="absolute -left-[11px] top-1.5 bg-gray-300 dark:bg-gray-600 w-5 h-5 rounded-full border-4 border-white dark:border-gray-800"></span>
+                                            <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-600 shadow-sm">
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <p className="text-sm font-black text-gray-800 dark:text-gray-200">{log.action}</p>
+                                                    <p className="text-[10px] text-gray-400 font-bold bg-white dark:bg-gray-800 px-2 py-0.5 rounded shadow-sm">
+                                                        {logTime.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                    </p>
+                                                </div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{log.details}</p>
+                                                <p className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 tracking-wider">
+                                                    👤 By {getUserLabel(log.adminId)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

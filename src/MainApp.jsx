@@ -210,7 +210,7 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                 <Route path="/spin" element={<SpinTheWheelPage pubs={pubs} criteria={activeCriteria} scores={scores} />} />
                 <Route path="/events" element={<EventsPage db={db} groupId={groupId} pubs={pubs} user={user} canManageGroup={canManageGroup} allUsers={allUsers} />} />
                 <Route path="/feedback" element={<FeedbackPage db={db} userProfile={userProfile} />} />
-                <Route path="/admin" element={<AdminPage criteria={criteria} pubs={pubs} user={user} currentGroup={currentGroup} pubsRef={pubsRef} criteriaRef={criteriaRef} groupRef={groupRef} allUsers={allUsers} db={db} featureFlags={featureFlags} />} />
+                <Route path="/admin" element={<AdminPage scores={scores} criteria={criteria} pubs={pubs} user={user} currentGroup={currentGroup} pubsRef={pubsRef} criteriaRef={criteriaRef} groupRef={groupRef} allUsers={allUsers} db={db} featureFlags={featureFlags} />} />
                 <Route path="/superadmin" element={<SuperAdminPage db={db} userProfile={userProfile} user={user} />} />
                 
                 {/* Fallback route */}
