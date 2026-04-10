@@ -9,6 +9,9 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
     // --- LOAD EXISTING RATINGS (So users can edit past scores!) ---
     useEffect(() => {
         const loadExistingRatings = async () => {
+            // SAFETY GUARD: Don't run if data is missing
+            if (!pub || !user || !groupId || !groupRef) return; 
+
             try {
                 const scoresCollectionRef = groupRef.collection("scores");
                 const snapshot = await scoresCollectionRef
@@ -34,7 +37,7 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
         };
     
         loadExistingRatings();
-    }, [groupRef, pub.id, user.uid, groupId]);
+    }, [groupRef, pub, user, groupId]);
     
     const handleRate = (criterionId, ratingValue) => {
         setRatings((prev) => ({
@@ -60,7 +63,9 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
             for (const [criterionId, value] of Object.entries(ratings)) {
                 if (value === null || value === "") continue;
 
-                const criterion = criteria.find((c) => c.id === criterionId);
+                // Safety guard for criteria array
+                const safeCriteria = criteria || [];
+                const criterion = safeCriteria.find((c) => c.id === criterionId);
                 if (!criterion) continue;
         
                 const existingDocId = ratingDocIds[criterionId];
@@ -111,10 +116,20 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
         return "🤢";
     };
 
-    if (criteria.length === 0) {
+    // SAFETY GUARD: Show loading or empty state if props aren't ready
+    if (!pub) {
         return (
-            <div className="bg-white p-6 rounded-lg shadow-lg text-center">
-                <p className="text-gray-600 mb-4">No criteria available for rating.</p>
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg text-center animate-pulse">
+                <p className="text-gray-600 dark:text-gray-400 mb-4">Loading pub details...</p>
+                <button onClick={onBack} className="bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold hover:bg-gray-500 transition">Back</button>
+            </div>
+        );
+    }
+
+    if (!criteria || criteria.length === 0) {
+        return (
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg text-center">
+                <p className="text-gray-600 dark:text-gray-400 mb-4">No criteria available for rating.</p>
                 <button onClick={onBack} className="bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold hover:bg-gray-500 transition">Back</button>
             </div>
         );
@@ -226,22 +241,21 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
                             </div>
                         )}
 
-{/* THE NEW WRITTEN REVIEW INPUT */}
-                {crit.type === "text" && (
-                <div className="mb-6">
-                    <textarea
-                        value={ratings[crit.id] || ""}
-                        onChange={(e) => handleRate(crit.id, e.target.value)}
-                        placeholder="Leave your thoughts, review, or funny quotes here... (Max 250 chars)"
-                        maxLength={250} 
-                        className="w-full h-32 p-4 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 bg-white dark:bg-gray-700 dark:text-white transition resize-none shadow-inner"
-                    />
-                    {/* Add a helpful character counter */}
-                    <p className={`text-xs text-right mt-1 font-bold ${(ratings[crit.id]?.length || 0) >= 240 ? 'text-red-500' : 'text-gray-400'}`}>
-                        {ratings[crit.id]?.length || 0} / 250
-                    </p>
-                </div>
-                )}
+                        {/* THE NEW WRITTEN REVIEW INPUT */}
+                        {crit.type === "text" && (
+                            <div className="mb-6">
+                                <textarea
+                                    value={ratings[crit.id] || ""}
+                                    onChange={(e) => handleRate(crit.id, e.target.value)}
+                                    placeholder="Leave your thoughts, review, or funny quotes here... (Max 250 chars)"
+                                    maxLength={250} 
+                                    className="w-full h-32 p-4 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 bg-white dark:bg-gray-700 dark:text-white transition resize-none shadow-inner"
+                                />
+                                <p className={`text-xs text-right mt-1 font-bold ${(ratings[crit.id]?.length || 0) >= 240 ? 'text-red-500' : 'text-gray-400'}`}>
+                                    {ratings[crit.id]?.length || 0} / 250
+                                </p>
+                            </div>
+                        )}
                     </div>
                 ))}
                 

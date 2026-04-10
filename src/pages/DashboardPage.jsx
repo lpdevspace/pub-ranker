@@ -45,7 +45,8 @@ export function StatCard({ title, value, subValue, onClick }) {
     );
 }
 
-export default function DashboardPage({ pubs, newPubs, criteria, users, scores, db, groupId, setPage, allUsers }) {
+// --- NEW: Added `user` to the props list ---
+export default function DashboardPage({ user, pubs, newPubs, criteria, users, scores, db, groupId, setPage, allUsers }) {
     const pubsArray = Array.isArray(pubs) ? pubs : Object.values(pubs || {});
     const newPubsArray = Array.isArray(newPubs) ? newPubs : Object.values(newPubs || {});
     const criteriaArray = Array.isArray(criteria) ? criteria : Object.values(criteria || {});
@@ -54,14 +55,19 @@ export default function DashboardPage({ pubs, newPubs, criteria, users, scores, 
     
     const [livePubId, setLivePubId] = useState("");
     const [recentCrawls, setRecentCrawls] = useState([]);
-    
-    // --- NEW: UPCOMING EVENTS STATE ---
     const [upcomingEvents, setUpcomingEvents] = useState([]);
 
     const getUserName = (userId) => {
         const u = allUsers && allUsers[userId];
         return u ? (u.nickname || u.displayName || u.email) : "A member";
     };
+
+    // --- NEW: Check if the user has completed their first quest (rated a pub) ---
+    const hasCompletedFirstQuest = scoresObj && Object.values(scoresObj).some(pubScores => 
+        Object.values(pubScores).some(critScores => 
+            Array.isArray(critScores) && critScores.some(s => s.userId === user?.uid)
+        )
+    );
 
     useEffect(() => {
         if (!db || !groupId) return;
@@ -79,7 +85,6 @@ export default function DashboardPage({ pubs, newPubs, criteria, users, scores, 
                 setRecentCrawls(crawls);
             });
 
-        // --- NEW: FETCH UPCOMING EVENTS ---
         const unsubEvents = db.collection('events')
             .where('groupId', '==', groupId)
             .orderBy('date', 'asc')
@@ -173,7 +178,6 @@ export default function DashboardPage({ pubs, newPubs, criteria, users, scores, 
         criteriaArray.forEach(c => {
             if (c.createdAt?.toMillis) items.push({ id: `crit_${c.id}`, emoji: '📋', title: 'Rules Updated', text: `New rating category: ${c.name}`, time: c.createdAt.toMillis(), dateLabel: new Date(c.createdAt.toMillis()).toLocaleDateString() });
         });
-        // Include events in timeline
         upcomingEvents.forEach(e => {
             if (e.createdAt?.toMillis) items.push({ id: `event_${e.id}`, emoji: '📅', title: `Event Scheduled`, text: `${e.title} was added to the calendar.`, time: e.createdAt.toMillis(), dateLabel: new Date(e.createdAt.toMillis()).toLocaleDateString() });
         });
@@ -181,7 +185,29 @@ export default function DashboardPage({ pubs, newPubs, criteria, users, scores, 
     }, [pubsArray, recentCrawls, criteriaArray, allUsers, upcomingEvents]);
 
     return (
-        <div className="space-y-8 animate-fadeIn">
+        <div className="space-y-8 animate-fadeIn pb-20">
+            
+            {/* --- NEW: FIRST QUEST BANNER --- */}
+            {user && !hasCompletedFirstQuest && (
+                <div className="bg-gradient-to-r from-amber-400 to-orange-500 rounded-2xl p-5 text-white shadow-xl mb-6 relative overflow-hidden group border border-orange-300">
+                    <div className="relative z-10 flex items-center justify-between">
+                        <div>
+                            <h3 className="font-black text-xl flex items-center gap-2 mb-1">
+                                <span className="text-2xl animate-bounce">🏆</span> Your First Quest
+                            </h3>
+                            <p className="text-sm font-medium opacity-90 max-w-md">
+                                Welcome to the crew! Head over to the Directory or Hit List and drop your very first rating to unlock the 'First Pint' badge.
+                            </p>
+                        </div>
+                        <button onClick={() => setPage('pubs')} className="hidden sm:block px-6 py-2 bg-white text-orange-600 font-black rounded-xl shadow-md hover:scale-105 transition-transform">
+                            Start Rating →
+                        </button>
+                    </div>
+                    {/* Decorative background circle */}
+                    <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-1000"></div>
+                </div>
+            )}
+
             <div>
                 <h2 className="text-3xl font-black text-gray-800 dark:text-white transition-colors">Group Dashboard</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Your city's drinking analytics.</p>
@@ -244,7 +270,6 @@ export default function DashboardPage({ pubs, newPubs, criteria, users, scores, 
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* CLICKABLE SPOTLIGHT CARD */}
                 <div 
                     onClick={() => setPage('pubs')}
                     className="bg-gradient-to-br from-blue-600 to-purple-700 p-1 rounded-2xl shadow-lg flex flex-col transition-all hover:-translate-y-1 hover:shadow-blue-500/30 duration-300 cursor-pointer group"
@@ -287,10 +312,7 @@ export default function DashboardPage({ pubs, newPubs, criteria, users, scores, 
                 </div>
             </div>
 
-            {/* --- NEW GRID FOR EVENTS & ACTIVITY --- */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-                
-                {/* UPCOMING EVENTS TILE */}
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col h-full lg:col-span-1">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-lg font-bold text-gray-800 dark:text-white">Upcoming Events</h3>
@@ -323,7 +345,6 @@ export default function DashboardPage({ pubs, newPubs, criteria, users, scores, 
                     )}
                 </div>
 
-                {/* ACTIVITY FEED */}
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col h-full lg:col-span-2">
                     <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Group Activity Feed</h3>
                     {timelineItems.length === 0 ? (

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { auth, db, firebase } from './firebase';
 import MainApp from './MainApp';
+import VenuePortalPage from './pages/VenuePortalPage'; 
 
 export function LoadingScreen({ text = "" }) {
     return (
@@ -19,7 +20,7 @@ export default function App() {
     const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
     const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
     const [showAuth, setShowAuth] = useState(false);
-    const [featureFlags, setFeatureFlags] = useState({}); // <-- ADD THIS LINE
+    const [featureFlags, setFeatureFlags] = useState({});
 
     useEffect(() => {
         if (isDarkMode) {
@@ -53,7 +54,8 @@ export default function App() {
                             email: currentUser.email,
                             displayName: currentUser.displayName || currentUser.email.split('@')[0],
                             groups: [],
-                            activeGroupId: null
+                            activeGroupId: null,
+                            hasCompletedOnboarding: false 
                         };
                         try {
                             await userRef.set(newUserProfile);
@@ -84,7 +86,7 @@ export default function App() {
             if (doc.exists) {
                 setGlobalAnnouncement(doc.data().announcement || "");
                 setIsMaintenanceMode(doc.data().maintenanceMode || false);
-                setFeatureFlags(doc.data().featureFlags || {}); // <-- ADD THIS LINE
+                setFeatureFlags(doc.data().featureFlags || {});
             } else {
                 setGlobalAnnouncement("");
                 setIsMaintenanceMode(false);
@@ -93,32 +95,51 @@ export default function App() {
         return () => unsubscribe();
     }, []);
 
+    const isBusinessDomain = window.location.hostname.startsWith('business');
+
     let currentScreen;
-    if (authLoading) currentScreen = <LoadingScreen text="Loading Authentication..." />;
-    else if (!user) currentScreen = showAuth ? <AuthScreen auth={auth} onBack={() => setShowAuth(false)} /> : <PublicLandingPage db={db} onLoginClick={() => setShowAuth(true)} />;
-    else if (!userProfile) currentScreen = <LoadingScreen text="Loading User Profile..." />;
-    else if (isMaintenanceMode && !userProfile?.isSuperAdmin) currentScreen = (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4 text-center">
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl max-w-md w-full border-t-8 border-yellow-500">
-                <span className="text-6xl mb-4 block">🚧</span>
-                <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Under Maintenance</h1>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">Pub Ranker is currently undergoing scheduled maintenance. We'll be back shortly!</p>
-                <button onClick={() => auth.signOut()} className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white font-bold py-2 px-4 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">Log Out</button>
+    if (authLoading) {
+        currentScreen = <LoadingScreen text="Loading Authentication..." />;
+    } else if (!user) {
+        currentScreen = showAuth ? <AuthScreen auth={auth} onBack={() => setShowAuth(false)} /> : <PublicLandingPage db={db} onLoginClick={() => setShowAuth(true)} />;
+    } else if (!userProfile) {
+        currentScreen = <LoadingScreen text="Loading User Profile..." />;
+    } else if (isMaintenanceMode && !userProfile?.isSuperAdmin) {
+        currentScreen = (
+            <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4 text-center">
+                <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl max-w-md w-full border-t-8 border-yellow-500">
+                    <span className="text-6xl mb-4 block">🚧</span>
+                    <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Under Maintenance</h1>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">Pub Ranker is currently undergoing scheduled maintenance. We'll be back shortly!</p>
+                    <button onClick={() => auth.signOut()} className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white font-bold py-2 px-4 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">Log Out</button>
+                </div>
             </div>
-        </div>
-    );
-    else if (userProfile.isBanned) currentScreen = (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4 text-center">
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl max-w-md w-full border-t-8 border-red-600">
-                <span className="text-6xl mb-4 block">🛑</span>
-                <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Account Suspended</h1>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">Your access has been revoked.</p>
-                <button onClick={() => auth.signOut()} className="w-full bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 transition">Log Out</button>
+        );
+    } else if (userProfile.isBanned) {
+        currentScreen = (
+            <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4 text-center">
+                <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl max-w-md w-full border-t-8 border-red-600">
+                    <span className="text-6xl mb-4 block">🛑</span>
+                    <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Account Suspended</h1>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">Your access has been revoked.</p>
+                    <button onClick={() => auth.signOut()} className="w-full bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 transition">Log Out</button>
+                </div>
             </div>
-        </div>
-    );
-    else if (!userProfile.activeGroupId || !userProfile.groups.includes(userProfile.activeGroupId)) currentScreen = <div className="container mx-auto p-4 max-w-7xl"><GroupPortal user={user} userProfile={userProfile} auth={auth} db={db} /></div>;
-    else currentScreen = <div className="container mx-auto p-4 max-w-7xl"><MainApp user={user} userProfile={userProfile} groupId={userProfile.activeGroupId} auth={auth} db={db} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} featureFlags={featureFlags}/></div>;
+        );
+    } else if (isBusinessDomain) {
+        currentScreen = (
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 animate-fadeIn">
+                <div className="p-4 flex justify-end">
+                    <button onClick={() => auth.signOut()} className="text-sm font-bold text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition">Log Out</button>
+                </div>
+                <VenuePortalPage db={db} user={user} />
+            </div>
+        );
+    } else if (!userProfile.activeGroupId || !userProfile.groups.includes(userProfile.activeGroupId)) {
+        currentScreen = <div className="container mx-auto p-4 max-w-7xl"><GroupPortal user={user} userProfile={userProfile} auth={auth} db={db} /></div>;
+    } else {
+        currentScreen = <div className="container mx-auto p-4 max-w-7xl"><MainApp user={user} userProfile={userProfile} groupId={userProfile.activeGroupId} auth={auth} db={db} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} featureFlags={featureFlags}/></div>;
+    }
 
     return (
         <>
@@ -135,8 +156,8 @@ export default function App() {
 
 function PublicLandingPage({ db, onLoginClick }) {
     const [publicGroups, setPublicGroups] = useState([]);
-    const [searchCity, setSearchCity] = useState(""); // FEATURE 2: CITY FILTER
-    const [previewGroup, setPreviewGroup] = useState(null); // FEATURE 1: PREVIEW
+    const [searchCity, setSearchCity] = useState("");
+    const [previewGroup, setPreviewGroup] = useState(null);
     const [previewPubs, setPreviewPubs] = useState([]);
     const [loadingPreview, setLoadingPreview] = useState(false);
 
@@ -146,7 +167,8 @@ function PublicLandingPage({ db, onLoginClick }) {
               const groupsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
               const enrichedGroups = await Promise.all(groupsData.map(async (g) => {
                   try {
-                      const topDocs = await db.collection('pubs').where('groupId', '==', g.id).get().catch(()=>({size:0}));
+                      // FIX: Query the group's specific sub-collection for pubs
+                      const topDocs = await db.collection('groups').doc(g.id).collection('pubs').get().catch(()=>({size:0}));
                       return { ...g, pubCount: topDocs.size };
                   } catch (e) { return { ...g, pubCount: 0 }; }
               }));
@@ -159,16 +181,14 @@ function PublicLandingPage({ db, onLoginClick }) {
         !searchCity || (g.city && g.city.toLowerCase().includes(searchCity.toLowerCase()))
     );
 
-    // FEATURE 1: GUEST PREVIEW LOGIC
     const handlePreview = async (group) => {
         setPreviewGroup(group);
         setLoadingPreview(true);
         try {
-            const snap = await db.collection('pubs').where('groupId', '==', group.id).get();
+            const snap = await db.collection('groups').doc(group.id).collection('pubs').get();
             const fetchedPubs = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
-            // Sort by average score (assuming it's calculated or stored, otherwise just newest)
             fetchedPubs.sort((a,b) => (b.avgScore || 0) - (a.avgScore || 0));
-            setPreviewPubs(fetchedPubs.slice(0, 5)); // Top 5
+            setPreviewPubs(fetchedPubs.slice(0, 5));
         } catch(e) { console.error(e); }
         setLoadingPreview(false);
     };
@@ -192,7 +212,6 @@ function PublicLandingPage({ db, onLoginClick }) {
             <section className="max-w-7xl mx-auto px-6 py-16">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-gray-200 dark:border-gray-800 pb-4 gap-4">
                     <h3 className="text-2xl font-bold">🌍 Explore Public City Leaderboards</h3>
-                    {/* FEATURE 2: SEARCH */}
                     <input type="text" placeholder="Search by City..." value={searchCity} onChange={(e) => setSearchCity(e.target.value)} className="px-4 py-2 border dark:border-gray-700 rounded-full bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-64 shadow-sm" />
                 </div>
 
@@ -220,7 +239,6 @@ function PublicLandingPage({ db, onLoginClick }) {
                 )}
             </section>
 
-            {/* FEATURE 1: PREVIEW MODAL */}
             {previewGroup && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
                     <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl max-w-lg w-full relative border border-gray-200 dark:border-gray-700 max-h-[90vh] overflow-y-auto">
@@ -275,7 +293,6 @@ function AuthScreen({ auth, onBack }) {
         catch (e) { setError(e.message); }
     };
 
-    // FEATURE 3: APPLE SIGN IN
     const handleAppleSignIn = async () => {
         setError("");
         const provider = new firebase.auth.OAuthProvider('apple.com');
@@ -300,7 +317,6 @@ function AuthScreen({ auth, onBack }) {
                     <button onClick={handleGoogleSignIn} className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-3 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-600 transition flex items-center justify-center gap-2 shadow-sm">
                         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" /> Sign in with Google
                     </button>
-                    {/* APPLE BUTTON */}
                     <button onClick={handleAppleSignIn} className="w-full bg-black text-white py-3 rounded-xl font-bold hover:bg-gray-900 transition flex items-center justify-center gap-2 shadow-sm">
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.43.987 3.96.948 1.567-.04 2.613-1.5 3.616-2.978 1.155-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.55 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.56-1.702z"/></svg> Sign in with Apple
                     </button>
@@ -337,7 +353,6 @@ function AuthScreen({ auth, onBack }) {
     );
 }
 
-// ... Keep your existing GroupPortal code here exactly as it is ...
 function GroupPortal({ user, userProfile, auth, db }) {
     const [myGroups, setMyGroups] = useState([]);
     const [loadingGroups, setLoadingGroups] = useState(true);
@@ -346,9 +361,13 @@ function GroupPortal({ user, userProfile, auth, db }) {
     const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
+    
+    const [publicGroups, setPublicGroups] = useState([]);
+    const [searchCity, setSearchCity] = useState("");
 
     const userRef = useMemo(() => db.collection("users").doc(user.uid), [user.uid, db]);
 
+    // Fetch My Groups
     useEffect(() => {
         if (!userProfile.groups || userProfile.groups.length === 0) {
             setLoadingGroups(false);
@@ -375,6 +394,27 @@ function GroupPortal({ user, userProfile, auth, db }) {
         return () => unsub();
     }, [userProfile.groups, db]);
 
+    // Fetch Public Groups
+    useEffect(() => {
+        db.collection('groups').where('isPublic', '==', true).limit(50).get()
+          .then(async snap => {
+              const groupsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+              const enrichedGroups = await Promise.all(groupsData.map(async (g) => {
+                  try {
+                      // FIX: Accurately count pubs from the group's sub-collection
+                      const topDocs = await db.collection('groups').doc(g.id).collection('pubs').get().catch(()=>({size:0}));
+                      return { ...g, pubCount: topDocs.size };
+                  } catch (e) { return { ...g, pubCount: 0 }; }
+              }));
+              setPublicGroups(enrichedGroups);
+          })
+          .catch(e => console.error("Error fetching public groups", e));
+    }, [db]);
+
+    const filteredPublicGroups = publicGroups.filter(g => 
+        !searchCity || (g.city && g.city.toLowerCase().includes(searchCity.toLowerCase()))
+    );
+
     const handleSelectGroup = async (groupId) => {
         try { await userRef.update({ activeGroupId: groupId }); } 
         catch (e) { setError("Could not select group."); }
@@ -385,7 +425,7 @@ function GroupPortal({ user, userProfile, auth, db }) {
         catch (error) { console.error("Error signing out", error); }
     };
 
-const handleCreateGroup = async (e) => {
+    const handleCreateGroup = async (e) => {
         e.preventDefault();
         if (!createGroupName.trim()) return;
         setIsCreating(true);
@@ -404,12 +444,11 @@ const handleCreateGroup = async (e) => {
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             });
 
-            // --- NEW: FETCH AND INJECT GLOBAL DEFAULT CRITERIA ---
             try {
                 const defaultsSnap = await db.collection('global').doc('defaults').get();
                 if (defaultsSnap.exists && defaultsSnap.data().criteria) {
                     const criteriaList = defaultsSnap.data().criteria;
-                    const batch = db.batch(); // Use a batch to write them all at once instantly!
+                    const batch = db.batch(); 
                     
                     criteriaList.forEach((crit, index) => {
                         const critRef = newGroupRef.collection('criteria').doc();
@@ -425,10 +464,7 @@ const handleCreateGroup = async (e) => {
                     
                     await batch.commit();
                 }
-            } catch (defaultsError) {
-                console.error("Error attaching default criteria:", defaultsError);
-                // We don't fail group creation if this fails, we just log it.
-            }
+            } catch (defaultsError) { console.error("Error attaching default criteria:", defaultsError); }
 
             await userRef.update({
                 groups: firebase.firestore.FieldValue.arrayUnion(newGroupRef.id),
@@ -495,60 +531,141 @@ const handleCreateGroup = async (e) => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4 transition-colors">
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-4xl w-full border border-gray-100 dark:border-gray-700">
+        <div className="min-h-screen py-10 px-4 transition-colors animate-fadeIn">
+            <div className="max-w-6xl mx-auto space-y-8">
                 
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Pub Ranker</h2>
-                    <button onClick={handleLogout} className="bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800 px-4 py-2 rounded-lg font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition">Log Out</button>
+                {/* Header & Alerts */}
+                <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div>
+                        <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Pub Ranker</h2>
+                        <p className="text-lg text-gray-600 dark:text-gray-300 mt-1">Welcome back, <span className="font-bold text-gray-900 dark:text-white">{userProfile.displayName}</span>!</p>
+                    </div>
+                    <button onClick={handleLogout} className="bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800 px-6 py-3 rounded-xl font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition shadow-sm w-full md:w-auto">
+                        Log Out
+                    </button>
                 </div>
+                
+                {error && <div className="bg-red-50 text-red-600 border border-red-200 p-4 rounded-xl font-bold shadow-sm">{error}</div>}
+                {message && <div className="bg-blue-50 text-blue-700 border border-blue-200 p-4 rounded-xl font-bold shadow-sm">{message}</div>}
+                
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    
+                    {/* Left Column: Your Groups & Actions */}
+                    <div className="lg:col-span-1 space-y-8">
+                        <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-md border border-gray-100 dark:border-gray-700">
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-3 mb-4">Your Groups</h3>
+                            {loadingGroups ? (
+                                <LoadingScreen text="Loading groups..." />
+                            ) : myGroups.length === 0 ? (
+                                <p className="text-gray-500 dark:text-gray-400 italic text-center py-6">You haven't joined any groups yet.</p>
+                            ) : (
+                                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                                    {myGroups.map((group) => (
+                                        <button key={group.id} onClick={() => handleSelectGroup(group.id)} className="w-full text-left p-4 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl shadow-sm hover:shadow-md hover:border-brand dark:hover:border-brand transition group flex justify-between items-center">
+                                            <span className="text-lg font-bold text-gray-800 dark:text-white group-hover:text-brand">{group.groupName}</span>
+                                            <span className="text-gray-400 group-hover:text-brand">→</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
 
-                <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">Welcome, <span className="font-bold text-gray-900 dark:text-white">{userProfile.displayName}</span>!</p>
-                
-                {error && <div className="bg-red-50 text-red-600 border border-red-200 p-3 rounded-lg font-bold mb-6">{error}</div>}
-                {message && <div className="bg-blue-50 text-blue-700 border border-blue-200 p-3 rounded-lg font-bold mb-6">{message}</div>}
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-4">
-                        <h3 className="text-xl font-bold text-gray-800 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">Your Groups</h3>
-                        {loadingGroups ? (
-                            <LoadingScreen text="Loading groups..." />
-                        ) : myGroups.length === 0 ? (
-                            <p className="text-gray-500 dark:text-gray-400 italic">You haven't joined any groups yet.</p>
-                        ) : (
-                            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                                {myGroups.map((group) => (
-                                    <button key={group.id} onClick={() => handleSelectGroup(group.id)} className="w-full text-left p-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-500 transition group flex justify-between items-center">
-                                        <span className="text-lg font-bold text-gray-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400">{group.groupName}</span>
-                                        <span className="text-gray-400 group-hover:text-blue-500">→</span>
-                                    </button>
-                                ))}
+                        <div className="space-y-6 bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-md border border-gray-100 dark:border-gray-700">
+                            <div className="space-y-3">
+                                <div>
+                                    <h3 className="text-xl font-bold text-gray-800 dark:text-white">Join via Code</h3>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enter a private invite code from a friend.</p>
+                                </div>
+                                <form onSubmit={handleJoinGroup} className="flex flex-col gap-2">
+                                    <input type="text" value={joinCode} onChange={(e) => setJoinCode(e.target.value)} placeholder="e.g. 8xJ9pL..." className="px-4 py-3 border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-white rounded-xl focus:ring-2 focus:ring-brand outline-none shadow-inner" />
+                                    <button type="submit" className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-sm w-full">Join Group</button>
+                                </form>
                             </div>
-                        )}
+
+                            <div className="border-t border-gray-100 dark:border-gray-700"></div>
+
+                            <div className="space-y-3">
+                                <div>
+                                    <h3 className="text-xl font-bold text-gray-800 dark:text-white">Create a Group</h3>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Start a fresh leaderboard with your mates.</p>
+                                </div>
+                                <form onSubmit={handleCreateGroup} className="flex flex-col gap-2">
+                                    <input type="text" value={createGroupName} onChange={(e) => setCreateGroupName(e.target.value)} placeholder="e.g. The Friday Pint Club" className="px-4 py-3 border dark:border-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-white rounded-xl focus:ring-2 focus:ring-brand outline-none shadow-inner" />
+                                    <button type="submit" disabled={isCreating} className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-3 rounded-xl font-bold hover:opacity-80 transition disabled:opacity-50 shadow-sm w-full">
+                                        {isCreating ? "Creating..." : "Create Group"}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="space-y-8 bg-gray-50 dark:bg-gray-700/50 p-6 rounded-2xl border border-gray-100 dark:border-gray-600">
-                        <div className="space-y-3">
-                            <h3 className="text-xl font-bold text-gray-800 dark:text-white">Join a Group</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Enter an invite code from a friend.</p>
-                            <form onSubmit={handleJoinGroup} className="flex gap-2">
-                                <input type="text" value={joinCode} onChange={(e) => setJoinCode(e.target.value)} placeholder="e.g. 8xJ9pL..." className="flex-1 px-4 py-2 border dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
-                                <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition">Join</button>
-                            </form>
+                    {/* Right Column: Public Groups Explorer */}
+                    <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl shadow-md border border-gray-100 dark:border-gray-700 flex flex-col h-full">
+                        <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-8 gap-4 border-b border-gray-100 dark:border-gray-700 pb-6">
+                            <div>
+                                <h3 className="text-2xl font-black text-gray-800 dark:text-white">🌍 Explore Public Groups</h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Find local communities and compete on their leaderboards.</p>
+                            </div>
+                            <input 
+                                type="text" 
+                                placeholder="Search City..." 
+                                value={searchCity} 
+                                onChange={(e) => setSearchCity(e.target.value)} 
+                                className="px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-sm focus:ring-2 focus:ring-brand outline-none w-full sm:w-64 shadow-inner dark:text-white" 
+                            />
                         </div>
 
-                        <div className="border-t border-gray-200 dark:border-gray-600"></div>
+                        {filteredPublicGroups.length === 0 ? (
+                            <div className="text-center my-auto py-12">
+                                <span className="text-6xl mb-4 block opacity-50">🍺</span>
+                                <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">No public groups found.</p>
+                                <p className="text-sm text-gray-400 mt-2">Create your own group on the left and set it to Public!</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto pr-2 pb-4">
+                                {filteredPublicGroups.map(group => {
+                                    const isMember = group.members?.includes(userProfile.uid);
+                                    const isPending = group.pendingMembers?.includes(userProfile.uid);
+                                    
+                                    return (
+                                        <div key={group.id} className="bg-gray-50 dark:bg-gray-700/50 p-5 rounded-2xl border border-gray-200 dark:border-gray-600 hover:border-brand dark:hover:border-brand transition-colors flex flex-col h-full">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div className="text-3xl">{group.coverPhoto ? <img src={group.coverPhoto} className="w-12 h-12 rounded-xl object-cover shadow-sm" alt="Cover" /> : '🍻'}</div>
+                                                {group.requireApproval ? (
+                                                    <span className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider">Private (Requests)</span>
+                                                ) : (
+                                                    <span className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider">Open to All</span>
+                                                )}
+                                            </div>
+                                            
+                                            <h4 className="text-xl font-black text-gray-900 dark:text-white truncate">{group.groupName}</h4>
+                                            <p className="text-brand text-xs font-bold tracking-wider uppercase mt-1 mb-4">📍 {group.city || "Global"}</p>
+                                            
+                                            <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider mb-6">
+                                                <span>👥 {group.members?.length || 1} Members</span>
+                                                <span>🍺 {group.pubCount} Pubs</span>
+                                            </div>
 
-                        <div className="space-y-3">
-                            <h3 className="text-xl font-bold text-gray-800 dark:text-white">Create a Group</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Start a fresh leaderboard with your mates.</p>
-                            <form onSubmit={handleCreateGroup} className="flex gap-2">
-                                <input type="text" value={createGroupName} onChange={(e) => setCreateGroupName(e.target.value)} placeholder="e.g. The Friday Pint Club" className="flex-1 px-4 py-2 border dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
-                                <button type="submit" disabled={isCreating} className="bg-gray-800 dark:bg-gray-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-gray-900 transition disabled:opacity-50">
-                                    {isCreating ? "..." : "Create"}
-                                </button>
-                            </form>
-                        </div>
+                                            <div className="mt-auto">
+                                                {isMember ? (
+                                                    <button onClick={() => handleSelectGroup(group.id)} className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold hover:opacity-80 transition shadow-sm">
+                                                        Enter Dashboard
+                                                    </button>
+                                                ) : isPending ? (
+                                                    <button disabled className="w-full py-2.5 bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded-xl font-bold cursor-not-allowed border border-gray-300 dark:border-gray-500">
+                                                        ⏳ Request Pending
+                                                    </button>
+                                                ) : (
+                                                    <button onClick={() => handleJoinGroup(null, group.id)} className="w-full py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-md">
+                                                        {group.requireApproval ? "Request to Join" : "Join Instantly"}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

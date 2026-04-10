@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { firebase } from '../firebase';
+import { firebase, storage } from '../firebase';
+import imageCompression from 'browser-image-compression'; 
 
 export default function SuperAdminPage({ db, userProfile, user }) {
     const [activeTab, setActiveTab] = useState('overview'); 
@@ -10,6 +11,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
     const [usersList, setUsersList] = useState([]);
     const [feedbackList, setFeedbackList] = useState([]);
     const [reportsList, setReportsList] = useState([]);
+    const [venueClaimsList, setVenueClaimsList] = useState([]);
     
     const [managingGroup, setManagingGroup] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -18,10 +20,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
     const [isPublishing, setIsPublishing] = useState(false);
     const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
     
-    // --- GAMIFICATION STATE ---
-    const [gamification, setGamification] = useState({
-        pointsPerPub: 5, pointsPerReview: 2, pointsPerAdd: 3, pointsPerCrawl: 5, badges: [] 
-    });
+    const [gamification, setGamification] = useState({ pointsPerPub: 5, pointsPerReview: 2, pointsPerAdd: 3, pointsPerCrawl: 5, badges: [] });
     const [newBadge, setNewBadge] = useState({ emoji: "🍻", title: "", desc: "", metric: "rated", threshold: 1 });
     const [isSavingGamification, setIsSavingGamification] = useState(false);
     
@@ -34,11 +33,17 @@ export default function SuperAdminPage({ db, userProfile, user }) {
     const [newDefCritName, setNewDefCritName] = useState("");
     const [newDefCritType, setNewDefCritType] = useState("scale");
 
-    // --- NEW: RBAC ROLES STATE ---
     const [roles, setRoles] = useState({});
     const [newRoleName, setNewRoleName] = useState("");
     const defaultPermissions = { canBanUsers: false, canManageGroups: false, canDeletePubs: false, canModeratePhotos: false, canEditConfig: false };
     const [editingRolePermissions, setEditingRolePermissions] = useState({ ...defaultPermissions });
+
+    const [tagsList, setTagsList] = useState([]);
+    const [newTagName, setNewTagName] = useState("");
+    const [newTagIcon, setNewTagIcon] = useState(""); 
+    const [isUploadingTagIcon, setIsUploadingTagIcon] = useState(false);
+    const [isSavingTag, setIsSavingTag] = useState(false);
+    const [editingTag, setEditingTag] = useState(null); 
 
     const isTrueSuperAdmin = !!userProfile?.isSuperAdmin;
     const isAdmin = isTrueSuperAdmin || !!userProfile?.isAdmin || !!userProfile?.permissions?.canEditConfig; 
@@ -47,38 +52,38 @@ export default function SuperAdminPage({ db, userProfile, user }) {
     const fetchGlobalData = async () => {
         try {
             setGlobalError(""); 
-            const [usersSnap, groupsSnap, pubsSnap, feedbackSnap, annDoc, defDoc, reportsSnap, gamificationDoc, rolesDoc] = await Promise.all([
-                db.collection('users').get().catch(() => ({ docs: [], size: 0 })),
-                db.collection('groups').get().catch(() => ({ docs: [], size: 0 })),
-                db.collection('pubs').get().catch(() => ({ docs: [], size: 0 })),
-                db.collection('feedback').get().catch(() => ({ docs: [], size: 0 })),
+            let userCount = 0, groupCount = 0, pubCount = 0;
+            try {
+                const [uCount, gCount, pCount] = await Promise.all([
+                    db.collection('users').count().get(), db.collection('groups').count().get(), db.collection('pubs').count().get()
+                ]);
+                userCount = uCount.data().count; groupCount = gCount.data().count; pubCount = pCount.data().count;
+            } catch (e) {}
+
+            setStats({ users: userCount, groups: groupCount, pubs: pubCount });
+
+            const [usersSnap, groupsSnap, pubsSnap, feedbackSnap, annDoc, defDoc, reportsSnap, gamificationDoc, rolesDoc, tagsDoc, claimsSnap] = await Promise.all([
+                db.collection('users').limit(100).get().catch(() => ({ docs: [] })),
+                db.collection('groups').limit(100).get().catch(() => ({ docs: [] })),
+                db.collection('pubs').orderBy('createdAt', 'desc').limit(100).get().catch(() => ({ docs: [] })),
+                db.collection('feedback').orderBy('createdAt', 'desc').limit(50).get().catch(() => ({ docs: [] })),
                 db.collection('global').doc('settings').get().catch(() => ({ exists: false, data: () => ({}) })),
                 db.collection('global').doc('defaults').get().catch(() => ({ exists: false, data: () => ({}) })),
-                db.collection('reports').where('resolved', '==', false).get().catch(() => ({ docs: [] })),
+                db.collection('reports').where('resolved', '==', false).limit(50).get().catch(() => ({ docs: [] })),
                 db.collection('global').doc('gamification').get().catch(() => ({ exists: false, data: () => ({}) })),
-                db.collection('global').doc('roles').get().catch(() => ({ exists: false, data: () => ({}) })) // NEW RBAC FETCH
+                db.collection('global').doc('roles').get().catch(() => ({ exists: false, data: () => ({}) })),
+                db.collection('global').doc('tags').get().catch(() => ({ exists: false, data: () => ({}) })),
+                db.collection('venueClaims').where('status', '==', 'pending').get().catch(() => ({ docs: [] }))
             ]);
-
-            setStats({ users: usersSnap.size, groups: groupsSnap.size, pubs: pubsSnap.size });
 
             const groupsData = groupsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             groupsData.sort((a, b) => (a.groupName || "").localeCompare(b.groupName || ""));
             setGroupsList(groupsData);
-
-            const pubsData = pubsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            pubsData.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
-            setPubsList(pubsData);
-
+            setPubsList(pubsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             setUsersList(usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             setReportsList(reportsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-
-            const feedbackData = feedbackSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            feedbackData.sort((a, b) => {
-                const timeA = typeof a.createdAt?.toMillis === 'function' ? a.createdAt.toMillis() : 0;
-                const timeB = typeof b.createdAt?.toMillis === 'function' ? b.createdAt.toMillis() : 0;
-                return timeB - timeA;
-            });
-            setFeedbackList(feedbackData);
+            setFeedbackList(feedbackSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setVenueClaimsList(claimsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
             if (annDoc.exists) {
                 setAnnouncement(annDoc.data().announcement || "");
@@ -86,154 +91,154 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                 setFeatureFlags(annDoc.data().featureFlags || { enableComments: false, enableReactions: false, disableGoogleAPI: false });
             }
 
-            if (gamificationDoc.exists && gamificationDoc.data()) {
-                setGamification(prev => ({ ...prev, ...gamificationDoc.data() }));
-            }
-
+            if (gamificationDoc.exists && gamificationDoc.data()) setGamification(prev => ({ ...prev, ...gamificationDoc.data() }));
             if (defDoc.exists) setDefaultCriteria(defDoc.data().criteria || []);
+            if (rolesDoc.exists && rolesDoc.data().roleList) setRoles(rolesDoc.data().roleList);
+            else setRoles({ "admin": { name: "Full Admin", perms: { canBanUsers: true, canManageGroups: true, canDeletePubs: true, canModeratePhotos: true, canEditConfig: true } }, "mod": { name: "Moderator", perms: { canBanUsers: false, canManageGroups: false, canDeletePubs: false, canModeratePhotos: true, canEditConfig: false } } });
+            if (tagsDoc.exists && tagsDoc.data().tagList) setTagsList(tagsDoc.data().tagList);
+            else setTagsList([]);
 
-            // Handle Roles Initialization
-            if (rolesDoc.exists && rolesDoc.data().roleList) {
-                setRoles(rolesDoc.data().roleList);
-            } else {
-                setRoles({
-                    "admin": { name: "Full Admin", perms: { canBanUsers: true, canManageGroups: true, canDeletePubs: true, canModeratePhotos: true, canEditConfig: true } },
-                    "mod": { name: "Moderator", perms: { canBanUsers: false, canManageGroups: false, canDeletePubs: false, canModeratePhotos: true, canEditConfig: false } }
-                });
-            }
-
-        } catch (error) {
-            console.error("STAFF FETCH ERROR:", error);
-            setGlobalError(error.message || "Unknown error occurred.");
-        } finally {
-            setLoading(false);
-        }
+        } catch (error) { setGlobalError(error.message); } 
+        finally { setLoading(false); }
     };
 
-    useEffect(() => {
-        if (!isModerator) return;
-        fetchGlobalData();
-    }, [db, isModerator]);
+    useEffect(() => { if (isModerator) fetchGlobalData(); }, [db, isModerator]);
 
-    // --- NEW: ROLE MANAGEMENT FUNCTIONS ---
+    // --- B2B CLAIM APPROVAL LOGIC (UPDATED FOR MULTIPLE MANAGERS) ---
+    const handleApproveClaim = async (claim) => {
+        if (!window.confirm(`Approve claim for ${claim.pubName}? This will grant ${claim.contactEmail} access to global analytics.`)) return;
+        try {
+            const batch = db.batch();
+            batch.update(db.collection('pubs').doc(claim.pubId), { 
+                claimedBy: firebase.firestore.FieldValue.arrayUnion(claim.requestedByUid), 
+                isLocked: true 
+            });
+            batch.update(db.collection('venueClaims').doc(claim.id), { status: 'approved', resolvedAt: firebase.firestore.FieldValue.serverTimestamp(), resolvedBy: user.uid });
+            await batch.commit();
+            
+            setVenueClaimsList(venueClaimsList.filter(c => c.id !== claim.id));
+            setPubsList(pubsList.map(p => p.id === claim.pubId ? { ...p, isLocked: true } : p));
+            alert(`✅ ${claim.pubName} has been successfully assigned!`);
+        } catch (err) { alert("Failed to approve claim: " + err.message); }
+    };
+
+    const handleRejectClaim = async (claimId) => {
+        if (!window.confirm("Reject this claim?")) return;
+        try {
+            await db.collection('venueClaims').doc(claimId).update({ status: 'rejected', resolvedAt: firebase.firestore.FieldValue.serverTimestamp(), resolvedBy: user.uid });
+            setVenueClaimsList(venueClaimsList.filter(c => c.id !== claimId));
+        } catch (err) { alert("Failed to reject claim: " + err.message); }
+    };
+
+    // --- PUB LOCKING (UPDATED TO STRIP OWNERS) ---
+    const handleTogglePubLock = async (pub) => {
+        const action = pub.isLocked ? "Unlock & Unverify" : "Lock & Verify";
+        if (!window.confirm(`Are you sure you want to ${action} ${pub.name}? Unverifying will remove all business managers from this pub.`)) return;
+        
+        try {
+            const updates = { isLocked: !pub.isLocked };
+            if (pub.isLocked) {
+                updates.claimedBy = firebase.firestore.FieldValue.delete(); // Strip all owners
+            }
+            await db.collection('pubs').doc(pub.id).update(updates);
+            setPubsList(pubsList.map(p => p.id === pub.id ? { ...p, isLocked: !pub.isLocked, claimedBy: pub.isLocked ? null : p.claimedBy } : p));
+        } catch (error) { alert(`Failed to update pub: ${error.message}`); }
+    };
+
+    // --- THE REST OF YOUR UNCHANGED CODE ---
+    const handleTagImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file || !file.type.startsWith('image/')) return;
+        setIsUploadingTagIcon(true);
+        try {
+            const options = { maxSizeMB: 0.1, maxWidthOrHeight: 400, useWebWorker: true }; 
+            const compressedFile = await imageCompression(file, options);
+            const fileRef = storage.ref(`global/tags/${Date.now()}_${file.name}`);
+            await fileRef.put(compressedFile);
+            const url = await fileRef.getDownloadURL();
+            if (editingTag) setEditingTag({ ...editingTag, iconUrl: url });
+            else setNewTagIcon(url);
+        } catch (err) { alert("Failed to upload tag image."); } 
+        finally { setIsUploadingTagIcon(false); }
+    };
+    const handleSaveTag = async (e) => {
+        e.preventDefault();
+        setIsSavingTag(true);
+        try {
+            let updatedList;
+            if (editingTag) {
+                if (!editingTag.name.trim()) { setIsSavingTag(false); return; }
+                updatedList = tagsList.map(t => t.id === editingTag.id ? editingTag : t);
+                setEditingTag(null);
+            } else {
+                if (!newTagName.trim()) { setIsSavingTag(false); return; }
+                const newTag = { id: Date.now().toString(), name: newTagName.trim(), iconUrl: newTagIcon };
+                updatedList = [...tagsList, newTag];
+                setNewTagName(""); setNewTagIcon("");
+            }
+            await db.collection('global').doc('tags').set({ tagList: updatedList }, { merge: true });
+            setTagsList(updatedList);
+        } catch (err) { alert("Failed to save tag: " + err.message); }
+        setIsSavingTag(false);
+    };
+    const handleDeleteTag = async (id) => {
+        if (!window.confirm("Delete this tag globally?")) return;
+        const updatedList = tagsList.filter(t => t.id !== id);
+        try { await db.collection('global').doc('tags').set({ tagList: updatedList }, { merge: true }); setTagsList(updatedList); } catch (err) { alert("Failed to delete tag."); }
+    };
+
     const handleSaveNewRole = async (e) => {
         e.preventDefault();
         if (!newRoleName.trim()) return;
         const roleId = newRoleName.toLowerCase().replace(/\s+/g, '_');
         const updatedRoles = { ...roles, [roleId]: { name: newRoleName.trim(), perms: editingRolePermissions } };
-        
-        try {
-            await db.collection('global').doc('roles').set({ roleList: updatedRoles }, { merge: true });
-            setRoles(updatedRoles);
-            setNewRoleName("");
-            setEditingRolePermissions({ ...defaultPermissions });
-            alert("Custom role created!");
-        } catch (error) { alert("Failed to save role: " + error.message); }
+        try { await db.collection('global').doc('roles').set({ roleList: updatedRoles }, { merge: true }); setRoles(updatedRoles); setNewRoleName(""); setEditingRolePermissions({ ...defaultPermissions }); alert("Custom role created!"); } catch (error) { alert("Failed to save role: " + error.message); }
     };
-
     const handleDeleteRole = async (roleId) => {
         if (!window.confirm("Delete this role? Users assigned to this role will lose these permissions.")) return;
-        const updatedRoles = { ...roles };
-        delete updatedRoles[roleId];
-        try {
-            await db.collection('global').doc('roles').set({ roleList: updatedRoles }, { merge: true });
-            setRoles(updatedRoles);
-        } catch (error) { alert("Failed to delete role."); }
+        const updatedRoles = { ...roles }; delete updatedRoles[roleId];
+        try { await db.collection('global').doc('roles').set({ roleList: updatedRoles }, { merge: true }); setRoles(updatedRoles); } catch (error) { alert("Failed to delete role."); }
     };
-
     const handleAssignUserRole = async (userId, roleId) => {
         if (!window.confirm("Update this user's permissions?")) return;
         const assignedPerms = roleId === 'none' ? {} : roles[roleId].perms;
-        try {
-            await db.collection('users').doc(userId).update({ 
-                assignedRole: roleId === 'none' ? null : roleId,
-                permissions: assignedPerms,
-                isAdmin: false, // Legacy cleanup
-                isModerator: false // Legacy cleanup
-            });
-            setUsersList(usersList.map(u => u.id === userId ? { ...u, assignedRole: roleId, permissions: assignedPerms, isAdmin: false, isModerator: false } : u));
-        } catch (error) { alert("Failed to assign role."); }
+        try { await db.collection('users').doc(userId).update({ assignedRole: roleId === 'none' ? null : roleId, permissions: assignedPerms, isAdmin: false, isModerator: false }); setUsersList(usersList.map(u => u.id === userId ? { ...u, assignedRole: roleId, permissions: assignedPerms, isAdmin: false, isModerator: false } : u)); } catch (error) { alert("Failed to assign role."); }
     };
 
-    // --- EXISTING FUNCTIONS ---
     const handleSavePointRules = async () => {
         setIsSavingGamification(true);
-        try {
-            await db.collection('global').doc('gamification').set({ 
-                pointsPerPub: Number(gamification.pointsPerPub), 
-                pointsPerReview: Number(gamification.pointsPerReview), 
-                pointsPerAdd: Number(gamification.pointsPerAdd),
-                pointsPerCrawl: Number(gamification.pointsPerCrawl || 5)
-            }, { merge: true });
-            alert("Point system updated globally!");
-        } catch (e) { alert("Failed to save: " + e.message); }
+        try { await db.collection('global').doc('gamification').set({ pointsPerPub: Number(gamification.pointsPerPub), pointsPerReview: Number(gamification.pointsPerReview), pointsPerAdd: Number(gamification.pointsPerAdd), pointsPerCrawl: Number(gamification.pointsPerCrawl || 5) }, { merge: true }); alert("Point system updated globally!"); } catch (e) { alert("Failed to save: " + e.message); }
         setIsSavingGamification(false);
     };
-
     const handleAddBadge = async (e) => {
-        e.preventDefault();
-        if (!newBadge.title.trim()) return;
+        e.preventDefault(); if (!newBadge.title.trim()) return;
         const updatedBadges = [...(gamification.badges || []), { ...newBadge, threshold: Number(newBadge.threshold) }];
-        try {
-            await db.collection('global').doc('gamification').set({ badges: updatedBadges }, { merge: true });
-            setGamification({ ...gamification, badges: updatedBadges });
-            setNewBadge({ emoji: "🍻", title: "", desc: "", metric: "rated", threshold: 1 });
-        } catch (e) { alert("Failed to add badge: " + e.message); }
+        try { await db.collection('global').doc('gamification').set({ badges: updatedBadges }, { merge: true }); setGamification({ ...gamification, badges: updatedBadges }); setNewBadge({ emoji: "🍻", title: "", desc: "", metric: "rated", threshold: 1 }); } catch (e) { alert("Failed to add badge: " + e.message); }
     };
-
     const handleDeleteBadge = async (index) => {
         const updatedBadges = gamification.badges.filter((_, i) => i !== index);
-        try {
-            await db.collection('global').doc('gamification').set({ badges: updatedBadges }, { merge: true });
-            setGamification({ ...gamification, badges: updatedBadges });
-        } catch (e) { alert("Failed to delete badge: " + e.message); }
+        try { await db.collection('global').doc('gamification').set({ badges: updatedBadges }, { merge: true }); setGamification({ ...gamification, badges: updatedBadges }); } catch (e) { alert("Failed to delete badge: " + e.message); }
     };
 
     const handleAddDefaultCriteria = async (e) => { e.preventDefault(); if (!newDefCritName.trim()) return; const newCrit = { name: newDefCritName.trim(), type: newDefCritType, weight: 1 }; const updated = [...defaultCriteria, newCrit]; setDefaultCriteria(updated); try { await db.collection('global').doc('defaults').set({ criteria: updated }, { merge: true }); setNewDefCritName(""); setNewDefCritType("scale"); } catch (error) { alert(`Failed to save: ${error.message}`); } };
-    
-    const handleTogglePubLock = async (pub) => {
-        const action = pub.isLocked ? "Unlock" : "Lock & Verify";
-        if (!window.confirm(`Are you sure you want to ${action} ${pub.name}?`)) return;
-        try {
-            await db.collection('pubs').doc(pub.id).update({ isLocked: !pub.isLocked });
-            setPubsList(pubsList.map(p => p.id === pub.id ? { ...p, isLocked: !pub.isLocked } : p));
-        } catch (error) {
-            alert(`Failed to update pub: ${error.message}`);
-        }
-    };
-
     const handleDeleteDefaultCriteria = async (index) => { const updated = defaultCriteria.filter((_, i) => i !== index); setDefaultCriteria(updated); try { await db.collection('global').doc('defaults').set({ criteria: updated }, { merge: true }); } catch (error) { alert(`Failed to delete: ${error.message}`); } };
     const handlePublishAnnouncement = async () => { setIsPublishing(true); try { await db.collection('global').doc('settings').set({ announcement: announcement.trim(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }); alert("Announcement published globally!"); } catch (error) { alert(`Failed to publish: ${error.message}`); } setIsPublishing(false); };
     const handleClearAnnouncement = async () => { setAnnouncement(""); setIsPublishing(true); try { await db.collection('global').doc('settings').set({ announcement: "" }, { merge: true }); } catch (error) { console.error(error); } setIsPublishing(false); };
     const handleToggleMaintenance = async () => { const newState = !isMaintenanceMode; if (newState && !window.confirm("WARNING: Turning this on will instantly kick all non-admin users out of the app. Are you sure?")) return; setIsMaintenanceMode(newState); try { await db.collection('global').doc('settings').set({ maintenanceMode: newState, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }); alert(`Maintenance Mode is now ${newState ? 'ON' : 'OFF'}`); } catch (error) { alert(`Failed to update maintenance mode: ${error.message}`); setIsMaintenanceMode(!newState); } };
     const handleToggleFlag = async (flagName) => { const newFlags = { ...featureFlags, [flagName]: !featureFlags[flagName] }; setFeatureFlags(newFlags); try { await db.collection('global').doc('settings').set({ featureFlags: newFlags, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }); } catch (error) { alert(`Failed to update flag: ${error.message}`); setFeatureFlags(featureFlags); } };
     const handleDeletePub = async (pubId) => { if (!window.confirm("Delete this pub globally? This will break ratings for users who scored it.")) return; try { await db.collection('pubs').doc(pubId).delete(); setPubsList(pubsList.filter(p => p.id !== pubId)); setStats(prev => ({ ...prev, pubs: prev.pubs - 1 })); } catch (error) { alert(`Failed to delete pub: ${error.message}`); } };
+    const handleToggleBan = async (user) => { const action = user.isBanned ? "UNBAN" : "BAN"; if (!window.confirm(`Are you sure you want to ${action} ${user.displayName}?`)) return; try { await db.collection('users').doc(user.id).update({ isBanned: !user.isBanned }); setUsersList(usersList.map(u => u.id === user.id ? { ...u, isBanned: !user.isBanned } : u)); } catch (error) { alert(`Failed to update user status: ${error.message}`); } };
     
-    const handleToggleBan = async (user) => { 
-        const action = user.isBanned ? "UNBAN" : "BAN"; 
-        if (!window.confirm(`Are you sure you want to ${action} ${user.displayName}?`)) return; 
-        try { 
-            await db.collection('users').doc(user.id).update({ isBanned: !user.isBanned }); 
-            setUsersList(usersList.map(u => u.id === user.id ? { ...u, isBanned: !user.isBanned } : u)); 
-        } catch (error) { alert(`Failed to update user status: ${error.message}`); } 
-    };
-
     const handleExportUsersCSV = () => { 
         const headers = ["Name,Email,UserID,Role,IsBanned\n"]; 
         const rows = usersList.map(u => { 
             let role = "User"; 
-            if(u.isSuperAdmin) role="SuperAdmin"; 
-            else if(u.assignedRole && roles[u.assignedRole]) role=roles[u.assignedRole].name; 
-            else if(u.isAdmin) role="Admin (Legacy)"; 
-            else if(u.isModerator) role="Moderator (Legacy)"; 
+            if(u.isSuperAdmin) role="SuperAdmin"; else if(u.assignedRole && roles[u.assignedRole]) role=roles[u.assignedRole].name; else if(u.isAdmin) role="Admin (Legacy)"; else if(u.isModerator) role="Moderator (Legacy)"; 
             return `"${u.displayName || 'Unknown'}","${u.email || 'No Email'}","${u.id}","${role}","${!!u.isBanned}"`; 
         }); 
         const csvContent = headers.concat(rows).join("\n"); 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); 
-        const link = document.createElement("a"); 
-        link.href = URL.createObjectURL(blob); 
-        link.download = `pub_ranker_users_${new Date().toISOString().split('T')[0]}.csv`; 
-        link.click(); 
+        const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `pub_ranker_users_${new Date().toISOString().split('T')[0]}.csv`; link.click(); 
     };
 
     const handleCleanupOrphanedGroups = async () => { 
@@ -247,18 +252,11 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                 const critSnap = await groupDocRef.collection('criteria').get();
                 for (const doc of critSnap.docs) await doc.ref.delete();
                 const scoresSnap = await groupDocRef.collection('scores').get();
-                for (const doc of scoresSnap.docs) {
-                    const commentsSnap = await doc.ref.collection('comments').get();
-                    for (const cDoc of commentsSnap.docs) await cDoc.ref.delete(); 
-                    await doc.ref.delete(); 
-                }
-                await groupDocRef.delete(); 
-                deletedCount++; 
+                for (const doc of scoresSnap.docs) { const commentsSnap = await doc.ref.collection('comments').get(); for (const cDoc of commentsSnap.docs) await cDoc.ref.delete(); await doc.ref.delete(); }
+                await groupDocRef.delete(); deletedCount++; 
             } catch (e) { console.error(`Failed to deep clean orphaned group ${g.id}`, e); } 
         } 
-        setGroupsList(groupsList.filter(g => g.members && g.members.length > 0)); 
-        setStats(prev => ({ ...prev, groups: prev.groups - deletedCount })); 
-        alert(`Deep Clean complete! Successfully purged ${deletedCount} orphaned groups from the database.`); 
+        setGroupsList(groupsList.filter(g => g.members && g.members.length > 0)); setStats(prev => ({ ...prev, groups: prev.groups - deletedCount })); alert(`Deep Clean complete! Successfully purged ${deletedCount} orphaned groups from the database.`); 
     };
 
     const handleJoinGroup = async (groupId, groupName) => {
@@ -278,35 +276,29 @@ export default function SuperAdminPage({ db, userProfile, user }) {
         try {
             await db.collection('groups').doc(groupId).update({ ownerUid: uid, managers: firebase.firestore.FieldValue.arrayRemove(uid) });
             const updatedGroup = { ...managingGroup, ownerUid: uid, managers: (managingGroup.managers || []).filter(m => m !== uid) };
-            setManagingGroup(updatedGroup);
-            setGroupsList(groupsList.map(g => g.id === groupId ? updatedGroup : g));
+            setManagingGroup(updatedGroup); setGroupsList(groupsList.map(g => g.id === groupId ? updatedGroup : g));
         } catch (e) { alert("Failed to transfer ownership: " + e.message); }
     };
-
     const handleToggleManager = async (groupId, uid, isManager) => {
         try {
             if (isManager) {
                 await db.collection('groups').doc(groupId).update({ managers: firebase.firestore.FieldValue.arrayRemove(uid) });
                 const updatedGroup = { ...managingGroup, managers: managingGroup.managers.filter(m => m !== uid) };
-                setManagingGroup(updatedGroup);
-                setGroupsList(groupsList.map(g => g.id === groupId ? updatedGroup : g));
+                setManagingGroup(updatedGroup); setGroupsList(groupsList.map(g => g.id === groupId ? updatedGroup : g));
             } else {
                 await db.collection('groups').doc(groupId).update({ managers: firebase.firestore.FieldValue.arrayUnion(uid) });
                 const updatedGroup = { ...managingGroup, managers: [...(managingGroup.managers || []), uid] };
-                setManagingGroup(updatedGroup);
-                setGroupsList(groupsList.map(g => g.id === groupId ? updatedGroup : g));
+                setManagingGroup(updatedGroup); setGroupsList(groupsList.map(g => g.id === groupId ? updatedGroup : g));
             }
         } catch (e) { alert("Failed to toggle manager: " + e.message); }
     };
-
     const handleRemoveMember = async (groupId, uid) => {
         if (!window.confirm("Are you sure you want to remove this user from the group?")) return;
         try {
             await db.collection('groups').doc(groupId).update({ members: firebase.firestore.FieldValue.arrayRemove(uid), managers: firebase.firestore.FieldValue.arrayRemove(uid) });
             await db.collection('users').doc(uid).update({ groups: firebase.firestore.FieldValue.arrayRemove(groupId) });
             const updatedGroup = { ...managingGroup, members: managingGroup.members.filter(m => m !== uid), managers: (managingGroup.managers || []).filter(m => m !== uid) };
-            setManagingGroup(updatedGroup);
-            setGroupsList(groupsList.map(g => g.id === groupId ? updatedGroup : g));
+            setManagingGroup(updatedGroup); setGroupsList(groupsList.map(g => g.id === groupId ? updatedGroup : g));
         } catch (e) { alert("Failed to remove member: " + e.message); }
     };
 
@@ -316,50 +308,29 @@ export default function SuperAdminPage({ db, userProfile, user }) {
     const handleMergePubs = async () => { 
         if (!mergePrimary || !mergeDuplicate) return alert("Please select both a Primary and a Duplicate pub."); 
         if (mergePrimary === mergeDuplicate) return alert("You cannot merge a pub into itself."); 
-        const primaryPub = pubsList.find(p => p.id === mergePrimary); 
-        const duplicatePub = pubsList.find(p => p.id === mergeDuplicate); 
+        const primaryPub = pubsList.find(p => p.id === mergePrimary); const duplicatePub = pubsList.find(p => p.id === mergeDuplicate); 
         if (!window.confirm(`⚠️ CRITICAL ACTION: You are about to merge "${duplicatePub.name}" INTO "${primaryPub.name}".\n\nAll ratings, comments, and upvotes from the duplicate will be transferred to the primary, and the duplicate will be permanently DELETED.\n\nThis cannot be undone. Proceed?`)) return; 
         setIsMerging(true); 
         try { 
             const scoresSnapshot = await db.collectionGroup('scores').where('pubId', '==', mergeDuplicate).get(); 
-            const updatePromises = scoresSnapshot.docs.map(doc => doc.ref.update({ pubId: mergePrimary })); 
-            await Promise.all(updatePromises); 
-            const primaryUpvotes = primaryPub.upvotes || []; 
-            const duplicateUpvotes = duplicatePub.upvotes || []; 
-            const combinedUpvotes = Array.from(new Set([...primaryUpvotes, ...duplicateUpvotes])); 
-            await db.collection('pubs').doc(mergePrimary).update({ upvotes: combinedUpvotes }); 
-            await db.collection('pubs').doc(mergeDuplicate).delete(); 
-            setPubsList(pubsList.filter(p => p.id !== mergeDuplicate).map(p => p.id === mergePrimary ? { ...p, upvotes: combinedUpvotes } : p)); 
-            setStats(prev => ({ ...prev, pubs: prev.pubs - 1 })); 
-            setMergePrimary(""); setMergeDuplicate(""); 
-            alert(`✅ Merge Complete! Successfully transferred ${scoresSnapshot.size} ratings/scores and deleted the duplicate.`); 
-        } catch (error) { 
-            console.error("Merge failed:", error); 
-            if (error.message.includes("index")) { alert(`Firebase needs to build a search index to find the scores.\n\nOpen your browser's Developer Console (F12). Firebase provided a direct link there. Click that link to generate the index instantly, wait 2 minutes, and try again!`); } 
-            else { alert(`Merge failed: ${error.message}`); } 
-        } finally { setIsMerging(false); } 
+            const updatePromises = scoresSnapshot.docs.map(doc => doc.ref.update({ pubId: mergePrimary })); await Promise.all(updatePromises); 
+            const combinedUpvotes = Array.from(new Set([...(primaryPub.upvotes || []), ...(duplicatePub.upvotes || [])])); 
+            await db.collection('pubs').doc(mergePrimary).update({ upvotes: combinedUpvotes }); await db.collection('pubs').doc(mergeDuplicate).delete(); 
+            setPubsList(pubsList.filter(p => p.id !== mergeDuplicate).map(p => p.id === mergePrimary ? { ...p, upvotes: combinedUpvotes } : p)); setStats(prev => ({ ...prev, pubs: prev.pubs - 1 })); 
+            setMergePrimary(""); setMergeDuplicate(""); alert(`✅ Merge Complete! Successfully transferred ${scoresSnapshot.size} ratings/scores and deleted the duplicate.`); 
+        } catch (error) { alert(`Merge failed: ${error.message}`); } finally { setIsMerging(false); } 
     };
 
     const handleResolveFeedback = async (id, currentStatus) => { try { await db.collection('feedback').doc(id).update({ resolved: !currentStatus }); setFeedbackList(feedbackList.map(f => f.id === id ? { ...f, resolved: !currentStatus } : f)); } catch (error) { alert(`Failed to update feedback: ${error.message}`); } };
     const handleDeleteFeedback = async (id) => { if (!window.confirm("Delete this feedback?")) return; try { await db.collection('feedback').doc(id).delete(); setFeedbackList(feedbackList.filter(f => f.id !== id)); } catch (error) { alert(`Failed to delete feedback: ${error.message}`); } };
     const handleResolveReport = async (id) => { try { await db.collection('reports').doc(id).update({ resolved: true }); setReportsList(reportsList.filter(r => r.id !== id)); } catch (error) { alert(`Failed to resolve report: ${error.message}`); } };
-    
     const handleDeleteReportedContent = async (report) => {
         if (!window.confirm(`Are you absolutely sure you want to permanently delete this ${report.type}?`)) return;
         try {
-            if (report.type === 'pub') {
-                await db.collection('pubs').doc(report.targetId).delete();
-                setPubsList(pubsList.filter(p => p.id !== report.targetId));
-                alert("Pub successfully deleted globally.");
-            } else if (report.type === 'review') {
-                await db.collection('groups').doc(report.groupId).collection('scores').doc(report.targetId).delete();
-                alert("Review successfully deleted from the group.");
-            } else if (report.type === 'comment') {
-                await db.collection('groups').doc(report.groupId).collection('scores').doc(report.scoreId).collection('comments').doc(report.targetId).delete();
-                alert("Comment successfully deleted.");
-            }
-            await db.collection('reports').doc(report.id).update({ resolved: true });
-            setReportsList(reportsList.filter(r => r.id !== report.id));
+            if (report.type === 'pub') { await db.collection('pubs').doc(report.targetId).delete(); setPubsList(pubsList.filter(p => p.id !== report.targetId)); alert("Pub successfully deleted globally."); } 
+            else if (report.type === 'review') { await db.collection('groups').doc(report.groupId).collection('scores').doc(report.targetId).delete(); alert("Review successfully deleted from the group."); } 
+            else if (report.type === 'comment') { await db.collection('groups').doc(report.groupId).collection('scores').doc(report.scoreId).collection('comments').doc(report.targetId).delete(); alert("Comment successfully deleted."); }
+            await db.collection('reports').doc(report.id).update({ resolved: true }); setReportsList(reportsList.filter(r => r.id !== report.id));
         } catch (error) { alert(`Failed to delete content: ${error.message}`); }
     };
 
@@ -367,13 +338,13 @@ export default function SuperAdminPage({ db, userProfile, user }) {
     if (loading) return <div className="p-8 text-center animate-pulse dark:text-gray-300 mt-12">Fetching secure metrics...</div>;
     
     let availableTabs = ['overview', 'moderation', 'feedback'];
-    if (isAdmin) availableTabs.push('pubs', 'users', 'gamification');
+    if (isAdmin) availableTabs.push('pubs', 'claims', 'tags', 'users', 'gamification'); 
     if (isTrueSuperAdmin) availableTabs.push('roles');
 
     const sortedPubsForDropdown = [...pubsList].sort((a, b) => a.name.localeCompare(b.name));
 
     return (
-        <div className="space-y-6 animate-fadeIn relative">
+        <div className="space-y-6 animate-fadeIn relative pb-20">
             
             {managingGroup && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
@@ -415,10 +386,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                     </div>
                                 );
                             })}
-                            
-                            {(!managingGroup.members || managingGroup.members.length === 0) && (
-                                <p className="text-gray-500 italic text-sm">No members in this group.</p>
-                            )}
+                            {(!managingGroup.members || managingGroup.members.length === 0) && <p className="text-gray-500 italic text-sm">No members in this group.</p>}
                         </div>
                     </div>
                 </div>
@@ -440,9 +408,16 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                             className={`px-4 py-2 rounded-md text-sm font-semibold capitalize transition-all ${activeTab === tab ? 'bg-white dark:bg-gray-800 text-brand shadow' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
                         >
                             {tab === 'moderation' && (reportsList.length > 0 ? '🚨 ' : '🛡️ ')}
+                            {tab === 'claims' && '🏢 '}
                             {tab === 'gamification' && '🕹️ '}
+                            {tab === 'tags' && '🏷️ '}
                             {tab === 'feedback' && feedbackList.filter(f => !f.resolved).length > 0 && '🔴 '}
                             {tab}
+                            {tab === 'claims' && venueClaimsList.length > 0 && (
+                                <span className="ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">
+                                    {venueClaimsList.length}
+                                </span>
+                            )}
                         </button>
                     ))}
                 </div>
@@ -460,6 +435,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                 </div>
             )}
 
+            {/* --- OVERVIEW TAB --- */}
             {activeTab === 'overview' && (
                 <div className="space-y-6 animate-fadeIn">
                     {isAdmin && (
@@ -574,7 +550,144 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                 </div>
             )}
 
-            {/* --- ROLES TAB (NEW) --- */}
+            {/* --- B2B CLAIMS TAB --- */}
+            {activeTab === 'claims' && isAdmin && (
+                <div className="space-y-6 animate-fadeIn">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <div className="p-6 bg-gradient-to-r from-gray-900 to-gray-800 border-b border-gray-700">
+                            <h3 className="text-xl font-black text-white flex items-center gap-2">🏢 Venue Verification Queue</h3>
+                            <p className="text-sm text-gray-400 mt-1">Pub managers requesting ownership of their venue profile.</p>
+                        </div>
+                        
+                        <div className="overflow-x-auto max-h-[600px] p-4">
+                            {venueClaimsList.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <span className="text-5xl block mb-3 opacity-50">📬</span>
+                                    <p className="text-gray-500 dark:text-gray-400 font-medium">No pending venue claims. You're all caught up!</p>
+                                </div>
+                            ) : (
+                                <table className="w-full text-left border-collapse text-sm">
+                                    <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400">
+                                        <tr>
+                                            <th className="p-4 rounded-tl-lg">Venue Requested</th>
+                                            <th className="p-4">Contact Email Provided</th>
+                                            <th className="p-4">Date</th>
+                                            <th className="p-4 text-right rounded-tr-lg">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                        {venueClaimsList.map(claim => (
+                                            <tr key={claim.id} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                                                <td className="p-4 font-bold text-gray-900 dark:text-white text-lg">
+                                                    {claim.pubName}
+                                                </td>
+                                                <td className="p-4">
+                                                    <a href={`mailto:${claim.contactEmail}`} className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                                                        {claim.contactEmail}
+                                                    </a>
+                                                    <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider">User ID: {claim.requestedByUid.substring(0,8)}...</p>
+                                                </td>
+                                                <td className="p-4 text-gray-500">
+                                                    {claim.requestedAt && typeof claim.requestedAt.toDate === 'function' ? new Date(claim.requestedAt.toDate()).toLocaleDateString() : 'Recent'}
+                                                </td>
+                                                <td className="p-4 text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        <button onClick={() => handleRejectClaim(claim.id)} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-lg font-bold transition">
+                                                            Reject
+                                                        </button>
+                                                        <button onClick={() => handleApproveClaim(claim)} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold shadow-sm transition">
+                                                            Verify & Hand Over
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- TAGS TAB --- */}
+            {activeTab === 'tags' && isAdmin && (
+                <div className="space-y-6 animate-fadeIn">
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2 flex items-center gap-2">🏷️ Global Pub Tags</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Manage the master list of tags (e.g. "Dog Friendly", "Pool Table", "Live Music") that users can assign to pubs. You can also upload icons for them.</p>
+
+                        <form onSubmit={handleSaveTag} className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600 mb-8">
+                            <div className="flex flex-col md:flex-row gap-4 items-end">
+                                <div className="flex-1 w-full">
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Tag Name</label>
+                                    <input 
+                                        type="text" 
+                                        value={editingTag ? editingTag.name : newTagName} 
+                                        onChange={e => editingTag ? setEditingTag({...editingTag, name: e.target.value}) : setNewTagName(e.target.value)} 
+                                        placeholder="e.g. Beer Garden" 
+                                        className="w-full px-4 py-3 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-brand outline-none" 
+                                        required 
+                                    />
+                                </div>
+                                
+                                <div className="w-full md:w-auto">
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Tag Icon</label>
+                                    <div className="flex items-center gap-3">
+                                        <label className="flex flex-col items-center justify-center w-12 h-12 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-brand cursor-pointer bg-white dark:bg-gray-800 transition overflow-hidden">
+                                            {isUploadingTagIcon ? (
+                                                <span className="text-brand animate-spin text-xl">🌀</span>
+                                            ) : (editingTag ? editingTag.iconUrl : newTagIcon) ? (
+                                                <img src={editingTag ? editingTag.iconUrl : newTagIcon} alt="Icon" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <span className="text-xl">📸</span>
+                                            )}
+                                            <input type="file" accept="image/*" onChange={handleTagImageUpload} className="hidden" disabled={isUploadingTagIcon} />
+                                        </label>
+                                        {(editingTag ? editingTag.iconUrl : newTagIcon) && (
+                                            <button type="button" onClick={() => editingTag ? setEditingTag({...editingTag, iconUrl: ""}) : setNewTagIcon("")} className="text-red-500 text-xs font-bold hover:underline">Remove</button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="w-full md:w-auto flex gap-2">
+                                    <button type="submit" disabled={isSavingTag || isUploadingTagIcon} className="w-full md:w-auto px-6 py-3 bg-brand text-white font-bold rounded-lg hover:opacity-80 transition disabled:opacity-50">
+                                        {isSavingTag ? "Saving..." : editingTag ? "Update Tag" : "Create Tag"}
+                                    </button>
+                                    {editingTag && (
+                                        <button type="button" onClick={() => setEditingTag(null)} className="px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition">Cancel</button>
+                                    )}
+                                </div>
+                            </div>
+                        </form>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            {tagsList.length === 0 ? (
+                                <p className="text-gray-500 italic col-span-full text-center py-6">No global tags created yet.</p>
+                            ) : (
+                                tagsList.map(tag => (
+                                    <div key={tag.id} className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 shadow-sm group hover:border-brand transition">
+                                        <div className="flex items-center gap-3">
+                                            {tag.iconUrl ? (
+                                                <img src={tag.iconUrl} alt={tag.name} className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-100 dark:border-gray-700" />
+                                            ) : (
+                                                <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs">🏷️</div>
+                                            )}
+                                            <span className="font-bold text-gray-800 dark:text-gray-200 text-sm truncate max-w-[100px]" title={tag.name}>{tag.name}</span>
+                                        </div>
+                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => setEditingTag(tag)} className="text-blue-500 hover:text-blue-700 text-xs bg-blue-50 dark:bg-blue-900/30 p-1.5 rounded">✏️</button>
+                                            <button onClick={() => handleDeleteTag(tag.id)} className="text-red-500 hover:text-red-700 text-xs bg-red-50 dark:bg-red-900/30 p-1.5 rounded">✕</button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- ROLES TAB --- */}
             {activeTab === 'roles' && isTrueSuperAdmin && (
                 <div className="space-y-6 animate-fadeIn">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
@@ -650,15 +763,9 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                         <td className="p-3 text-right">
                                             <div className="flex justify-end gap-2 items-center">
                                                 {isTrueSuperAdmin && !u.isSuperAdmin && (
-                                                    <select 
-                                                        value={u.assignedRole || 'none'} 
-                                                        onChange={(e) => handleAssignUserRole(u.id, e.target.value)}
-                                                        className="px-2 py-1.5 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs font-bold mr-2 cursor-pointer outline-none"
-                                                    >
+                                                    <select value={u.assignedRole || 'none'} onChange={(e) => handleAssignUserRole(u.id, e.target.value)} className="px-2 py-1.5 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs font-bold mr-2 cursor-pointer outline-none">
                                                         <option value="none">Standard User</option>
-                                                        {Object.entries(roles).map(([id, role]) => (
-                                                            <option key={id} value={id}>{role.name}</option>
-                                                        ))}
+                                                        {Object.entries(roles).map(([id, role]) => <option key={id} value={id}>{role.name}</option>)}
                                                     </select>
                                                 )}
                                                 {!u.isSuperAdmin && (
@@ -752,6 +859,58 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- PUBS TAB --- */}
+            {activeTab === 'pubs' && isAdmin && (
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden animate-fadeIn">
+                    <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-white">Global Pub Directory</h3>
+                        <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-3 py-1 rounded-full font-bold">
+                            {pubsList.filter(p => p.isLocked).length} Verified Pubs
+                        </span>
+                    </div>
+                    <div className="overflow-x-auto max-h-[600px]">
+                        <table className="w-full text-left border-collapse text-sm">
+                            <thead className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 sticky top-0 z-10">
+                                <tr>
+                                    <th className="p-3">Status</th>
+                                    <th className="p-3">Photo</th>
+                                    <th className="p-3">Pub Name</th>
+                                    <th className="p-3">Location</th>
+                                    <th className="p-3 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-gray-800 dark:text-gray-200">
+                                {pubsList.map(pub => {
+                                    const managerCount = Array.isArray(pub.claimedBy) ? pub.claimedBy.length : (pub.claimedBy ? 1 : 0);
+                                    return (
+                                    <tr key={pub.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${pub.isLocked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+                                        <td className="p-3 text-center">
+                                            {pub.isLocked ? <span className="text-xl" title="Verified & Locked">🔒</span> : <span className="text-xl opacity-20" title="Unlocked">🔓</span>}
+                                        </td>
+                                        <td className="p-3 w-16">{pub.photoURL ? <img src={pub.photoURL} alt="pub" className="w-10 h-10 rounded object-cover shadow-sm" /> : <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded flex items-center justify-center text-xl">🍺</div>}</td>
+                                        <td className="p-3 font-bold">
+                                            {pub.name}
+                                            {managerCount > 0 && <span className="block text-[9px] text-brand uppercase tracking-wider">{managerCount} Manager{managerCount > 1 ? 's' : ''}</span>}
+                                        </td>
+                                        <td className="p-3 text-gray-500 dark:text-gray-400">{pub.location || 'Unknown'}</td>
+                                        <td className="p-3 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button onClick={() => handleTogglePubLock(pub)} className={`font-bold text-xs px-3 py-1.5 rounded transition shadow-sm ${pub.isLocked ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600' : 'bg-brand text-white hover:opacity-80'}`}>
+                                                    {pub.isLocked ? 'Unverify' : 'Verify'}
+                                                </button>
+                                                <button onClick={() => handleDeletePub(pub.id)} className="text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 font-bold text-xs px-3 py-1.5 rounded transition shadow-sm">
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )})}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             )}
@@ -884,53 +1043,6 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                             </div>
                         </div>
                     )}
-                </div>
-            )}
-
-            {/* --- PUBS TAB --- */}
-            {activeTab === 'pubs' && isAdmin && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden animate-fadeIn">
-                    <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-white">Global Pub Directory</h3>
-                        <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-3 py-1 rounded-full font-bold">
-                            {pubsList.filter(p => p.isLocked).length} Verified Pubs
-                        </span>
-                    </div>
-                    <div className="overflow-x-auto max-h-[600px]">
-                        <table className="w-full text-left border-collapse text-sm">
-                            <thead className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 sticky top-0 z-10">
-                                <tr>
-                                    <th className="p-3">Status</th>
-                                    <th className="p-3">Photo</th>
-                                    <th className="p-3">Pub Name</th>
-                                    <th className="p-3">Location</th>
-                                    <th className="p-3 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-gray-800 dark:text-gray-200">
-                                {pubsList.map(pub => (
-                                    <tr key={pub.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${pub.isLocked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
-                                        <td className="p-3 text-center">
-                                            {pub.isLocked ? <span className="text-xl" title="Verified & Locked">🔒</span> : <span className="text-xl opacity-20" title="Unlocked">🔓</span>}
-                                        </td>
-                                        <td className="p-3 w-16">{pub.photoURL ? <img src={pub.photoURL} alt="pub" className="w-10 h-10 rounded object-cover shadow-sm" /> : <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded flex items-center justify-center text-xl">🍺</div>}</td>
-                                        <td className="p-3 font-bold">{pub.name}</td>
-                                        <td className="p-3 text-gray-500 dark:text-gray-400">{pub.location || 'Unknown'}</td>
-                                        <td className="p-3 text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <button onClick={() => handleTogglePubLock(pub)} className={`font-bold text-xs px-3 py-1.5 rounded transition shadow-sm ${pub.isLocked ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600' : 'bg-brand text-white hover:opacity-80'}`}>
-                                                    {pub.isLocked ? 'Unlock' : 'Verify'}
-                                                </button>
-                                                <button onClick={() => handleDeletePub(pub.id)} className="text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 font-bold text-xs px-3 py-1.5 rounded transition shadow-sm">
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
                 </div>
             )}
 

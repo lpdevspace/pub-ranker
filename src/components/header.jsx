@@ -39,17 +39,48 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                     
                     {/* Top Utility Bar */}
                     <div className="flex justify-between items-center h-16">
-                        <div className="flex flex-col justify-center min-w-0 pr-4">
-                            <h1 className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 tracking-tight truncate">
-                                Pub Ranker
-                            </h1>
-                            <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest truncate">
-                                {groupName}
-                            </span>
+                        
+                        {/* Logo & Branding */}
+                        <div className="flex items-center gap-3 pr-4 min-w-0">
+                            <img 
+                                src="/favicon.svg" 
+                                alt="Logo" 
+                                className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm" 
+                                onError={(e) => e.target.style.display = 'none'} 
+                            />
+                            <div className="flex flex-col justify-center min-w-0">
+                                <h1 className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 tracking-tight truncate leading-tight">
+                                    Pub Ranker
+                                </h1>
+                                <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest truncate">
+                                    {groupName}
+                                </span>
+                            </div>
                         </div>
 
                         {/* Desktop Controls */}
                         <div className="hidden md:flex items-center gap-2">
+                            
+                            {/* Admin & Staff Tools Moved Here */}
+                            {canManageGroup && (
+                                <button onClick={() => setPage('admin')} className={`p-2 rounded-full transition ${page === 'admin' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400'}`} title="Group Admin">
+                                    ⚙️
+                                </button>
+                            )}
+                            
+                            {isStaff && (
+                                <button onClick={() => setPage('superadmin')} className={`p-2 rounded-full transition ${page === 'superadmin' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400'}`} title="Staff Menu">
+                                    🛡️
+                                </button>
+                            )}
+
+                            <button onClick={() => setPage('business')} className="px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-xs font-black uppercase tracking-wider hover:opacity-80 transition shadow-sm ml-2">
+                               For Venues
+                                </button>
+
+                            {/* Separator if Admin tools are present */}
+                            {(canManageGroup || isStaff) && <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>}
+
                             <button onClick={toggleDarkMode} className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400 transition" title="Toggle Theme">
                                 {isDarkMode ? '☀️' : '🌙'}
                             </button>
@@ -92,6 +123,21 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                     {/* Mobile Dropdown Menu */}
                     {isNavOpen && (
                         <div className="md:hidden py-3 border-t border-gray-100 dark:border-gray-800 flex flex-col gap-1 animate-fadeIn">
+                            
+                            {/* Admin & Staff Tools inside Mobile Menu */}
+                            {canManageGroup && (
+                                <button onClick={() => { setPage('admin'); setIsNavOpen(false); }} className="w-full text-left px-4 py-2.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 font-semibold text-blue-700 dark:text-blue-400 text-sm flex items-center gap-2">
+                                    <span>⚙️</span> Group Admin
+                                </button>
+                            )}
+                            {isStaff && (
+                                <button onClick={() => { setPage('superadmin'); setIsNavOpen(false); }} className="w-full text-left px-4 py-2.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 font-semibold text-red-700 dark:text-red-400 text-sm flex items-center gap-2">
+                                    <span>🛡️</span> Staff Menu
+                                </button>
+                            )}
+
+                            {(canManageGroup || isStaff) && <div className="w-full h-px bg-gray-100 dark:bg-gray-800 my-1"></div>}
+
                             <button onClick={() => { toggleDarkMode(); setIsNavOpen(false); }} className="w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 font-semibold text-gray-700 dark:text-gray-300 text-sm">
                                 {isDarkMode ? '☀️ Switch to Light Mode' : '🌙 Switch to Dark Mode'}
                             </button>
@@ -104,28 +150,19 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                         </div>
                     )}
 
-                    {/* Scrollable Navigation */}
+                    {/* Scrollable Navigation (Now exclusively for normal user views) */}
                     <div className="py-2.5 flex overflow-x-auto gap-1 hide-scrollbar items-center border-t border-gray-100 dark:border-gray-800/50">
                         <NavButton name="Dashboard" targetPage="dashboard" icon="📊" />
+                        <NavButton name="Taproom" targetPage="taproom" icon="📱" />
                         <NavButton name="Directory" targetPage="pubs" icon="🍻" />
                         <NavButton name="Hit List" targetPage="toVisit" icon="🎯" />
+                        <NavButton name="Insights" targetPage="insights" icon="📈" />
                         <NavButton name="Events" targetPage="events" icon="📅" />
-                        <NavButton name="Map Planner" targetPage="map" icon="🗺️" />
+                        <NavButton name="Map" targetPage="map" icon="🗺️" />
                         <NavButton name="Leaderboard" targetPage="leaderboard" icon="🏆" />
                         <NavButton name="Versus" targetPage="individual" icon="🥊" />
                         <NavButton name="Spin" targetPage="spin" icon="🎡" />
                         <NavButton name="Feedback" targetPage="feedback" icon="💬" />
-                        
-                        {canManageGroup && (
-                            <>
-                                <div className="w-px h-5 bg-gray-300 dark:bg-gray-700 mx-1 shrink-0"></div>
-                                <NavButton name="Admin" targetPage="admin" icon="⚙️" />
-                            </>
-                        )}
-                        
-                        {isStaff && (
-                            <NavButton name="Staff Menu" targetPage="superadmin" icon="🛡️" />
-                        )}
                     </div>
                 </div>
             </header>
@@ -208,7 +245,6 @@ function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pu
         if(!user?.uid) return;
         setSaving(true);
 
-        // Sanitize the Avatar URL
         let safeAvatarUrl = avatarUrl.trim();
         if (safeAvatarUrl && !safeAvatarUrl.startsWith('http://') && !safeAvatarUrl.startsWith('https://')) {
             alert("Avatar URL must start with http:// or https://");
