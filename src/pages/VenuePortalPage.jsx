@@ -1,19 +1,20 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { firebase } from '../firebase';
 import CampaignBuilderPage from './CampaignBuilderPage';
 
 export default function VenuePortalPage({ db, user }) {
+    const [view, setView] = useState('dashboard');
     const [claimedPubs, setClaimedPubs] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [view, setView] = useState('dashboard'); //
     
     const [searchTerm, setSearchTerm] = useState("");
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
 
+    // Analytics State (Now Lazy-Loaded!)
     const [globalScores, setGlobalScores] = useState({});
+    const [loadingAnalytics, setLoadingAnalytics] = useState({});
 
-    // 1. Fetch pubs using array-contains
     useEffect(() => {
         if (!db || !user) return;
         
@@ -23,117 +24,99 @@ export default function VenuePortalPage({ db, user }) {
                 const pubs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 setClaimedPubs(pubs);
                 setLoading(false);
-                
-                pubs.forEach(pub => {
-                    db.collectionGroup('scores').where('pubId', '==', pub.id).get()
-                        .then(scoreSnap => {
-                            const scores = scoreSnap.docs.map(s => s.data());
-                            setGlobalScores(prev => ({ ...prev, [pub.id]: scores }));
-                        })
-                        .catch(err => {
-                            console.error("Score fetch error:", err);
-                            // If Firebase needs an index, it will tell us here
-                            if (err.message.includes("index") || err.message.includes("FAILED_PRECONDITION")) {
-                                if (!window.hasAlertedIndex) {
-                                    window.hasAlertedIndex = true;
-                                    alert("Analytics Error: Firebase needs a Search Index to calculate your global stats.\n\nPlease open your browser's Developer Console (F12 or Right Click -> Inspect -> Console), look for the red error text, and click the direct Firebase link to build the index. Wait 2 minutes, and refresh the page!");
-                                }
-                            }
-                        });
-                });
+                // 🔥 PERF FIX: Removed the automatic collectionGroup query here. 
+                // Scores are now lazy-loaded on demand to save massive database reads.
             });
 
         return () => unsub();
     }, [db, user]);
 
+    // 🔥 SECURITY FIX: Bounded Server-Side Search (Prevents Client Data Dumps)
     const handleSearch = async (e) => {
         e.preventDefault();
         if (!searchTerm.trim()) return;
         setIsSearching(true);
+        
+        // Capitalize first letter to match typical database casing
+        const term = searchTerm.charAt(0).toUpperCase() + searchTerm.slice(1);
+        
         try {
-            const snap = await db.collection('pubs').get();
-            const allPubs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            const term = searchTerm.toLowerCase();
-            const matches = allPubs.filter(p => p.name.toLowerCase().includes(term) || (p.location && p.location.toLowerCase().includes(term)));
+            // Only fetch up to 20 matching records from the server
+            const snap = await db.collection('pubs')
+                .orderBy('name')
+                .startAt(term)
+                .endAt(term + '\uf8ff')
+                .limit(20)
+                .get();
+                
+            const matches = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setSearchResults(matches);
-        } catch (err) { alert("Error searching database."); }
+        } catch (err) { 
+            console.error("Search error:", err);
+            alert("Error searching database. Make sure you match the exact spelling."); 
+        }
         setIsSearching(false);
+    };
+
+    // 🔥 PERF FIX: Lazy Load Analytics Function
+    const handleLoadAnalytics = async (pubId) => {
+        setLoadingAnalytics(prev => ({ ...prev, [pubId]: true }));
+        try {
+            const scoreSnap = await db.collectionGroup('scores').where('pubId', '==', pubId).get();
+            const scores = scoreSnap.docs.map(s => s.data());
+            setGlobalScores(prev => ({ ...prev, [pubId]: scores }));
+        } catch (err) {
+            if (err.message.includes("index")) {
+                alert("Firebase needs a Search Index to calculate global stats. Check your console to generate it.");
+            } else {
+                alert("Failed to load analytics: " + err.message);
+            }
+        }
+        setLoadingAnalytics(prev => ({ ...prev, [pubId]: false }));
     };
 
     const handleClaimPub = async (pub) => {
         const isAlreadyManager = Array.isArray(pub.claimedBy) ? pub.claimedBy.includes(user.uid) : pub.claimedBy === user.uid;
-        
-        if (isAlreadyManager) {
-            alert("You are already managing this venue!");
-            return;
-        }
+        if (isAlreadyManager) return alert("You are already managing this venue!");
 
-        const businessEmail = window.prompt(
-            `To verify you own/manage ${pub.name}, please enter your official business email address. Our team will verify this shortly.`
-        );
-
-        if (!businessEmail || !businessEmail.includes('@')) {
-            alert("A valid business email is required to claim a venue.");
-            return;
-        }
+        const businessEmail = window.prompt(`To verify you own/manage ${pub.name}, please enter your official business email address.`);
+        if (!businessEmail || !businessEmail.includes('@')) return alert("A valid business email is required.");
 
         try {
             await db.collection('venueClaims').add({
-                pubId: pub.id,
-                pubName: pub.name,
-                requestedByUid: user.uid,
-                contactEmail: businessEmail.trim(),
-                status: 'pending',
+                pubId: pub.id, pubName: pub.name, requestedByUid: user.uid,
+                contactEmail: businessEmail.trim(), status: 'pending',
                 requestedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-
-            alert(`Verification request sent for ${pub.name}! Our team will email ${businessEmail} shortly to confirm ownership.`);
-            setSearchResults([]);
-            setSearchTerm("");
-        } catch (err) { alert("Failed to submit claim request. " + err.message); }
+            alert(`Verification request sent for ${pub.name}!`);
+            setSearchResults([]); setSearchTerm("");
+        } catch (err) { alert("Failed to submit claim request."); }
     };
 
-    // --- FIX 2: Step Down Logic (Unlocks if last manager) ---
     const handleRemoveMyself = async (pub) => {
-        if (!window.confirm(`Are you sure you want to step down as a manager of ${pub.name}? You will lose access to its analytics.`)) return;
+        if (!window.confirm(`Are you sure you want to step down as a manager of ${pub.name}?`)) return;
         try {
             const isLastManager = Array.isArray(pub.claimedBy) && pub.claimedBy.length <= 1;
-            
-            const updates = {
-                claimedBy: firebase.firestore.FieldValue.arrayRemove(user.uid)
-            };
-            
-            if (isLastManager) {
-                updates.isLocked = false;
-            }
-
+            const updates = { claimedBy: firebase.firestore.FieldValue.arrayRemove(user.uid) };
+            if (isLastManager) updates.isLocked = false;
             await db.collection('pubs').doc(pub.id).update(updates);
             alert("You have been removed as a manager.");
-        } catch (err) { alert("Failed to remove manager status: " + err.message); }
+        } catch (err) { alert("Failed to remove manager status."); }
     };
 
-    // --- FIX 3: Edit Business Profile ---
     const handleEditProfile = async (pub) => {
         const newPhoto = window.prompt("Enter a new Photo URL for your venue:", pub.photoURL || "");
-        if (newPhoto === null) return; // Cancelled
-        
-        const newLocation = window.prompt("Enter the business address/location:", pub.location || "");
+        if (newPhoto === null) return; 
+        const newLocation = window.prompt("Enter the business address:", pub.location || "");
         if (newLocation === null) return;
-        
         try {
-            await db.collection('pubs').doc(pub.id).update({
-                photoURL: newPhoto.trim(),
-                location: newLocation.trim()
-            });
+            await db.collection('pubs').doc(pub.id).update({ photoURL: newPhoto.trim(), location: newLocation.trim() });
             alert("Business profile updated!");
-        } catch (err) {
-            alert("Failed to update profile: " + err.message);
-        }
+        } catch (err) { alert("Failed to update profile."); }
     };
 
     if (loading) return <div className="text-center py-20 animate-pulse text-gray-500">Loading your venues...</div>;
 
-    // --- NEW: Route to Campaign Builder ---
     if (view === 'campaigns') {
         return <CampaignBuilderPage db={db} user={user} onBack={() => setView('dashboard')} />;
     }
@@ -144,21 +127,15 @@ export default function VenuePortalPage({ db, user }) {
                 <div>
                     <span className="text-xs font-black uppercase tracking-widest text-brand mb-2 block">Pub Ranker Business</span>
                     <h2 className="text-3xl font-black mb-2">Venue Portal</h2>
-                    <p className="text-gray-400 max-w-lg">Claim your venue to unlock local insights, respond to reviews, and run targeted promotions to groups in your city.</p>
+                    <p className="text-gray-400 max-w-lg">Claim your venue to unlock local insights and run targeted promotions.</p>
                 </div>
                 <div className="hidden md:block text-6xl opacity-50">🏢</div>
             </div>
 
             <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
                 <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Claim a Venue</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Search for your pub in our global database to request management access.</p>
-                
                 <form onSubmit={handleSearch} className="flex gap-2">
-                    <input 
-                        type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} 
-                        placeholder="Search for your pub (e.g. The Crown)..." 
-                        className="flex-1 px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand outline-none"
-                    />
+                    <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Search exact name (e.g. The Crown)..." className="flex-1 px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand outline-none" />
                     <button type="submit" disabled={isSearching} className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-3 rounded-xl font-bold hover:opacity-80 transition disabled:opacity-50">
                         {isSearching ? "Searching..." : "Search"}
                     </button>
@@ -169,21 +146,13 @@ export default function VenuePortalPage({ db, user }) {
                         {searchResults.map(pub => {
                             const isAlreadyManager = Array.isArray(pub.claimedBy) ? pub.claimedBy.includes(user.uid) : pub.claimedBy === user.uid;
                             const hasManagers = pub.claimedBy && pub.claimedBy.length > 0;
-                            
                             return (
                                 <div key={pub.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
                                     <div>
-                                        <h4 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                            {pub.name}
-                                            {hasManagers && <span className="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Claimed</span>}
-                                        </h4>
+                                        <h4 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">{pub.name} {hasManagers && <span className="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Claimed</span>}</h4>
                                         <p className="text-xs text-gray-500">{pub.location || 'Unknown Location'}</p>
                                     </div>
-                                    <button 
-                                        onClick={() => handleClaimPub(pub)}
-                                        disabled={isAlreadyManager}
-                                        className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isAlreadyManager ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-brand text-white hover:opacity-80 shadow-sm'}`}
-                                    >
+                                    <button onClick={() => handleClaimPub(pub)} disabled={isAlreadyManager} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isAlreadyManager ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-brand text-white hover:opacity-80 shadow-sm'}`}>
                                         {isAlreadyManager ? 'Managed By You' : hasManagers ? 'Request Co-Management' : 'Claim Venue'}
                                     </button>
                                 </div>
@@ -197,8 +166,8 @@ export default function VenuePortalPage({ db, user }) {
                 <div className="space-y-6">
                     <h3 className="text-2xl font-black text-gray-800 dark:text-white">Your Venues</h3>
                     {claimedPubs.map(pub => {
-                        const pubScores = globalScores[pub.id] || [];
-                        const scaleScores = pubScores.filter(s => s.type === 'scale' && s.value !== null);
+                        const pubScores = globalScores[pub.id];
+                        const scaleScores = pubScores ? pubScores.filter(s => s.type === 'scale' && s.value !== null) : [];
                         const avgRating = scaleScores.length > 0 ? (scaleScores.reduce((sum, s) => sum + s.value, 0) / scaleScores.length).toFixed(1) : "N/A";
 
                         return (
@@ -206,9 +175,7 @@ export default function VenuePortalPage({ db, user }) {
                                 <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex flex-col md:flex-row gap-6 items-center">
                                     {pub.photoURL ? <img src={pub.photoURL} alt={pub.name} className="w-24 h-24 rounded-full object-cover border-4 border-gray-100 dark:border-gray-700 shadow-sm" /> : <div className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-4xl shadow-sm">🍺</div>}
                                     <div className="flex-1 text-center md:text-left">
-                                        <h4 className="text-2xl font-black text-gray-900 dark:text-white flex items-center justify-center md:justify-start gap-2">
-                                            {pub.name} <span className="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Verified Owner</span>
-                                        </h4>
+                                        <h4 className="text-2xl font-black text-gray-900 dark:text-white flex items-center justify-center md:justify-start gap-2">{pub.name} <span className="bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Verified Owner</span></h4>
                                         <p className="text-gray-500 dark:text-gray-400 mt-1">📍 {pub.location || 'Add your address'}</p>
                                     </div>
                                     <div className="flex flex-col gap-2 w-full md:w-auto">
@@ -218,21 +185,28 @@ export default function VenuePortalPage({ db, user }) {
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 dark:divide-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                                    <div className="p-6 text-center">
-                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Global Rating</p>
-                                        <p className="text-4xl font-black text-brand">{avgRating}<span className="text-lg text-gray-400">/10</span></p>
-                                    </div>
-                                    <div className="p-6 text-center">
-                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total Ratings</p>
-                                        <p className="text-4xl font-black text-gray-800 dark:text-white">{pubScores.length}</p>
-                                    </div>
+                                    {pubScores ? (
+                                        <>
+                                            <div className="p-6 text-center">
+                                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Global Rating</p>
+                                                <p className="text-4xl font-black text-brand">{avgRating}<span className="text-lg text-gray-400">/10</span></p>
+                                            </div>
+                                            <div className="p-6 text-center">
+                                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total Ratings</p>
+                                                <p className="text-4xl font-black text-gray-800 dark:text-white">{pubScores.length}</p>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="col-span-2 p-6 flex items-center justify-center">
+                                            <button onClick={() => handleLoadAnalytics(pub.id)} disabled={loadingAnalytics[pub.id]} className="px-6 py-2 border-2 border-brand text-brand font-bold rounded-xl hover:bg-brand hover:text-white transition disabled:opacity-50">
+                                                {loadingAnalytics[pub.id] ? "Crunching Data..." : "Load Analytics 📊"}
+                                            </button>
+                                        </div>
+                                    )}
                                     <div className="p-6 text-center flex flex-col justify-center items-center">
                                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Targeted Promotions</p>
-                                    {/* Change this button... */}
-                                    <button onClick={() => setView('campaigns')} className="bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold px-6 py-2 rounded-xl shadow-md hover:scale-105 transition transform w-full">
-                                      Unlock Premium 🔒
-                                     </button>                                    
-                                     </div>
+                                        <button onClick={() => setView('campaigns')} className="bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold px-6 py-2 rounded-xl shadow-md hover:scale-105 transition transform w-full">Unlock Premium 🔒</button>
+                                    </div>
                                 </div>
                             </div>
                         );

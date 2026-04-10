@@ -197,7 +197,17 @@ export default function PubsPage({
     const handleDeletePub = async (pubId) => {
         if (!pubsRef || !pubId) return;
         if (!window.confirm("Are you sure you want to delete this pub? This action cannot be undone.")) return;
-        try { await pubsRef.doc(pubId).delete(); } 
+        try { 
+            // 1. Delete the pub
+            await pubsRef.doc(pubId).delete(); 
+            
+            // 2. --- NEW: Decrement the group's pubCount ---
+            if (db && currentGroup?.id) {
+                await db.collection('groups').doc(currentGroup.id).update({
+                    pubCount: firebase.firestore.FieldValue.increment(-1)
+                });
+            }
+        } 
         catch (e) { console.error("Error deleting pub", e); }
     };
 

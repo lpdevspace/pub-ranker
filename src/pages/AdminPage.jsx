@@ -373,6 +373,12 @@ export default function AdminPage({
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 status: "to-visit"
             });
+
+            // --- NEW: Increment pubCount on the group document ---
+            if (groupRef) {
+                await groupRef.update({ pubCount: firebase.firestore.FieldValue.increment(1) });
+            }
+
             logAdminAction("Imported Pub", `Added ${globalPub.name} from the Global Database`);
             alert(`${globalPub.name} imported successfully!`);
             setMasterSearchTerm("");
@@ -444,6 +450,11 @@ export default function AdminPage({
                 status: "to-visit"
             });
             
+            // --- NEW: Increment pubCount on the group document ---
+            if (groupRef) {
+                await groupRef.update({ pubCount: firebase.firestore.FieldValue.increment(1) });
+            }
+
             logAdminAction("Created Pub", `Created ${newPubName.trim()} entirely manually`);
             
             setNewPubName(""); setNewPubLocation(""); setNewPubLat(""); setNewPubLng(""); setNewPubPhotoURL(""); setNewPubGoogleLink("");
@@ -464,6 +475,12 @@ export default function AdminPage({
         if (!window.confirm(`Are you sure you want to completely remove "${pubName}" from your group? This will also remove any ratings associated with it.`)) return;
         try {
             await pubsRef.doc(pubId).delete();
+            
+            // --- NEW: Decrement pubCount on the group document ---
+            if (groupRef) {
+                await groupRef.update({ pubCount: firebase.firestore.FieldValue.increment(-1) });
+            }
+
             logAdminAction("Deleted Pub", `Removed ${pubName} from the group directory`);
         } catch (error) {
             console.error("Error removing pub:", error);
@@ -1025,7 +1042,7 @@ export default function AdminPage({
                     </div>
                 )}
 
-                {/* --- TAB: AUDIT LOGS (NEW) --- */}
+                {/* --- TAB: AUDIT LOGS --- */}
                 {activeTab === 'audit' && (
                     <div className="space-y-6 animate-fadeIn">
                         <div className="flex justify-between items-center mb-2">

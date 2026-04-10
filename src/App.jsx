@@ -120,8 +120,8 @@ export default function App() {
             <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4 text-center">
                 <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl max-w-md w-full border-t-8 border-red-600">
                     <span className="text-6xl mb-4 block">🛑</span>
-                    <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Account Suspended</h1>
-                    <p className="text-gray-600 dark:text-gray-400 mb-6">Your access has been revoked.</p>
+                    <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Account Banned!</h1>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">You have been banned, please contact support.</p>
                     <button onClick={() => auth.signOut()} className="w-full bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 transition">Log Out</button>
                 </div>
             </div>
@@ -161,18 +161,12 @@ function PublicLandingPage({ db, onLoginClick }) {
     const [previewPubs, setPreviewPubs] = useState([]);
     const [loadingPreview, setLoadingPreview] = useState(false);
 
+    // 🔥 SECURITY/PERF FIX 1: Removed N+1 Query here
     useEffect(() => {
-        db.collection('groups').where('isPublic', '==', true).limit(50).get()
-          .then(async snap => {
+        db.collection('groups').where('isPublic', '==', true).limit(20).get()
+          .then(snap => {
               const groupsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-              const enrichedGroups = await Promise.all(groupsData.map(async (g) => {
-                  try {
-                      // FIX: Query the group's specific sub-collection for pubs
-                      const topDocs = await db.collection('groups').doc(g.id).collection('pubs').get().catch(()=>({size:0}));
-                      return { ...g, pubCount: topDocs.size };
-                  } catch (e) { return { ...g, pubCount: 0 }; }
-              }));
-              setPublicGroups(enrichedGroups);
+              setPublicGroups(groupsData);
           })
           .catch(e => console.error("Error fetching public groups", e));
     }, [db]);
@@ -231,7 +225,8 @@ function PublicLandingPage({ db, onLoginClick }) {
                                 <p className="text-blue-600 dark:text-blue-400 text-sm mb-4 font-bold tracking-wider uppercase">📍 {group.city || "Global"}</p>
                                 <div className="grid grid-cols-2 gap-2 border-t border-gray-100 dark:border-gray-700 pt-4">
                                     <div className="flex flex-col"><span className="text-[10px] uppercase font-bold text-gray-400">Members</span><span className="text-lg font-black">👥 {group.members?.length || 1}</span></div>
-                                    <div className="flex flex-col"><span className="text-[10px] uppercase font-bold text-gray-400">Pubs Ranked</span><span className="text-lg font-black">🍺 {group.pubCount}</span></div>
+                                    {/* Using group.pubCount if you set it, fallback to 0 */}
+                                    <div className="flex flex-col"><span className="text-[10px] uppercase font-bold text-gray-400">Pubs Ranked</span><span className="text-lg font-black">🍺 {group.pubCount || 0}</span></div>
                                 </div>
                             </div>
                         ))}
@@ -367,7 +362,6 @@ function GroupPortal({ user, userProfile, auth, db }) {
 
     const userRef = useMemo(() => db.collection("users").doc(user.uid), [user.uid, db]);
 
-    // Fetch My Groups
     useEffect(() => {
         if (!userProfile.groups || userProfile.groups.length === 0) {
             setLoadingGroups(false);
@@ -394,19 +388,12 @@ function GroupPortal({ user, userProfile, auth, db }) {
         return () => unsub();
     }, [userProfile.groups, db]);
 
-    // Fetch Public Groups
+    // 🔥 SECURITY/PERF FIX 1: Removed N+1 Query here
     useEffect(() => {
-        db.collection('groups').where('isPublic', '==', true).limit(50).get()
-          .then(async snap => {
+        db.collection('groups').where('isPublic', '==', true).limit(20).get()
+          .then(snap => {
               const groupsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-              const enrichedGroups = await Promise.all(groupsData.map(async (g) => {
-                  try {
-                      // FIX: Accurately count pubs from the group's sub-collection
-                      const topDocs = await db.collection('groups').doc(g.id).collection('pubs').get().catch(()=>({size:0}));
-                      return { ...g, pubCount: topDocs.size };
-                  } catch (e) { return { ...g, pubCount: 0 }; }
-              }));
-              setPublicGroups(enrichedGroups);
+              setPublicGroups(groupsData);
           })
           .catch(e => console.error("Error fetching public groups", e));
     }, [db]);
@@ -534,7 +521,6 @@ function GroupPortal({ user, userProfile, auth, db }) {
         <div className="min-h-screen py-10 px-4 transition-colors animate-fadeIn">
             <div className="max-w-6xl mx-auto space-y-8">
                 
-                {/* Header & Alerts */}
                 <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div>
                         <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Pub Ranker</h2>
@@ -550,7 +536,6 @@ function GroupPortal({ user, userProfile, auth, db }) {
                 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     
-                    {/* Left Column: Your Groups & Actions */}
                     <div className="lg:col-span-1 space-y-8">
                         <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-md border border-gray-100 dark:border-gray-700">
                             <h3 className="text-xl font-bold text-gray-800 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-3 mb-4">Your Groups</h3>
@@ -599,7 +584,6 @@ function GroupPortal({ user, userProfile, auth, db }) {
                         </div>
                     </div>
 
-                    {/* Right Column: Public Groups Explorer */}
                     <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl shadow-md border border-gray-100 dark:border-gray-700 flex flex-col h-full">
                         <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-8 gap-4 border-b border-gray-100 dark:border-gray-700 pb-6">
                             <div>
@@ -643,7 +627,7 @@ function GroupPortal({ user, userProfile, auth, db }) {
                                             
                                             <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider mb-6">
                                                 <span>👥 {group.members?.length || 1} Members</span>
-                                                <span>🍺 {group.pubCount} Pubs</span>
+                                                <span>🍺 {group.pubCount || 0} Pubs</span>
                                             </div>
 
                                             <div className="mt-auto">
