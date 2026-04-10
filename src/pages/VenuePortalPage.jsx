@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { firebase } from '../firebase';
+import CampaignBuilderPage from './CampaignBuilderPage';
 
 export default function VenuePortalPage({ db, user }) {
     const [claimedPubs, setClaimedPubs] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [view, setView] = useState('dashboard'); //
     
     const [searchTerm, setSearchTerm] = useState("");
     const [searchResults, setSearchResults] = useState([]);
@@ -131,6 +133,11 @@ export default function VenuePortalPage({ db, user }) {
 
     if (loading) return <div className="text-center py-20 animate-pulse text-gray-500">Loading your venues...</div>;
 
+    // --- NEW: Route to Campaign Builder ---
+    if (view === 'campaigns') {
+        return <CampaignBuilderPage db={db} user={user} onBack={() => setView('dashboard')} />;
+    }
+
     return (
         <div className="max-w-5xl mx-auto space-y-8 animate-fadeIn pb-20">
             <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-8 rounded-3xl shadow-xl flex justify-between items-center">
@@ -221,8 +228,11 @@ export default function VenuePortalPage({ db, user }) {
                                     </div>
                                     <div className="p-6 text-center flex flex-col justify-center items-center">
                                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Targeted Promotions</p>
-                                        <button onClick={() => alert("Premium Dashboard coming soon!")} className="bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold px-6 py-2 rounded-xl shadow-md hover:scale-105 transition transform w-full">Unlock Premium 🔒</button>
-                                    </div>
+                                    {/* Change this button... */}
+                                    <button onClick={() => setView('campaigns')} className="bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold px-6 py-2 rounded-xl shadow-md hover:scale-105 transition transform w-full">
+                                      Unlock Premium 🔒
+                                     </button>                                    
+                                     </div>
                                 </div>
                             </div>
                         );
