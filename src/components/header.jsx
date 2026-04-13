@@ -180,8 +180,22 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
 }
 
 function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pubs = [] }) {
+    const sanitizeAvatarUrl = (value) => {
+        const trimmed = (value || "").trim();
+        if (!trimmed) return "";
+        try {
+            const parsed = new URL(trimmed);
+            if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+                return parsed.toString();
+            }
+        } catch (err) {
+            return "";
+        }
+        return "";
+    };
+
     const [nickname, setNickname] = useState(userProfile?.nickname || "");
-    const [avatarUrl, setAvatarUrl] = useState(userProfile?.avatarUrl || "");
+    const [avatarUrl, setAvatarUrl] = useState(sanitizeAvatarUrl(userProfile?.avatarUrl || ""));
     const [bio, setBio] = useState(userProfile?.bio || "");
     const [saving, setSaving] = useState(false);
     
@@ -292,7 +306,7 @@ function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pu
             
                     <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Avatar URL</label>
-                        <input type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://..." className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
+                        <input type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(sanitizeAvatarUrl(e.target.value))} placeholder="https://..." className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
                     </div>
 
                     <div>
