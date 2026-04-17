@@ -150,11 +150,10 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
         return userSet;
     }, [scores]);
 
-    // OPTIMIZATION: useCallback prevents heavy child components from needlessly re-rendering
     const handleSelectPub = useCallback((pub) => {
         setCurrentPub(pub);
         setPage('rate');
-    }, [navigate]); // Assuming setPage uses navigate
+    }, [navigate]); 
     
     const handleSelectPubForEdit = useCallback((pub) => {
         setEditingPub(pub);
@@ -205,7 +204,10 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                 <Route path="/dashboard" element={<DashboardPage user={user} pubs={visitedPubs} newPubs={newPubs} criteria={activeCriteria} users={activeRaters} scores={scores} rankedPubs={rankedVisitedPubs} setPage={setPage} groupId={groupId} db={db} allUsers={allUsers} />} />
                 <Route path="/pubs" element={<PubsPage pubs={rankedVisitedPubs} criteria={activeCriteria} scores={scores} onSelectPub={handleSelectPub} onSelectPubForEdit={handleSelectPubForEdit} canManageGroup={canManageGroup} pubsRef={pubsRef} allUsers={allUsers} currentUser={user} currentGroup={currentGroup} groupRef={groupRef} featureFlags={featureFlags} db={db} />} />
                 <Route path="/toVisit" element={<PubsToVisitPage pubs={newPubs} canManageGroup={canManageGroup} onPromotePub={handlePromotePub} onSelectPubForEdit={handleSelectPubForEdit} allUsers={allUsers} pubsRef={pubsRef} currentGroup={currentGroup} currentUser={user} featureFlags={featureFlags} />} />
-                <Route path="/rate" element={<RateView pub={currentPub} criteria={activeCriteria} onBack={() => { setCurrentPub(null); setPage('pubs'); }} onSave={handleSaveScores} existingScores={scores[currentPub?.id] || {}} />} />
+                
+                {/* FIX: ADDED user, groupId, and groupRef to the RateView Route below */}
+                <Route path="/rate" element={<RateView pub={currentPub} criteria={activeCriteria} user={user} groupId={groupId} groupRef={groupRef} onBack={() => { setCurrentPub(null); setPage('pubs'); }} onSave={handleSaveScores} existingScores={scores[currentPub?.id] || {}} />} />
+                
                 <Route path="/editPub" element={<EditPubView pub={editingPub} onBack={() => { setEditingPub(null); setPage('pubs'); }} onSave={handleSavePub} />} />
                 <Route path="/map" element={<MapPage pubs={pubs} scores={scores} criteria={activeCriteria} db={db} groupId={groupId} userProfile={userProfile} />} />
                 <Route path="/individual" element={<IndividualRankingsPage scores={scores} pubs={pubs} criteria={criteria} allUsers={allUsers} activeRaters={activeRaters} criteriaWeightMap={criteriaWeightMap} />} />

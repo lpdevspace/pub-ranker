@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { firebase } from '../firebase';
+import { firebase, db } from '../firebase'; // <-- FIX: Imported db directly
 
-export default function RateView({ pub, criteria, user, onBack, groupRef, groupId, db }) {
+// FIX: Removed db from the props list here
+export default function RateView({ pub, criteria, user, onBack, groupRef, groupId }) {
     const [ratings, setRatings] = useState({});
     const [ratingDocIds, setRatingDocIds] = useState({}); 
     const [isSubmitting, setIsSubmitting] = useState(false);
