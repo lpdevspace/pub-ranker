@@ -20,6 +20,19 @@ export default function AdminPage({
 
     // --- WEIGHTS STATE ---
     const [localWeights, setLocalWeights] = useState({});
+
+    const sanitizeImageUrl = (value) => {
+        if (!value || typeof value !== 'string') return "";
+        try {
+            const parsed = new URL(value, window.location.origin);
+            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                return parsed.href;
+            }
+        } catch (_) {}
+        return "";
+    };
+
+    const safeEditGroupCover = sanitizeImageUrl(editGroupCover);
     const [savingWeights, setSavingWeights] = useState(false);
 
     // --- MEMBERS STATE ---
@@ -545,7 +558,7 @@ export default function AdminPage({
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Cover Photo URL (Displays on Dashboard)</label>
                                     <input type="text" value={editGroupCover} onChange={e => setEditGroupCover(e.target.value)} placeholder="https://..." className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white mb-3" />
-                                    {editGroupCover && <img src={editGroupCover} alt="Cover Preview" className="h-32 w-full object-cover rounded-lg shadow-sm border border-gray-200 dark:border-gray-600" onError={(e) => { e.target.style.display = "none"; }} />}
+                                    {safeEditGroupCover && <img src={safeEditGroupCover} alt="Cover Preview" className="h-32 w-full object-cover rounded-lg shadow-sm border border-gray-200 dark:border-gray-600" onError={(e) => { e.target.style.display = "none"; }} />}
                                 </div>
                             </div>
                         </div>
