@@ -1,35 +1,34 @@
-import React, { useState, useEffect, useMemo, useCallback} from 'react';
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { auth, db, firebase } from './firebase';
 import { LoadingScreen } from './App';
 
 import Header from './components/header';
-import DashboardPage from './pages/DashboardPage';
-import MapPage from './pages/MapPage';
-import PubsPage from './pages/PubsPage';
-import PubsToVisitPage from './pages/PubsToVisitPage';
-import RateView from './pages/RateView';
-import EditPubView from './pages/EditPubView';
-import IndividualRankingsPage from './pages/IndividualRankingsPage';
-import LeaderboardPage from './pages/LeaderboardPage';
-import SpinTheWheelPage from './pages/SpinTheWheelPage';
-import AdminPage from './pages/AdminPage';
-import SuperAdminPage from './pages/SuperAdminPage';
-import FeedbackPage from './pages/FeedbackPage';
-import EventsPage from './pages/EventsPage'; 
-import TaproomPage from './pages/TaproomPage';
-import InsightsPage from './pages/InsightsPage';
 import OnboardingModal from './components/OnboardingModal';
-import VenuePortalPage from './pages/VenuePortalPage';
+
+// --- FIX 4: Lazy load all pages so they are only downloaded when needed ---
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const MapPage = lazy(() => import('./pages/MapPage'));
+const PubsPage = lazy(() => import('./pages/PubsPage'));
+const PubsToVisitPage = lazy(() => import('./pages/PubsToVisitPage'));
+const RateView = lazy(() => import('./pages/RateView'));
+const EditPubView = lazy(() => import('./pages/EditPubView'));
+const IndividualRankingsPage = lazy(() => import('./pages/IndividualRankingsPage'));
+const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
+const SpinTheWheelPage = lazy(() => import('./pages/SpinTheWheelPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
+const SuperAdminPage = lazy(() => import('./pages/SuperAdminPage'));
+const FeedbackPage = lazy(() => import('./pages/FeedbackPage'));
+const EventsPage = lazy(() => import('./pages/EventsPage'));
+const TaproomPage = lazy(() => import('./pages/TaproomPage'));
+const InsightsPage = lazy(() => import('./pages/InsightsPage'));
+const VenuePortalPage = lazy(() => import('./pages/VenuePortalPage'));
 
 export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMode, toggleDarkMode, featureFlags }) {
     const navigate = useNavigate();
     const location = useLocation();
 
-    // This reads the URL to figure out what page is active (e.g., "/pubs" -> "pubs")
     const page = location.pathname.substring(1) || "dashboard";
-
-    // This replaces your old setPage function so your child components don't break
     const setPage = (targetPage) => navigate(`/${targetPage}`);
 
     const [currentPub, setCurrentPub] = useState(null);
@@ -88,7 +87,6 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
             snapshot.docs.forEach((doc) => {
                 const data = doc.data();
                 data.id = doc.id; 
-                
                 const { pubId, userId, criterionId } = data;
                 if (!pubId || !criterionId) return;
                 if (!scoresData[pubId]) scoresData[pubId] = {};
@@ -193,50 +191,33 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
 
     return (
         <div className="w-full" style={{ '--theme-color': currentGroup.brandColor || '#2563eb' }}>
-        {/* --- ONBOARDING TRIGGER --- */}
-        {userProfile?.hasCompletedOnboarding === false && (
-            <OnboardingModal user={user} db={db} />
-        )}
-            <Header user={user} page={page} setPage={setPage} canManageGroup={canManageGroup} groupName={currentGroup?.groupName || 'My Pub Group'} onSwitchGroup={handleSwitchGroup} auth={auth} db={db} userProfile={userProfile} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} scores={scores} pubs={pubs} criteria={activeCriteria} groupId={groupId} />            
-            
-            <Routes>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<DashboardPage user={user} pubs={visitedPubs} newPubs={newPubs} criteria={activeCriteria} users={activeRaters} scores={scores} rankedPubs={rankedVisitedPubs} setPage={setPage} groupId={groupId} db={db} allUsers={allUsers} />} />
-                <Route path="/pubs" element={<PubsPage pubs={rankedVisitedPubs} criteria={activeCriteria} scores={scores} onSelectPub={handleSelectPub} onSelectPubForEdit={handleSelectPubForEdit} canManageGroup={canManageGroup} pubsRef={pubsRef} allUsers={allUsers} currentUser={user} currentGroup={currentGroup} groupRef={groupRef} featureFlags={featureFlags} db={db} />} />
-                <Route path="/toVisit" element={<PubsToVisitPage pubs={newPubs} canManageGroup={canManageGroup} onPromotePub={handlePromotePub} onSelectPubForEdit={handleSelectPubForEdit} allUsers={allUsers} pubsRef={pubsRef} currentGroup={currentGroup} currentUser={user} featureFlags={featureFlags} />} />
-                
-                {/* FIX: ADDED user, groupId, and groupRef to the RateView Route below */}
-                <Route path="/rate" element={<RateView pub={currentPub} criteria={activeCriteria} user={user} groupId={groupId} groupRef={groupRef} onBack={() => { setCurrentPub(null); setPage('pubs'); }} onSave={handleSaveScores} existingScores={scores[currentPub?.id] || {}} />} />
-                
-                <Route path="/editPub" element={<EditPubView pub={editingPub} onBack={() => { setEditingPub(null); setPage('pubs'); }} onSave={handleSavePub} />} />
-                <Route path="/map" element={<MapPage pubs={pubs} scores={scores} criteria={activeCriteria} db={db} groupId={groupId} userProfile={userProfile} />} />
-                <Route path="/individual" element={<IndividualRankingsPage scores={scores} pubs={pubs} criteria={criteria} allUsers={allUsers} activeRaters={activeRaters} criteriaWeightMap={criteriaWeightMap} />} />
-                <Route path="/leaderboard" element={<LeaderboardPage scores={scores} allUsers={allUsers} pubs={pubs} criteria={criteria} db={db} groupId={groupId} />} />
-                <Route path="/taproom" element={<TaproomPage db={db} groupId={groupId} pubs={pubs} allUsers={allUsers} criteria={activeCriteria} />} />
-                <Route path="/insights" element={<InsightsPage pubs={visitedPubs} scores={scores} allUsers={allUsers} criteria={activeCriteria} />} />
-                <Route path="/spin" element={<SpinTheWheelPage pubs={pubs} criteria={activeCriteria} scores={scores} />} />
-                <Route path="/events" element={<EventsPage db={db} groupId={groupId} pubs={pubs} user={user} canManageGroup={canManageGroup} allUsers={allUsers} />} />
-                <Route path="/feedback" element={<FeedbackPage db={db} userProfile={userProfile} />} />
+            {userProfile?.hasCompletedOnboarding === false && (
+                <OnboardingModal user={user} db={db} />
+            )}
+            <Header user={user} page={page} setPage={setPage} canManageGroup={canManageGroup} groupName={currentGroup?.groupName || 'My Pub Group'} onSwitchGroup={handleSwitchGroup} auth={auth} db={db} userProfile={userProfile} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} scores={scores} pubs={pubs} criteria={activeCriteria} groupId={groupId} />
 
-                {/* SECURITY FIX: Admin route - only accessible to group owners/managers */}
-                <Route path="/admin" element={
-                    canManageGroup
-                        ? <AdminPage scores={scores} criteria={criteria} pubs={pubs} user={user} currentGroup={currentGroup} pubsRef={pubsRef} criteriaRef={criteriaRef} groupRef={groupRef} allUsers={allUsers} db={db} featureFlags={featureFlags} />
-                        : <Navigate to="/dashboard" replace />
-                } />
-
-                {/* SECURITY FIX: SuperAdmin route - only accessible to isSuperAdmin users */}
-                <Route path="/superadmin" element={
-                    userProfile?.isSuperAdmin
-                        ? <SuperAdminPage db={db} userProfile={userProfile} user={user} />
-                        : <Navigate to="/dashboard" replace />
-                } />
-
-                <Route path="/business" element={<VenuePortalPage db={db} user={user} />} />
-                
-                {/* Fallback route */}
-                <Route path="*" element={<DashboardPage pubs={visitedPubs} newPubs={newPubs} criteria={activeCriteria} users={activeRaters} scores={scores} rankedPubs={rankedVisitedPubs} setPage={setPage} groupId={groupId} db={db} allUsers={allUsers} />} />
-            </Routes>
+            {/* Suspense catches lazy-loaded pages while they download */}
+            <Suspense fallback={<LoadingScreen text="Loading page..." />}>
+                <Routes>
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/dashboard" element={<DashboardPage user={user} pubs={visitedPubs} newPubs={newPubs} criteria={activeCriteria} users={activeRaters} scores={scores} rankedPubs={rankedVisitedPubs} setPage={setPage} groupId={groupId} db={db} allUsers={allUsers} />} />
+                    <Route path="/pubs" element={<PubsPage pubs={rankedVisitedPubs} criteria={activeCriteria} scores={scores} onSelectPub={handleSelectPub} onSelectPubForEdit={handleSelectPubForEdit} canManageGroup={canManageGroup} pubsRef={pubsRef} allUsers={allUsers} currentUser={user} currentGroup={currentGroup} groupRef={groupRef} featureFlags={featureFlags} db={db} />} />
+                    <Route path="/toVisit" element={<PubsToVisitPage pubs={newPubs} canManageGroup={canManageGroup} onPromotePub={handlePromotePub} onSelectPubForEdit={handleSelectPubForEdit} allUsers={allUsers} pubsRef={pubsRef} currentGroup={currentGroup} currentUser={user} featureFlags={featureFlags} />} />
+                    <Route path="/rate" element={<RateView pub={currentPub} criteria={activeCriteria} user={user} groupId={groupId} groupRef={groupRef} onBack={() => { setCurrentPub(null); setPage('pubs'); }} onSave={handleSaveScores} db={db} scores={scores} />} />
+                    <Route path="/editPub" element={<EditPubView pub={editingPub} onSave={handleSavePub} onBack={() => { setEditingPub(null); setPage('pubs'); }} />} />
+                    <Route path="/rankings" element={<IndividualRankingsPage pubs={visitedPubs} criteria={activeCriteria} scores={scores} allUsers={allUsers} groupId={groupId} db={db} />} />
+                    <Route path="/leaderboard" element={<LeaderboardPage pubs={visitedPubs} criteria={activeCriteria} scores={scores} allUsers={allUsers} groupId={groupId} db={db} currentUser={user} groupRef={groupRef} featureFlags={featureFlags} />} />
+                    <Route path="/spin" element={<SpinTheWheelPage pubs={newPubs} />} />
+                    <Route path="/admin" element={<AdminPage user={user} groupRef={groupRef} groupId={groupId} db={db} currentGroup={currentGroup} featureFlags={featureFlags} />} />
+                    <Route path="/superadmin" element={<SuperAdminPage user={user} db={db} userProfile={userProfile} />} />
+                    <Route path="/feedback" element={<FeedbackPage user={user} db={db} groupId={groupId} />} />
+                    <Route path="/events" element={<EventsPage user={user} db={db} groupId={groupId} groupRef={groupRef} allUsers={allUsers} canManageGroup={canManageGroup} featureFlags={featureFlags} />} />
+                    <Route path="/taproom" element={<TaproomPage user={user} db={db} groupId={groupId} groupRef={groupRef} allUsers={allUsers} pubs={visitedPubs} scores={scores} criteria={activeCriteria} featureFlags={featureFlags} />} />
+                    <Route path="/insights" element={<InsightsPage pubs={visitedPubs} scores={scores} criteria={activeCriteria} allUsers={allUsers} groupId={groupId} db={db} />} />
+                    <Route path="/venue" element={<VenuePortalPage user={user} db={db} userProfile={userProfile} />} />
+                    <Route path="/map" element={<MapPage pubs={[...visitedPubs, ...newPubs]} />} />
+                </Routes>
+            </Suspense>
         </div>
     );
 }
