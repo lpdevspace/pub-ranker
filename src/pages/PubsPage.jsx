@@ -3,29 +3,21 @@ import ImageUploader from '../components/ImageUploader';
 import { LiveGoogleStatus } from './PubsToVisitPage'; 
 import { firebase } from '../firebase'; 
 
-// --- UPDATED: LIVE WEATHER ENGINE (NOW SUPPORTS COMPACT MODE) ---
-function LiveWeatherStatus({ lat, lng, tags = [], compact = false }) {
+// Fetches weather once for a given lat/lng and passes result as prop to cards
+function useSingleWeather(lat, lng) {
     const [weather, setWeather] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (!lat || !lng) {
-            setLoading(false);
-            return;
-        }
-        
+        if (!lat || !lng) return;
+        setLoading(true);
         const fetchWeather = async () => {
             try {
-                const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY; 
-                if (!apiKey) {
-                    console.warn("OpenWeather API key missing. Check your .env file.");
-                    setLoading(false);
-                    return;
-                }
+                const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
+                if (!apiKey) { setLoading(false); return; }
                 const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric`);
-                if (!res.ok) throw new Error("Weather API Error");
+                if (!res.ok) throw new Error('Weather API Error');
                 const data = await res.json();
-                
                 if (data.main) {
                     setWeather({
                         temp: Math.round(data.main.temp),
@@ -35,7 +27,7 @@ function LiveWeatherStatus({ lat, lng, tags = [], compact = false }) {
                     });
                 }
             } catch (e) {
-                console.error("Weather fetch error", e);
+                console.error('Weather fetch error', e);
             } finally {
                 setLoading(false);
             }
@@ -43,6 +35,11 @@ function LiveWeatherStatus({ lat, lng, tags = [], compact = false }) {
         fetchWeather();
     }, [lat, lng]);
 
+    return { weather, loading };
+}
+
+// Renders weather using a pre-fetched weather object (no internal fetch)
+function WeatherBadge({ weather, loading, tags = [], compact = false }) {
     if (loading) return <div className={`text-xs text-gray-400 animate-pulse font-bold uppercase tracking-wider ${compact ? 'mb-3' : 'mt-2'}`}>Checking skies...</div>;
     if (!weather) return null;
 
@@ -60,7 +57,6 @@ function LiveWeatherStatus({ lat, lng, tags = [], compact = false }) {
                     {!compact && <p className="text-[10px] font-bold text-sky-700 dark:text-sky-400 uppercase tracking-wider mt-1">{weather.description}</p>}
                 </div>
             </div>
-            
             {hasBeerGarden && isGoodWeather && (
                 <div className={`inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-900 dark:from-amber-900/40 dark:to-yellow-900/30 dark:text-amber-400 rounded-xl border border-amber-300 dark:border-amber-700/50 font-black uppercase tracking-wider shadow-sm w-fit transform hover:scale-105 transition-transform ${compact ? 'px-2 py-1 text-[9px]' : 'px-4 py-2 text-xs'}`}>
                     <span className={`${compact ? 'text-sm' : 'text-xl'} filter drop-shadow-sm`}>☀️</span> {compact ? 'Beer Garden Weather' : 'Prime Beer Garden Weather!'}
@@ -111,7 +107,6 @@ function ReviewCard({ score, currentUser = {}, groupRef, allUsers = {}, canDelet
 
     return (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600 relative transition-all">
-            
             <div className="absolute top-3 right-3 flex gap-2 items-center">
                 {currentUser.uid !== score.userId && onReport && (
                     <button onClick={() => onReport('review', score)} className="text-sm opacity-30 hover:opacity-100 transition" title="Report Review">🚩</button>
@@ -120,10 +115,8 @@ function ReviewCard({ score, currentUser = {}, groupRef, allUsers = {}, canDelet
                     <button onClick={() => onDelete(score)} className="text-[10px] text-red-500 hover:text-red-700 font-bold uppercase tracking-wider bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded">Delete</button>
                 )}
             </div>
-
             <p className="font-bold text-brand mb-1 text-sm pr-16">{score.userName}</p>
             <p className="text-gray-700 dark:text-gray-300 italic mb-1 pr-16">"{score.value}"</p>
-
             {(featureFlags?.enableReactions || featureFlags?.enableComments) && (
                 <div className="flex gap-3 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
                     {featureFlags?.enableReactions && (
@@ -138,7 +131,6 @@ function ReviewCard({ score, currentUser = {}, groupRef, allUsers = {}, canDelet
                     )}
                 </div>
             )}
-
             {showComments && featureFlags?.enableComments && (
                 <div className="mt-3 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg animate-fadeIn border border-gray-100 dark:border-gray-700">
                     {comments.length === 0 ? <p className="text-xs text-gray-400 italic mb-2">No replies yet. Be the first!</p> : (
@@ -187,6 +179,13 @@ export default function PubsPage({
     const [sortOption, setSortOption] = useState("highest");
     const [tagFilter, setTagFilter] = useState("");
 
+    // --- FIX 5: Fetch weather ONCE using the first pub with coordinates ---
+    const firstPubWithCoords = pubs.find(p => p.lat && p.lng);
+    const { weather: pageWeather, loading: weatherLoading } = useSingleWeather(
+        firstPubWithCoords?.lat,
+        firstPubWithCoords?.lng
+    );
+
     const handleDeleteScore = async (score) => {
         if (!groupRef || !score?.id) return;
         if (!window.confirm("Are you sure you want to delete this rating?")) return;
@@ -198,10 +197,7 @@ export default function PubsPage({
         if (!pubsRef || !pubId) return;
         if (!window.confirm("Are you sure you want to delete this pub? This action cannot be undone.")) return;
         try { 
-            // 1. Delete the pub
             await pubsRef.doc(pubId).delete(); 
-            
-            // 2. --- NEW: Decrement the group's pubCount ---
             if (db && currentGroup?.id) {
                 await db.collection('groups').doc(currentGroup.id).update({
                     pubCount: firebase.firestore.FieldValue.increment(-1)
@@ -250,7 +246,6 @@ export default function PubsPage({
             });
         }
         const avg = count > 0 ? (totalScore / count) : 0; 
-        
         let tierLabel = 'Unrated', color = 'bg-gray-400';
         if (count > 0) {
             if (avg >= 8.5) { tierLabel = 'God Tier'; color = 'bg-purple-500'; }
@@ -285,7 +280,6 @@ export default function PubsPage({
         const pub = selectedPubForDetail;
         const b = {};
         const pubScores = scores[pub.id] ?? {};
-        
         if (Array.isArray(criteria)) {
             criteria.forEach((crit) => {
                 const criterionScores = pubScores[crit.id] ?? [];
@@ -293,7 +287,6 @@ export default function PubsPage({
                     id: s.id, value: s.value, userId: s.userId, userName: getUserName(s.userId), type: s.type, criterionId: s.criterionId,
                     reactions: s.reactions || [] 
                 }));
-
                 if (criterionScores.length === 0) {
                     b[crit.id] = { name: crit.name, type: crit.type, scores: [], average: 0 };
                 } else {
@@ -321,7 +314,6 @@ export default function PubsPage({
 
             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-wrap gap-3 transition-colors duration-300">
                 <input type="text" placeholder="Search pubs by name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="flex-1 min-w-[200px] px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white outline-none" />
-                
                 <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} className="px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold outline-none cursor-pointer">
                     <option value="">🏷️ All Amenities</option>
                     <option value="🍺 Beer Garden">🍺 Beer Garden</option>
@@ -334,14 +326,12 @@ export default function PubsPage({
                     <option value="🍷 Cocktails">🍷 Cocktails</option>
                     <option value="🔥 Open Fire">🔥 Open Fire</option>
                 </select>
-
                 {yesNoCriteria.length > 0 && (
                     <select value={yesNoFilter} onChange={(e) => setYesNoFilter(e.target.value)} className="px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold outline-none cursor-pointer">
                         <option value="">✅ Filter by Rating</option>
                         {yesNoCriteria.map((c) => <option key={c.id} value={c.id}>Has: {c.name}</option>)}
                     </select>
                 )}
-                
                 <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold outline-none cursor-pointer">
                     <option value="highest">⭐ Highest Rated</option>
                     <option value="google-highest">🌟 Highest Google</option>
@@ -360,44 +350,33 @@ export default function PubsPage({
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center text-5xl">🍺</div>
                             )}
-                            
                             {pub.ratingCount > 0 && (
                                 <div className={`absolute top-3 right-3 text-white text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-lg ${pub.color}`}>
                                     {pub.tierLabel}
                                 </div>
                             )}
-                            
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                                 <span className="opacity-0 group-hover:opacity-100 bg-white/90 text-gray-900 font-bold px-4 py-2 rounded-full transform translate-y-4 group-hover:translate-y-0 transition-all shadow-lg">
                                     View Full Reviews
                                 </span>
                             </div>
                         </div>
-
                         <div className="p-5 flex flex-col flex-1 relative">
                             <button onClick={(e) => { e.stopPropagation(); handleReport('pub', pub); }} className="absolute top-4 right-4 text-lg opacity-20 hover:opacity-100 transition hover:scale-110" title="Report Pub Name">🚩</button>
-                            
                             <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-1 pr-6 truncate">{pub.name}</h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 truncate">📍 {pub.location || 'Unknown Location'}</p>
-                            
                             {Array.isArray(pub.tags) && pub.tags.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mb-2">
                                     {pub.tags.slice(0, 3).map(tag => (
-                                        <span key={tag} className="text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded font-bold whitespace-nowrap border border-blue-100 dark:border-blue-800">
-                                            {tag}
-                                        </span>
+                                        <span key={tag} className="text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded font-bold whitespace-nowrap border border-blue-100 dark:border-blue-800">{tag}</span>
                                     ))}
                                     {pub.tags.length > 3 && (
-                                        <span className="text-[10px] bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 px-2 py-0.5 rounded font-bold">
-                                            +{pub.tags.length - 3}
-                                        </span>
+                                        <span className="text-[10px] bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 px-2 py-0.5 rounded font-bold">+{pub.tags.length - 3}</span>
                                     )}
                                 </div>
                             )}
-
-                            {/* --- LIVE WEATHER ON COMPACT CARD --- */}
-                            <LiveWeatherStatus lat={pub.lat} lng={pub.lng} tags={pub.tags} compact={true} />
-                            
+                            {/* --- FIX 5: Pass shared weather down instead of fetching per card --- */}
+                            <WeatherBadge weather={pageWeather} loading={weatherLoading} tags={pub.tags} compact={true} />
                             <div className="flex justify-between items-center mb-4 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-100 dark:border-gray-600 mt-auto">
                                 <div>
                                     <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider mb-0.5">Group Score</p>
@@ -410,16 +389,13 @@ export default function PubsPage({
                                     <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider mb-0.5">Google</p>
                                     <p className="font-bold text-lg text-gray-700 dark:text-gray-300 leading-none">
                                         {pub.googleRating ? (
-                                            <span className="flex items-center gap-1 justify-end">
-                                                <span className="text-yellow-500 text-sm">★</span> {pub.googleRating}
-                                            </span>
+                                            <span className="flex items-center gap-1 justify-end"><span className="text-yellow-500 text-sm">★</span> {pub.googleRating}</span>
                                         ) : (
                                             <span className="text-sm text-gray-400 font-medium">N/A</span>
                                         )}
                                     </p>
                                 </div>
                             </div>
-
                             <div className="flex gap-2 pt-4 border-t border-gray-100 dark:border-gray-700">
                                 <button onClick={() => onSelectPub(pub)} className="flex-1 bg-brand text-white font-bold py-2 rounded-lg hover:opacity-80 transition">Rate</button>
                                 {canManageGroup && (
@@ -444,26 +420,20 @@ export default function PubsPage({
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto transition-opacity duration-300 animate-fadeIn">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 md:p-8 relative transition-colors duration-300 border border-gray-200 dark:border-gray-700">
                         <button onClick={() => setSelectedPubForDetail(null)} className="absolute top-4 right-4 text-gray-500 bg-gray-100 dark:bg-gray-700 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 dark:text-gray-300 transition shadow-sm">✕</button>
-
                         <h2 className="text-3xl font-black mb-1 text-gray-800 dark:text-white pr-8">{selectedPubForDetail.name}</h2>
                         <p className="text-gray-500 dark:text-gray-400 mb-4 font-medium flex items-center gap-2">📍 {selectedPubForDetail.location}</p>
-
                         {Array.isArray(selectedPubForDetail.tags) && selectedPubForDetail.tags.length > 0 && (
                             <div className="flex flex-wrap gap-2 mb-4">
                                 {selectedPubForDetail.tags.map(tag => (
-                                    <span key={tag} className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-3 py-1 rounded-full font-bold border border-blue-100 dark:border-blue-800">
-                                        {tag}
-                                    </span>
+                                    <span key={tag} className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-3 py-1 rounded-full font-bold border border-blue-100 dark:border-blue-800">{tag}</span>
                                 ))}
                             </div>
                         )}
-
                         <div className="mb-6 flex flex-col sm:flex-row gap-3">
                             <LiveGoogleStatus pub={selectedPubForDetail} featureFlags={featureFlags} />
-                            {/* --- FULL SIZED WEATHER BADGE IN MODAL --- */}
-                            <LiveWeatherStatus lat={selectedPubForDetail.lat} lng={selectedPubForDetail.lng} tags={selectedPubForDetail.tags} />
+                            {/* Modal uses the same shared weather — no extra API call */}
+                            <WeatherBadge weather={pageWeather} loading={weatherLoading} tags={selectedPubForDetail.tags} />
                         </div>
-            
                         <div className="flex items-center justify-between mb-8 p-6 bg-brand rounded-xl text-white shadow-lg">
                             <div>
                                 <p className="text-sm uppercase font-bold tracking-wider mb-1 opacity-80">Overall Rating</p>
@@ -471,7 +441,6 @@ export default function PubsPage({
                             </div>
                             <div className="text-6xl opacity-50 drop-shadow-md">🍻</div>
                         </div>
-
                         {canManageGroup && (
                             <div className="mb-8 bg-gray-50 dark:bg-gray-700/50 p-5 rounded-xl border border-gray-100 dark:border-gray-700">
                                 <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-3">Pub Photo</h3>
@@ -493,21 +462,16 @@ export default function PubsPage({
                                 />
                             </div>
                         )}
-                
                         <div className="space-y-6">
                             <h3 className="text-2xl font-bold text-gray-800 dark:text-white border-b-2 border-gray-100 dark:border-gray-700 pb-2">Detailed Breakdown</h3>
-                            
                             {Object.values(breakdown).map((data) => (
                                 <div key={data.name} className="bg-gray-50 dark:bg-gray-700/50 p-5 rounded-xl border border-gray-100 dark:border-gray-700">
                                     <div className="flex justify-between items-center mb-3">
                                         <h4 className="font-bold text-lg text-gray-800 dark:text-gray-200">{data.name}</h4>
                                         {data.scores.length > 0 && (data.type === 'scale' || data.type === 'price') && (
-                                            <span className="text-xl font-black text-brand bg-brand/10 px-3 py-1 rounded-full">
-                                                {data.average.toFixed(1)}
-                                            </span>
+                                            <span className="text-xl font-black text-brand bg-brand/10 px-3 py-1 rounded-full">{data.average.toFixed(1)}</span>
                                         )}
                                     </div>
-                        
                                     {data.scores.length === 0 ? (
                                         <p className="text-sm text-gray-500 dark:text-gray-400 italic">No ratings yet</p>
                                     ) : (
@@ -515,17 +479,7 @@ export default function PubsPage({
                                             {data.type === "text" ? (
                                                 <div className="space-y-3">
                                                     {data.scores.map((s) => (
-                                                        <ReviewCard 
-                                                            key={s.id} 
-                                                            score={s} 
-                                                            currentUser={currentUser} 
-                                                            groupRef={groupRef} 
-                                                            allUsers={allUsers} 
-                                                            canDelete={canDeleteScore(s, currentUser, currentGroup)} 
-                                                            onDelete={handleDeleteScore}
-                                                            onReport={handleReport}
-                                                            featureFlags={featureFlags} 
-                                                        />
+                                                        <ReviewCard key={s.id} score={s} currentUser={currentUser} groupRef={groupRef} allUsers={allUsers} canDelete={canDeleteScore(s, currentUser, currentGroup)} onDelete={handleDeleteScore} onReport={handleReport} featureFlags={featureFlags} />
                                                     ))}
                                                 </div>
                                             ) : (
@@ -537,11 +491,8 @@ export default function PubsPage({
                                                                 <div className="flex items-center gap-3 flex-wrap">
                                                                     <div className="flex gap-2">
                                                                         <span className="font-bold text-gray-800 dark:text-gray-200">{s.userName}:</span>
-                                                                        <span>
-                                                                            {data.type === "yes-no" ? s.value ? "✅ Yes" : "❌ No" : data.type === "currency" ? `£${parseFloat(s.value).toFixed(2)}` : s.value}
-                                                                        </span>
+                                                                        <span>{data.type === "yes-no" ? s.value ? "✅ Yes" : "❌ No" : data.type === "currency" ? `£${parseFloat(s.value).toFixed(2)}` : s.value}</span>
                                                                     </div>
-                                                                    
                                                                     {featureFlags?.enableReactions && (
                                                                         <button 
                                                                             onClick={async () => {
@@ -555,7 +506,6 @@ export default function PubsPage({
                                                                         </button>
                                                                     )}
                                                                 </div>
-                                                                
                                                                 <div className="flex items-center gap-2">
                                                                     {currentUser.uid !== s.userId && (
                                                                         <button onClick={() => handleReport('review', s)} className="text-xs opacity-30 hover:opacity-100 transition" title="Report this rating">🚩</button>
