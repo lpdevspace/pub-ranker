@@ -2,20 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { firebase } from '../firebase';
 import ImageUploader from '../components/ImageUploader';
 
-// --- NEW: GOOGLE PLACES API COMPONENT ---
-// ADDED featureFlags TO PROPS HERE
+// --- GOOGLE PLACES API COMPONENT ---
 export function LiveGoogleStatus({ pub, featureFlags }) {
     const [status, setStatus] = useState("loading"); 
     const [details, setDetails] = useState(null);
 
     useEffect(() => {
-        // --- GOOGLE KILL SWITCH ---
         if (featureFlags?.disableGoogleAPI) {
             setStatus("unknown");
             return;
         }
-        
-        // Gracefully hide if the Google Maps script isn't loaded yet
         if (!window.google || !window.google.maps || !window.google.maps.places) {
             setStatus("unknown");
             return;
@@ -53,7 +49,6 @@ export function LiveGoogleStatus({ pub, featureFlags }) {
             {status === "open" && <span className="text-[10px] font-black bg-green-100 text-green-800 px-2 py-1 rounded-md uppercase tracking-wider flex items-center gap-1.5"><span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Open Now</span>}
             {status === "closed" && <span className="text-[10px] font-black bg-red-100 text-red-800 px-2 py-1 rounded-md uppercase tracking-wider">Closed</span>}
             {status === "no_hours" && <span className="text-[10px] font-black bg-gray-200 text-gray-600 px-2 py-1 rounded-md uppercase tracking-wider">Hours Unknown</span>}
-            
             {details?.rating && (
                 <span className="text-xs font-bold text-gray-600 dark:text-gray-300 flex items-center gap-1 border-l border-gray-300 dark:border-gray-500 pl-2">
                     <span className="text-yellow-500 text-sm">★</span> {details.rating} <span className="text-[10px] font-normal opacity-70">({details.user_ratings_total})</span>
@@ -63,7 +58,63 @@ export function LiveGoogleStatus({ pub, featureFlags }) {
     );
 }
 
-// ADDED featureFlags TO PROPS HERE
+// --- WEATHER WIDGET (matches LiveWeatherStatus style from PubsPage) ---
+function LiveWeatherStatus({ lat, lng, tags = [], compact = false }) {
+    const [weather, setWeather] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!lat || !lng) { setLoading(false); return; }
+        const fetchWeather = async () => {
+            try {
+                const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
+                if (!apiKey) { setLoading(false); return; }
+                const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${apiKey}&units=metric`);
+                if (!res.ok) throw new Error('Weather API Error');
+                const data = await res.json();
+                if (data.main) {
+                    setWeather({
+                        temp: Math.round(data.main.temp),
+                        condition: data.weather[0].main,
+                        description: data.weather[0].description,
+                        icon: data.weather[0].icon
+                    });
+                }
+            } catch (e) {
+                console.error('Weather fetch error', e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchWeather();
+    }, [lat, lng]);
+
+    if (loading) return <div className={`text-xs text-gray-400 animate-pulse font-bold uppercase tracking-wider ${compact ? 'mb-3' : 'mt-2'}`}>Checking skies...</div>;
+    if (!weather) return null;
+
+    const hasBeerGarden = Array.isArray(tags) && tags.includes('🍺 Beer Garden');
+    const isGoodWeather = weather.temp >= 15 && !['Rain', 'Snow', 'Thunderstorm', 'Drizzle'].includes(weather.condition);
+
+    return (
+        <div className={`flex flex-col gap-2 animate-fadeIn ${compact ? 'mb-3' : 'mt-4'}`}>
+            <div className={`inline-flex items-center gap-2 bg-gradient-to-r from-sky-50 to-blue-50 dark:from-sky-900/30 dark:to-blue-900/20 rounded-xl border border-sky-100 dark:border-sky-800 shadow-sm w-fit ${compact ? 'p-1 pr-3' : 'p-2 pr-5'}`}>
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-0.5 shadow-sm border border-sky-50 dark:border-sky-700">
+                    <img src={`https://openweathermap.org/img/wn/${weather.icon}@2x.png`} alt={weather.condition} className={`${compact ? 'w-6 h-6' : 'w-10 h-10'} drop-shadow-sm`} />
+                </div>
+                <div>
+                    <p className={`${compact ? 'text-sm' : 'text-lg'} font-black text-sky-900 dark:text-sky-100 leading-none`}>{weather.temp}°C</p>
+                    {!compact && <p className="text-[10px] font-bold text-sky-700 dark:text-sky-400 uppercase tracking-wider mt-1">{weather.description}</p>}
+                </div>
+            </div>
+            {hasBeerGarden && isGoodWeather && (
+                <div className={`inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-900 dark:from-amber-900/40 dark:to-yellow-900/30 dark:text-amber-400 rounded-xl border border-amber-300 dark:border-amber-700/50 font-black uppercase tracking-wider shadow-sm w-fit transform hover:scale-105 transition-transform ${compact ? 'px-2 py-1 text-[9px]' : 'px-4 py-2 text-xs'}`}>
+                    <span className={`${compact ? 'text-sm' : 'text-xl'} filter drop-shadow-sm`}>☀️</span> {compact ? 'Beer Garden Weather' : 'Prime Beer Garden Weather!'}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function PubsToVisitPage({ pubs, canManageGroup, onPromotePub, onSelectPubForEdit, allUsers, pubsRef, currentGroup, currentUser, featureFlags }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [sortOption, setSortOption] = useState("most-upvoted");
@@ -78,7 +129,6 @@ export default function PubsToVisitPage({ pubs, canManageGroup, onPromotePub, on
         if (!pubsRef || !currentUser) return;
         const upvotes = pub.upvotes || [];
         const hasUpvoted = upvotes.includes(currentUser.uid);
-
         try {
             if (hasUpvoted) {
                 await pubsRef.doc(pub.id).update({ upvotes: firebase.firestore.FieldValue.arrayRemove(currentUser.uid) });
@@ -144,7 +194,6 @@ export default function PubsToVisitPage({ pubs, canManageGroup, onPromotePub, on
                             <div className="p-5 flex flex-col flex-1">
                                 <div className="flex justify-between items-start gap-2 mb-1">
                                     <h3 className="text-xl font-black text-gray-800 dark:text-white truncate leading-tight">{pub.name}</h3>
-                                    
                                     <button 
                                         onClick={() => handleToggleUpvote(pub)} 
                                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-black transition-all shadow-sm text-sm flex-shrink-0 ${hasUpvoted ? 'bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:border-blue-800' : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-600'}`}
@@ -163,8 +212,11 @@ export default function PubsToVisitPage({ pubs, canManageGroup, onPromotePub, on
                                     </div>
                                 )}
 
-                                {/* PASSED featureFlags HERE */}
+                                {/* Live Google open/closed status */}
                                 <LiveGoogleStatus pub={pub} featureFlags={featureFlags} />
+
+                                {/* Live weather widget */}
+                                <LiveWeatherStatus lat={pub.lat} lng={pub.lng} tags={pub.tags} compact={true} />
                                 
                                 <div className="mt-auto pt-4 mb-4">
                                     <p className="text-[11px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
