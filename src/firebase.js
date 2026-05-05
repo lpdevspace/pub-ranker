@@ -2,16 +2,16 @@
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
-import 'firebase/compat/storage'; // Updated to use compat
+import 'firebase/compat/storage';
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCyeK-DIBUNaJKUA0m6ghQZX1I6MgIP8eQ",
-    authDomain: "pubs-4e9ad.firebaseapp.com",
-    projectId: "pubs-4e9ad",
-    storageBucket: "pubs-4e9ad.firebasestorage.app",
-    messagingSenderId: "343915596044",
-    appId: "1:343915596044:web:02a9b2efc3ff301bf5a129",
-    measurementId: "G-X8DV1HFPJP"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
@@ -21,6 +21,6 @@ if (!firebase.apps.length) {
 
 const auth = firebase.auth();
 const db = firebase.firestore();
-const storage = firebase.storage(); // Initialize here for consistency
+const storage = firebase.storage();
 
 export { auth, db, firebase, storage };

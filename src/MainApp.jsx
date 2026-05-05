@@ -217,8 +217,21 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                 <Route path="/spin" element={<SpinTheWheelPage pubs={pubs} criteria={activeCriteria} scores={scores} />} />
                 <Route path="/events" element={<EventsPage db={db} groupId={groupId} pubs={pubs} user={user} canManageGroup={canManageGroup} allUsers={allUsers} />} />
                 <Route path="/feedback" element={<FeedbackPage db={db} userProfile={userProfile} />} />
-                <Route path="/admin" element={<AdminPage scores={scores} criteria={criteria} pubs={pubs} user={user} currentGroup={currentGroup} pubsRef={pubsRef} criteriaRef={criteriaRef} groupRef={groupRef} allUsers={allUsers} db={db} featureFlags={featureFlags} />} />
-                <Route path="/superadmin" element={<SuperAdminPage db={db} userProfile={userProfile} user={user} />} />
+
+                {/* SECURITY FIX: Admin route - only accessible to group owners/managers */}
+                <Route path="/admin" element={
+                    canManageGroup
+                        ? <AdminPage scores={scores} criteria={criteria} pubs={pubs} user={user} currentGroup={currentGroup} pubsRef={pubsRef} criteriaRef={criteriaRef} groupRef={groupRef} allUsers={allUsers} db={db} featureFlags={featureFlags} />
+                        : <Navigate to="/dashboard" replace />
+                } />
+
+                {/* SECURITY FIX: SuperAdmin route - only accessible to isSuperAdmin users */}
+                <Route path="/superadmin" element={
+                    userProfile?.isSuperAdmin
+                        ? <SuperAdminPage db={db} userProfile={userProfile} user={user} />
+                        : <Navigate to="/dashboard" replace />
+                } />
+
                 <Route path="/business" element={<VenuePortalPage db={db} user={user} />} />
                 
                 {/* Fallback route */}
