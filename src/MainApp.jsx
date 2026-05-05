@@ -36,7 +36,6 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
     const groupRef = useMemo(() => db.collection('groups').doc(groupId), [groupId, db]);
     const pubsRef = useMemo(() => groupRef.collection('pubs'), [groupRef]);
     const criteriaRef = useMemo(() => groupRef.collection('criteria'), [groupRef]);
-    // scores still uses onSnapshot so ratings update live for all users
     const scoresQuery = useMemo(() => db.collectionGroup('scores').where('groupId', '==', groupId), [groupId, db]);
 
     const [currentGroup, setCurrentGroup] = useState(null);
@@ -55,9 +54,6 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
         return isOwner || isManager;
     }, [currentGroup, user.uid]);
 
-    // --- FIX 2: group uses onSnapshot so group name/settings changes reflect live,
-    //            but pubs and criteria use one-time .get() — they rarely change mid-session.
-    //            Users can refresh to pick up new pubs added by others.
     useEffect(() => {
         const unsubscribe = groupRef.onSnapshot((doc) => {
             if (doc.exists) setCurrentGroup({ id: doc.id, ...doc.data() });
@@ -85,7 +81,6 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
         }).catch((error) => console.error("Error fetching criteria:", error));
     }, [criteriaRef]);
 
-    // scores stays real-time so ratings from other group members appear immediately
     useEffect(() => {
         const unsubscribe = scoresQuery.onSnapshot((snapshot) => {
             const scoresData = {};
@@ -105,15 +100,39 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
         return unsubscribe;
     }, [scoresQuery]);
 
+    // --- FIX 1: Only fetch users who are members of the current group.
+    //    Runs once after currentGroup loads. Firestore 'in' supports up to 30 values;
+    //    for larger groups a Cloud Function or batching would be needed.
     useEffect(() => {
-        if (!db) return;
-        const unsubscribe = db.collection('users').onSnapshot((snapshot) => {
+        if (!db || !currentGroup) return;
+
+        const memberIds = Array.isArray(currentGroup.members) ? currentGroup.members : [];
+        // Always include the current user in case they're not in the members array yet
+        const idsToFetch = Array.from(new Set([...memberIds, user.uid]));
+
+        if (idsToFetch.length === 0) return;
+
+        // Firestore 'in' queries are limited to 30 items per query
+        const BATCH_SIZE = 30;
+        const batches = [];
+        for (let i = 0; i < idsToFetch.length; i += BATCH_SIZE) {
+            batches.push(idsToFetch.slice(i, i + BATCH_SIZE));
+        }
+
+        Promise.all(
+            batches.map(batch =>
+                db.collection('users')
+                    .where(firebase.firestore.FieldPath.documentId(), 'in', batch)
+                    .get()
+            )
+        ).then(snapshots => {
             const usersData = {};
-            snapshot.docs.forEach((doc) => { usersData[doc.id] = doc.data(); });
+            snapshots.forEach(snapshot => {
+                snapshot.docs.forEach(doc => { usersData[doc.id] = doc.data(); });
+            });
             setAllUsers(usersData);
-        }, (error) => console.error("Error fetching users:", error));
-        return unsubscribe;
-    }, [db]);
+        }).catch(error => console.error("Error fetching group members:", error));
+    }, [db, currentGroup, user.uid]);
 
     const activeCriteria = useMemo(() => criteria.filter((c) => !c.archived), [criteria]);
     const visitedPubs = useMemo(() => pubs.filter((p) => p.status === 'visited'), [pubs]);
@@ -169,7 +188,6 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
             await pubsRef.doc(pubId).update({
                 name, location, lat: parseFloat(lat) || null, lng: parseFloat(lng) || null, photoURL: photoURL || "", googleLink: googleLink || "", tags 
             });
-            // Refresh pubs list after an edit so the UI stays consistent
             const snapshot = await pubsRef.get();
             setPubs(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
             setEditingPub(null);
@@ -188,7 +206,6 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
     const handlePromotePub = useCallback(async (pubId) => {
         try {
             await pubsRef.doc(pubId).update({ status: 'visited' });
-            // Refresh pubs list so promoted pub moves to visited immediately
             const snapshot = await pubsRef.get();
             setPubs(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
         } 
