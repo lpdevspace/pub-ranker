@@ -1,21 +1,53 @@
-import React, { useState, useEffect } from 'react';
-import { firebase } from '../firebase'; 
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { firebase } from '../firebase';
+import { getUserDisplayName } from '../utils/users';
 
-export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile, isDarkMode, toggleDarkMode, scores = {}, pubs = [], criteria = [], groupId }) {    
+export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile, isDarkMode, toggleDarkMode, scores = {}, pubs = [], criteria = [], groupId }) {
     const [showProfile, setShowProfile] = useState(false);
-    const [isNavOpen, setIsNavOpen] = useState(false); 
-    
+    const [isNavOpen, setIsNavOpen] = useState(false);
+    const [showSearch, setShowSearch] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const searchInputRef = useRef(null);
+
     const isStaff = userProfile?.isSuperAdmin || userProfile?.isAdmin || userProfile?.isModerator;
-    
+    const displayName = userProfile?.nickname || userProfile?.displayName || user?.email || 'User';
+    const avatarUrl = userProfile?.avatarUrl || '';
+
+    // --- FEATURE 12: Global search across all pubs ---
+    const searchResults = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        if (q.length < 2) return [];
+        return pubs
+            .filter(p => p.name?.toLowerCase().includes(q) || p.location?.toLowerCase().includes(q))
+            .slice(0, 8)
+            .map(p => ({ ...p, isVisited: p.status === 'visited' }));
+    }, [searchQuery, pubs]);
+
+    useEffect(() => {
+        if (showSearch) setTimeout(() => searchInputRef.current?.focus(), 50);
+        else setSearchQuery('');
+    }, [showSearch]);
+
+    useEffect(() => {
+        const handler = (e) => { if (e.key === 'Escape') setShowSearch(false); };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, []);
+
+    const handleSignOut = async () => {
+        try { await auth.signOut(); }
+        catch (e) { console.error('Error signing out', e); }
+    };
+
     const NavButton = ({ name, targetPage, icon }) => {
         const isActive = page === targetPage;
         return (
             <button
                 onClick={() => setPage(targetPage)}
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 whitespace-nowrap ${
-                    isActive 
-                    ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-sm transform scale-[1.02]" 
-                    : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
+                    isActive
+                        ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-sm transform scale-[1.02]'
+                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
                 }`}
             >
                 <span className="text-base">{icon}</span>
@@ -23,134 +55,123 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
             </button>
         );
     };
-    
-    const displayName = userProfile?.nickname || userProfile?.displayName || user?.email || "User";
-    const avatarUrl = userProfile?.avatarUrl || "";
-    
-    const handleSignOut = async () => {
-        try { await auth.signOut(); } 
-        catch (e) { console.error("Error signing out", e); }
-    };
-    
+
+    // --- FEATURE 20: Bottom nav items (mobile) ---
+    const bottomNavItems = [
+        { icon: '📊', label: 'Dashboard', page: 'dashboard' },
+        { icon: '🍻', label: 'Pubs', page: 'pubs' },
+        { icon: '🗺️', label: 'Map', page: 'map' },
+        { icon: '🏆', label: 'Rankings', page: 'leaderboard' },
+        { icon: '☰', label: 'More', page: '__more__' },
+    ];
+
     return (
         <>
+            {/* ── GLOBAL SEARCH OVERLAY (Feature 12) ── */}
+            {showSearch && (
+                <div className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm flex items-start justify-center pt-24 px-4" onClick={() => setShowSearch(false)}>
+                    <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-200 dark:border-gray-700 overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                            <span className="text-xl">🔍</span>
+                            <input
+                                ref={searchInputRef}
+                                type="text"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                placeholder="Search pubs by name or location..."
+                                className="flex-1 bg-transparent text-gray-900 dark:text-white placeholder-gray-400 text-base focus:outline-none"
+                            />
+                            <button onClick={() => setShowSearch(false)} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-bold text-sm transition">ESC</button>
+                        </div>
+                        {searchQuery.length >= 2 && (
+                            <div className="max-h-80 overflow-y-auto">
+                                {searchResults.length === 0 ? (
+                                    <div className="px-4 py-8 text-center text-gray-400 text-sm">No pubs found for "{searchQuery}"</div>
+                                ) : (
+                                    searchResults.map(pub => (
+                                        <button
+                                            key={pub.id}
+                                            onClick={() => { setPage(pub.isVisited ? 'pubs' : 'toVisit'); setShowSearch(false); }}
+                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition text-left border-b border-gray-50 dark:border-gray-800 last:border-0"
+                                        >
+                                            {pub.photoURL ? (
+                                                <img src={pub.photoURL} alt={pub.name} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                                            ) : (
+                                                <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-lg flex-shrink-0">🍺</div>
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-bold text-gray-900 dark:text-white text-sm truncate">{pub.name}</p>
+                                                <p className="text-xs text-gray-500 truncate">{pub.location || 'No location'}</p>
+                                            </div>
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                                pub.isVisited ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                            }`}>
+                                                {pub.isVisited ? 'Visited' : 'To Visit'}
+                                            </span>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        )}
+                        {searchQuery.length < 2 && (
+                            <div className="px-4 py-6 text-center text-gray-400 text-sm">Type at least 2 characters to search</div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* ── HEADER ── */}
             <header className="sticky top-0 z-[100] bg-white/85 dark:bg-gray-900/85 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 mb-6 transition-colors duration-300">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    
-                    {/* Top Utility Bar */}
+
+                    {/* Top Bar */}
                     <div className="flex justify-between items-center h-16">
-                        
-                        {/* Logo & Branding */}
                         <div className="flex items-center gap-3 pr-4 min-w-0">
-                            <img 
-                                src="/favicon.svg" 
-                                alt="Logo" 
-                                className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm" 
-                                onError={(e) => e.target.style.display = 'none'} 
-                            />
+                            <img src="/favicon.svg" alt="Logo" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm" onError={e => e.target.style.display = 'none'} />
                             <div className="flex flex-col justify-center min-w-0">
-                                <h1 className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 tracking-tight truncate leading-tight">
-                                    Pub Ranker
-                                </h1>
-                                <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest truncate">
-                                    {groupName}
-                                </span>
+                                <h1 className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 tracking-tight truncate leading-tight">Pub Ranker</h1>
+                                <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest truncate">{groupName}</span>
                             </div>
                         </div>
 
                         {/* Desktop Controls */}
                         <div className="hidden md:flex items-center gap-2">
-                            
-                            {/* Admin & Staff Tools Moved Here */}
+                            {/* Feature 12: Search button */}
+                            <button onClick={() => setShowSearch(true)} className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400 transition" title="Search pubs">
+                                🔍
+                            </button>
                             {canManageGroup && (
-                                <button onClick={() => setPage('admin')} className={`p-2 rounded-full transition ${page === 'admin' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400'}`} title="Group Admin">
-                                    ⚙️
-                                </button>
+                                <button onClick={() => setPage('admin')} className={`p-2 rounded-full transition ${page === 'admin' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400'}`} title="Group Admin">⚙️</button>
                             )}
-                            
                             {isStaff && (
-                                <button onClick={() => setPage('superadmin')} className={`p-2 rounded-full transition ${page === 'superadmin' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400'}`} title="Staff Menu">
-                                    🛡️
-                                </button>
+                                <button onClick={() => setPage('superadmin')} className={`p-2 rounded-full transition ${page === 'superadmin' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400'}`} title="Staff Menu">🛡️</button>
                             )}
-
-                            <button onClick={() => setPage('business')} className="px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-xs font-black uppercase tracking-wider hover:opacity-80 transition shadow-sm ml-2">
-                               For Venues
-                                </button>
-
-                            {/* Separator if Admin tools are present */}
-                            {(canManageGroup || isStaff) && <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>}
-
-                            <button onClick={toggleDarkMode} className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400 transition" title="Toggle Theme">
-                                {isDarkMode ? '☀️' : '🌙'}
-                            </button>
-
-                            <button onClick={onSwitchGroup} className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400 transition flex items-center gap-1 text-sm font-semibold" title="Switch Group">
-                                🔄 <span className="hidden lg:inline">Switch</span>
-                            </button>
-                
-                            <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
-
-                            <button onClick={() => setShowProfile(true)} className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition group border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
+                            <button onClick={() => setPage('business')} className="px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full text-xs font-black uppercase tracking-wider hover:opacity-80 transition shadow-sm ml-2">For Venues</button>
+                            {(canManageGroup || isStaff) && <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1" />}
+                            <button onClick={toggleDarkMode} className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400 transition" title="Toggle Theme">{isDarkMode ? '☀️' : '🌙'}</button>
+                            <button onClick={onSwitchGroup} className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400 transition flex items-center gap-1 text-sm font-semibold" title="Switch Group">🔄 <span className="hidden lg:inline">Switch</span></button>
+                            <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1" />
+                            <button onClick={() => setShowProfile(true)} className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
                                 {avatarUrl ? (
                                     <img src={avatarUrl} alt="Avatar" className="w-7 h-7 rounded-full object-cover shadow-sm" />
                                 ) : (
-                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
-                                        {displayName.charAt(0).toUpperCase()}
-                                    </div>
+                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">{displayName.charAt(0).toUpperCase()}</div>
                                 )}
-                                <span className="font-semibold text-sm text-gray-700 dark:text-gray-200 truncate max-w-[100px]">
-                                    {displayName.split(' ')[0]}
-                                </span>
+                                <span className="font-semibold text-sm text-gray-700 dark:text-gray-200 truncate max-w-[100px]">{displayName.split(' ')[0]}</span>
                             </button>
-
-                            <button onClick={handleSignOut} className="p-2 rounded-full text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition ml-1" title="Log Out">
-                                🚪
-                            </button>
+                            <button onClick={handleSignOut} className="p-2 rounded-full text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition ml-1" title="Log Out">🚪</button>
                         </div>
 
                         {/* Mobile Controls */}
-                        <div className="md:hidden flex items-center gap-1.5">
+                        <div className="md:hidden flex items-center gap-2">
+                            <button onClick={() => setShowSearch(true)} className="p-2 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition" title="Search">🔍</button>
                             <button onClick={() => setShowProfile(true)} className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shadow-sm">
                                 {avatarUrl ? <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs">{displayName.charAt(0).toUpperCase()}</div>}
-                            </button>
-                            <button onClick={() => setIsNavOpen(!isNavOpen)} className="p-2 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-                                <span className="text-xl leading-none">{isNavOpen ? '✕' : '☰'}</span>
                             </button>
                         </div>
                     </div>
 
-                    {/* Mobile Dropdown Menu */}
-                    {isNavOpen && (
-                        <div className="md:hidden py-3 border-t border-gray-100 dark:border-gray-800 flex flex-col gap-1 animate-fadeIn">
-                            
-                            {/* Admin & Staff Tools inside Mobile Menu */}
-                            {canManageGroup && (
-                                <button onClick={() => { setPage('admin'); setIsNavOpen(false); }} className="w-full text-left px-4 py-2.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 font-semibold text-blue-700 dark:text-blue-400 text-sm flex items-center gap-2">
-                                    <span>⚙️</span> Group Admin
-                                </button>
-                            )}
-                            {isStaff && (
-                                <button onClick={() => { setPage('superadmin'); setIsNavOpen(false); }} className="w-full text-left px-4 py-2.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 font-semibold text-red-700 dark:text-red-400 text-sm flex items-center gap-2">
-                                    <span>🛡️</span> Staff Menu
-                                </button>
-                            )}
-
-                            {(canManageGroup || isStaff) && <div className="w-full h-px bg-gray-100 dark:bg-gray-800 my-1"></div>}
-
-                            <button onClick={() => { toggleDarkMode(); setIsNavOpen(false); }} className="w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 font-semibold text-gray-700 dark:text-gray-300 text-sm">
-                                {isDarkMode ? '☀️ Switch to Light Mode' : '🌙 Switch to Dark Mode'}
-                            </button>
-                            <button onClick={() => { onSwitchGroup(); setIsNavOpen(false); }} className="w-full text-left px-4 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 font-semibold text-gray-700 dark:text-gray-300 text-sm">
-                                🔄 Switch Group
-                            </button>
-                            <button onClick={handleSignOut} className="w-full text-left px-4 py-2.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 font-semibold text-red-600 dark:text-red-400 text-sm">
-                                🚪 Log Out
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Scrollable Navigation (Now exclusively for normal user views) */}
+                    {/* Scrollable Nav (desktop + tablet) */}
                     <div className="py-2.5 flex overflow-x-auto gap-1 hide-scrollbar items-center border-t border-gray-100 dark:border-gray-800/50">
                         <NavButton name="Dashboard" targetPage="dashboard" icon="📊" />
                         <NavButton name="Taproom" targetPage="taproom" icon="📱" />
@@ -166,12 +187,86 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                     </div>
                 </div>
             </header>
-            
+
+            {/* ── FEATURE 20: Mobile Bottom Navigation Bar ── */}
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-gray-200 dark:border-gray-800 safe-area-bottom">
+                <div className="flex items-stretch h-16">
+                    {bottomNavItems.map(item => {
+                        if (item.page === '__more__') {
+                            return (
+                                <button
+                                    key="more"
+                                    onClick={() => setIsNavOpen(!isNavOpen)}
+                                    className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
+                                        isNavOpen ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'
+                                    }`}
+                                >
+                                    <span className="text-xl leading-none">{isNavOpen ? '✕' : '☰'}</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider">More</span>
+                                </button>
+                            );
+                        }
+                        const isActive = page === item.page;
+                        return (
+                            <button
+                                key={item.page}
+                                onClick={() => { setPage(item.page); setIsNavOpen(false); }}
+                                className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
+                                    isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                }`}
+                            >
+                                <span className="text-xl leading-none">{item.icon}</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider">{item.label}</span>
+                                {isActive && <span className="absolute bottom-0 w-8 h-0.5 bg-blue-600 dark:bg-blue-400 rounded-full" />}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* More Menu — slides up above bottom nav */}
+                {isNavOpen && (
+                    <div className="absolute bottom-16 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shadow-2xl animate-fadeIn">
+                        <div className="grid grid-cols-3 gap-1 p-3">
+                            {[
+                                { icon: '📱', label: 'Taproom', page: 'taproom' },
+                                { icon: '🎯', label: 'Hit List', page: 'toVisit' },
+                                { icon: '📈', label: 'Insights', page: 'insights' },
+                                { icon: '📅', label: 'Events', page: 'events' },
+                                { icon: '🥊', label: 'Versus', page: 'individual' },
+                                { icon: '🎡', label: 'Spin', page: 'spin' },
+                                { icon: '💬', label: 'Feedback', page: 'feedback' },
+                                ...(canManageGroup ? [{ icon: '⚙️', label: 'Admin', page: 'admin' }] : []),
+                                ...(isStaff ? [{ icon: '🛡️', label: 'Staff', page: 'superadmin' }] : []),
+                            ].map(item => (
+                                <button
+                                    key={item.page}
+                                    onClick={() => { setPage(item.page); setIsNavOpen(false); }}
+                                    className="flex flex-col items-center gap-1 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                                >
+                                    <span className="text-2xl">{item.icon}</span>
+                                    <span className="text-[11px] font-bold text-gray-600 dark:text-gray-300">{item.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex gap-2 px-3 pb-3">
+                            <button onClick={() => { toggleDarkMode(); setIsNavOpen(false); }} className="flex-1 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-bold text-gray-700 dark:text-gray-300">{isDarkMode ? '☀️ Light' : '🌙 Dark'}</button>
+                            <button onClick={() => { onSwitchGroup(); setIsNavOpen(false); }} className="flex-1 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-bold text-gray-700 dark:text-gray-300">🔄 Switch</button>
+                            <button onClick={handleSignOut} className="flex-1 py-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 text-sm font-bold text-red-600 dark:text-red-400">🚪 Sign Out</button>
+                        </div>
+                    </div>
+                )}
+            </nav>
+
             <style dangerouslySetInnerHTML={{__html: `
                 .hide-scrollbar::-webkit-scrollbar { display: none; }
                 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+                .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+                /* Push page content above the bottom nav on mobile */
+                @media (max-width: 767px) {
+                    body { padding-bottom: 4.5rem; }
+                }
             `}} />
-        
+
             {showProfile && (
                 <ProfileModal user={user} userProfile={userProfile} db={db} groupId={groupId} onClose={() => setShowProfile(false)} scores={scores} pubs={pubs} />
             )}
@@ -181,67 +276,49 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
 
 function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pubs = [] }) {
     const sanitizeAvatarUrl = (value) => {
-        const trimmed = (value || "").trim();
-        if (!trimmed) return "";
+        const trimmed = (value || '').trim();
+        if (!trimmed) return '';
         try {
             const parsed = new URL(trimmed);
-            if (parsed.protocol === "https:" || parsed.protocol === "http:") {
-                return parsed.toString();
-            }
-        } catch (err) {
-            return "";
-        }
-        return "";
+            if (parsed.protocol === 'https:' || parsed.protocol === 'http:') return parsed.toString();
+        } catch { return ''; }
+        return '';
     };
 
-    const [nickname, setNickname] = useState(userProfile?.nickname || "");
-    const [avatarUrl, setAvatarUrl] = useState(sanitizeAvatarUrl(userProfile?.avatarUrl || ""));
-    const [bio, setBio] = useState(userProfile?.bio || "");
+    const [nickname, setNickname] = useState(userProfile?.nickname || '');
+    const [avatarUrl, setAvatarUrl] = useState(sanitizeAvatarUrl(userProfile?.avatarUrl || ''));
+    const [bio, setBio] = useState(userProfile?.bio || '');
     const [saving, setSaving] = useState(false);
-    
     const [gamification, setGamification] = useState({ badges: [] });
     const [crawlsCreated, setCrawlsCreated] = useState(0);
-    
+
     useEffect(() => {
         if (!db) return;
-        db.collection('global').doc('gamification').get().then(doc => {
-            if (doc.exists && doc.data()) {
-                setGamification(doc.data());
-            }
-        });
+        db.collection('global').doc('gamification').get().then(doc => { if (doc.exists && doc.data()) setGamification(doc.data()); });
     }, [db]);
 
     useEffect(() => {
         if (!db || !groupId || !user) return;
-        db.collection('crawls').where('groupId', '==', groupId).where('createdBy', '==', user.uid).get().then(snap => {
-            setCrawlsCreated(snap.size);
-        });
+        db.collection('crawls').where('groupId', '==', groupId).where('createdBy', '==', user.uid).get().then(snap => setCrawlsCreated(snap.size));
     }, [db, groupId, user]);
 
-    // SAFELY CALCULATE STATS
-    let pubsRated = new Set();
-    let perfectTens = 0;
-    let writtenReviews = 0;
-    
+    let pubsRated = new Set(); let perfectTens = 0; let writtenReviews = 0;
     const safeScores = scores || {};
     Object.values(safeScores).forEach(pubScores => {
-        const safePubScores = pubScores || {};
-        Object.values(safePubScores).forEach(critScores => {
-            const safeCritScores = Array.isArray(critScores) ? critScores : [];
-            const myScore = safeCritScores.find(s => s.userId === user?.uid);
-            if (myScore && myScore.value != null) {
+        Object.values(pubScores || {}).forEach(critScores => {
+            const myScore = (Array.isArray(critScores) ? critScores : []).find(s => s.userId === user?.uid);
+            if (myScore?.value != null) {
                 pubsRated.add(myScore.pubId);
                 if (myScore.type === 'scale' && myScore.value === 10) perfectTens++;
                 if (myScore.type === 'text' && myScore.value.toString().trim().length > 0) writtenReviews++;
             }
         });
     });
-
     const safePubs = Array.isArray(pubs) ? pubs : [];
     const pubsAdded = safePubs.filter(p => p.addedBy === user?.uid).length;
     const ratedCount = pubsRated.size;
 
-    const badges = gamification.badges && gamification.badges.length > 0 ? gamification.badges.map(b => {
+    const badges = gamification.badges?.length > 0 ? gamification.badges.map(b => {
         let earned = false;
         if (b.metric === 'rated') earned = ratedCount >= b.threshold;
         else if (b.metric === 'reviews') earned = writtenReviews >= b.threshold;
@@ -251,92 +328,64 @@ function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pu
         return { ...b, earned };
     }) : [
         { emoji: '🍻', title: 'First Pint', desc: 'Rated your first pub', earned: ratedCount >= 1 },
-        { emoji: '🥇', title: 'Gold Pint', desc: 'Rated 20+ pubs', earned: ratedCount >= 20 }
+        { emoji: '🥇', title: 'Gold Pint', desc: 'Rated 20+ pubs', earned: ratedCount >= 20 },
     ];
 
     const handleSave = async (e) => {
         e.preventDefault();
-        if(!user?.uid) return;
+        if (!user?.uid) return;
         setSaving(true);
-
-        let safeAvatarUrl = avatarUrl.trim();
-        if (safeAvatarUrl && !safeAvatarUrl.startsWith('http://') && !safeAvatarUrl.startsWith('https://')) {
-            alert("Avatar URL must start with http:// or https://");
-            setSaving(false);
-            return;
-        }
-
+        let safeUrl = avatarUrl.trim();
+        if (safeUrl && !safeUrl.startsWith('http://') && !safeUrl.startsWith('https://')) { alert('Avatar URL must start with http:// or https://'); setSaving(false); return; }
         try {
-            await db.collection("users").doc(user.uid).update({
+            await db.collection('users').doc(user.uid).update({
                 nickname: nickname.trim() || firebase.firestore.FieldValue.delete(),
-                avatarUrl: safeAvatarUrl || firebase.firestore.FieldValue.delete(),
+                avatarUrl: safeUrl || firebase.firestore.FieldValue.delete(),
                 bio: bio.trim() || firebase.firestore.FieldValue.delete(),
             });
-            setTimeout(() => { onClose(); }, 500);
-        } catch (e) { console.error(e); } 
-        finally { setSaving(false); }
+            setTimeout(() => onClose(), 500);
+        } catch (e) { console.error(e); } finally { setSaving(false); }
     };
-    
+
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
             <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-3xl shadow-2xl max-w-md w-full border border-gray-100 dark:border-gray-800 relative max-h-[90vh] overflow-y-auto">
                 <button onClick={onClose} className="absolute top-5 right-5 w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition">✕</button>
-
                 <h3 className="text-xl font-black text-gray-900 dark:text-white mb-6">Edit Profile</h3>
-        
                 <form onSubmit={handleSave} className="space-y-4 mb-8 border-b border-gray-100 dark:border-gray-800 pb-8">
                     <div className="flex items-center gap-4 mb-2">
                         {avatarUrl ? (
-                            <img src={avatarUrl} alt="Preview" className="w-14 h-14 rounded-full object-cover shadow-sm border-2 border-white dark:border-gray-800" onError={(e) => { e.target.style.display = "none"; }} />
+                            <img src={avatarUrl} alt="Preview" className="w-14 h-14 rounded-full object-cover shadow-sm border-2 border-white dark:border-gray-800" onError={e => e.target.style.display = 'none'} />
                         ) : (
-                            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xl font-black shadow-sm">
-                                {(userProfile?.displayName || user?.email || "U").charAt(0).toUpperCase()}
-                            </div>
+                            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xl font-black shadow-sm">{(userProfile?.displayName || user?.email || 'U').charAt(0).toUpperCase()}</div>
                         )}
                         <div>
                             <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-0.5">Account Email</label>
                             <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 truncate max-w-[200px]">{user?.email}</p>
                         </div>
                     </div>
-            
                     <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Display Name</label>
-                        <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
+                        <input type="text" value={nickname} onChange={e => setNickname(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
                     </div>
-            
                     <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Avatar URL</label>
-                        <input type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(sanitizeAvatarUrl(e.target.value))} placeholder="https://..." className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
+                        <input type="text" value={avatarUrl} onChange={e => setAvatarUrl(sanitizeAvatarUrl(e.target.value))} placeholder="https://..." className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
                     </div>
-
                     <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Bio</label>
-                        <input type="text" value={bio} onChange={(e) => setBio(e.target.value)} maxLength="40" placeholder="e.g. Pale Ale Enthusiast" className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
+                        <input type="text" value={bio} onChange={e => setBio(e.target.value)} maxLength="40" placeholder="e.g. Pale Ale Enthusiast" className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
                     </div>
-            
                     <div className="pt-3">
-                        <button type="submit" disabled={saving} className="w-full py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition shadow-sm disabled:opacity-50">
-                            {saving ? "Saving..." : "Save Details"}
-                        </button>
+                        <button type="submit" disabled={saving} className="w-full py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition shadow-sm disabled:opacity-50">{saving ? 'Saving...' : 'Save Details'}</button>
                     </div>
                 </form>
-
                 <h4 className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 text-center">Your Stats</h4>
                 <div className="grid grid-cols-3 gap-2 mb-6">
-                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-2xl text-center">
-                        <p className="text-xl font-black text-gray-900 dark:text-white">{ratedCount}</p>
-                        <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">Rated</p>
-                    </div>
-                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-2xl text-center">
-                        <p className="text-xl font-black text-gray-900 dark:text-white">{writtenReviews}</p>
-                        <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">Reviews</p>
-                    </div>
-                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-2xl text-center">
-                        <p className="text-xl font-black text-gray-900 dark:text-white">{crawlsCreated}</p>
-                        <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">Crawls</p>
-                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-2xl text-center"><p className="text-xl font-black text-gray-900 dark:text-white">{ratedCount}</p><p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">Rated</p></div>
+                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-2xl text-center"><p className="text-xl font-black text-gray-900 dark:text-white">{writtenReviews}</p><p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">Reviews</p></div>
+                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-2xl text-center"><p className="text-xl font-black text-gray-900 dark:text-white">{crawlsCreated}</p><p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">Crawls</p></div>
                 </div>
-
                 <div>
                     <h4 className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 text-center">Trophy Cabinet</h4>
                     <div className="grid grid-cols-3 gap-2">
@@ -348,7 +397,6 @@ function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pu
                         ))}
                     </div>
                 </div>
-
             </div>
         </div>
     );
