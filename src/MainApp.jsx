@@ -6,7 +6,6 @@ import { LoadingScreen } from './App';
 import Header from './components/header';
 import OnboardingModal from './components/OnboardingModal';
 
-// --- FIX 4: Lazy load all pages so they are only downloaded when needed ---
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const MapPage = lazy(() => import('./pages/MapPage'));
 const PubsPage = lazy(() => import('./pages/PubsPage'));
@@ -37,6 +36,7 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
     const groupRef = useMemo(() => db.collection('groups').doc(groupId), [groupId, db]);
     const pubsRef = useMemo(() => groupRef.collection('pubs'), [groupRef]);
     const criteriaRef = useMemo(() => groupRef.collection('criteria'), [groupRef]);
+    // scores still uses onSnapshot so ratings update live for all users
     const scoresQuery = useMemo(() => db.collectionGroup('scores').where('groupId', '==', groupId), [groupId, db]);
 
     const [currentGroup, setCurrentGroup] = useState(null);
@@ -55,6 +55,9 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
         return isOwner || isManager;
     }, [currentGroup, user.uid]);
 
+    // --- FIX 2: group uses onSnapshot so group name/settings changes reflect live,
+    //            but pubs and criteria use one-time .get() — they rarely change mid-session.
+    //            Users can refresh to pick up new pubs added by others.
     useEffect(() => {
         const unsubscribe = groupRef.onSnapshot((doc) => {
             if (doc.exists) setCurrentGroup({ id: doc.id, ...doc.data() });
@@ -65,22 +68,24 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
 
     useEffect(() => {
         setDataLoading(true);
-        const unsubscribe = pubsRef.onSnapshot((snapshot) => {
+        pubsRef.get().then((snapshot) => {
             setPubs(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
             setDataLoading(false);
-        }, (error) => { console.error("Error fetching pubs:", error); setDataLoading(false); });
-        return unsubscribe;
+        }).catch((error) => {
+            console.error("Error fetching pubs:", error);
+            setDataLoading(false);
+        });
     }, [pubsRef]);
 
     useEffect(() => {
-        const unsubscribe = criteriaRef.onSnapshot((snapshot) => {
+        criteriaRef.get().then((snapshot) => {
             let criteriaData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
             criteriaData.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
             setCriteria(criteriaData);
-        }, (error) => console.error("Error fetching criteria:", error));
-        return unsubscribe;
+        }).catch((error) => console.error("Error fetching criteria:", error));
     }, [criteriaRef]);
 
+    // scores stays real-time so ratings from other group members appear immediately
     useEffect(() => {
         const unsubscribe = scoresQuery.onSnapshot((snapshot) => {
             const scoresData = {};
@@ -164,6 +169,9 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
             await pubsRef.doc(pubId).update({
                 name, location, lat: parseFloat(lat) || null, lng: parseFloat(lng) || null, photoURL: photoURL || "", googleLink: googleLink || "", tags 
             });
+            // Refresh pubs list after an edit so the UI stays consistent
+            const snapshot = await pubsRef.get();
+            setPubs(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
             setEditingPub(null);
             setPage('pubs');
         } catch (e) {
@@ -178,7 +186,12 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
     }, [navigate]);
 
     const handlePromotePub = useCallback(async (pubId) => {
-        try { await pubsRef.doc(pubId).update({ status: 'visited' }); } 
+        try {
+            await pubsRef.doc(pubId).update({ status: 'visited' });
+            // Refresh pubs list so promoted pub moves to visited immediately
+            const snapshot = await pubsRef.get();
+            setPubs(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        } 
         catch (e) { console.error("Error promoting pub:", e); }
     }, [pubsRef]);
 
@@ -196,7 +209,6 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
             )}
             <Header user={user} page={page} setPage={setPage} canManageGroup={canManageGroup} groupName={currentGroup?.groupName || 'My Pub Group'} onSwitchGroup={handleSwitchGroup} auth={auth} db={db} userProfile={userProfile} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} scores={scores} pubs={pubs} criteria={activeCriteria} groupId={groupId} />
 
-            {/* Suspense catches lazy-loaded pages while they download */}
             <Suspense fallback={<LoadingScreen text="Loading page..." />}>
                 <Routes>
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
