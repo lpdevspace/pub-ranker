@@ -14,8 +14,6 @@ export default function EditPubView({ pub, onBack, onSave }) {
     const [photoURL, setPhotoURL] = useState("");
     const [googleLink, setGoogleLink] = useState("");
     const [tags, setTags] = useState([]);
-    
-    // --- NEW: LOCK STATE ---
     const [isLocked, setIsLocked] = useState(false);
 
     useEffect(() => {
@@ -27,7 +25,7 @@ export default function EditPubView({ pub, onBack, onSave }) {
             setPhotoURL(pub.photoURL || "");
             setGoogleLink(pub.googleLink || "");
             setTags(Array.isArray(pub.tags) ? pub.tags : []);
-            setIsLocked(pub.isLocked || false); // Catch the lock!
+            setIsLocked(pub.isLocked || false);
         }
     }, [pub]);
 
@@ -43,7 +41,6 @@ export default function EditPubView({ pub, onBack, onSave }) {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!pub || !pub.id) return; 
-        
         const finalTags = Array.isArray(tags) ? tags : [];
         onSave(pub.id, name, location, lat, lng, photoURL, googleLink, finalTags);
     };
@@ -53,10 +50,8 @@ export default function EditPubView({ pub, onBack, onSave }) {
             <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md mx-auto text-center border border-gray-200 dark:border-gray-700 mt-12 animate-fadeIn">
                 <span className="text-5xl mb-4 block">🍺</span>
                 <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Loading Pub...</h2>
-                <p className="text-gray-500 dark:text-gray-400 mb-6">If this takes too long, the data may have been lost. Please go back and try again.</p>
-                <button onClick={onBack} className="bg-brand text-white font-bold px-6 py-2 rounded-xl shadow hover:bg-blue-700 transition">
-                    Back to Directory
-                </button>
+                <p className="text-gray-500 dark:text-gray-400 mb-6">If this takes too long, please go back and try again.</p>
+                <button onClick={onBack} className="bg-amber-600 text-white font-bold px-6 py-2 rounded-xl shadow hover:bg-amber-700 transition">Back to Directory</button>
             </div>
         );
     }
@@ -64,9 +59,8 @@ export default function EditPubView({ pub, onBack, onSave }) {
     return (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl max-w-2xl mx-auto border border-gray-200 dark:border-gray-700 animate-fadeIn relative overflow-hidden">
             
-            {/* --- NEW: THE LOCK BANNER --- */}
             {isLocked && (
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 -mx-6 -mt-6 mb-6 flex items-center justify-center gap-2 shadow-md">
+                <div className="bg-amber-700 text-white p-3 -mx-6 -mt-6 mb-6 flex items-center justify-center gap-2 shadow-md">
                     <span className="text-xl">🔒</span>
                     <p className="font-bold text-sm tracking-wide">This pub is officially verified. Core details are locked.</p>
                 </div>
@@ -78,62 +72,58 @@ export default function EditPubView({ pub, onBack, onSave }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Pub Name</label>
-                        <input type="text" value={name} onChange={(e) => setName(e.target.value)} disabled={isLocked} placeholder="e.g. The Red Lion" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" required />
+                        <input type="text" value={name} onChange={(e) => setName(e.target.value)} disabled={isLocked} placeholder="e.g. The Red Lion" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" required />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">City / Area</label>
-                        <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} disabled={isLocked} placeholder="e.g. London" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" required />
+                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Location / Town</label>
+                        <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} disabled={isLocked} placeholder="e.g. Wolverhampton" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" />
                     </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Latitude</label>
-                        <input type="number" step="0.0000001" value={lat} onChange={(e) => setLat(e.target.value)} disabled={isLocked} placeholder="51.5074" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" />
+                        <input type="number" step="any" value={lat} onChange={(e) => setLat(e.target.value)} disabled={isLocked} placeholder="52.5" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Longitude</label>
-                        <input type="number" step="0.0000001" value={lng} onChange={(e) => setLng(e.target.value)} disabled={isLocked} placeholder="-0.1278" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" />
+                        <input type="number" step="any" value={lng} onChange={(e) => setLng(e.target.value)} disabled={isLocked} placeholder="-2.1" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" />
                     </div>
                 </div>
 
                 <div>
                     <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Photo URL</label>
-                    <input type="url" value={photoURL} onChange={(e) => setPhotoURL(e.target.value)} disabled={isLocked} placeholder="https://..." className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" />
-                </div>
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Google Maps Link</label>
-                    <input type="url" value={googleLink} onChange={(e) => setGoogleLink(e.target.value)} disabled={isLocked} placeholder="https://maps.app.goo.gl/..." className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" />
+                    <input type="url" value={photoURL} onChange={(e) => setPhotoURL(e.target.value)} placeholder="https://..." className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-gray-50 dark:bg-gray-700 dark:text-white" />
                 </div>
 
-                <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                    <label className="block text-sm font-bold text-gray-800 dark:text-white mb-3">Amenities & Features</label>
-                    <p className="text-xs text-gray-500 mb-3 italic">You can update amenities even if the pub is verified.</p>
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Google Maps Link</label>
+                    <input type="url" value={googleLink} onChange={(e) => setGoogleLink(e.target.value)} disabled={isLocked} placeholder="https://maps.google.com/..." className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" />
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Amenities / Tags</label>
                     <div className="flex flex-wrap gap-2">
-                        {AVAILABLE_TAGS.map(tag => {
-                            const isSelected = tags.includes(tag);
-                            return (
-                                <button
-                                    key={tag}
-                                    type="button"
-                                    onClick={() => handleToggleTag(tag)}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
-                                        isSelected 
-                                        ? 'bg-blue-100 border-blue-300 text-blue-800 dark:bg-blue-900/40 dark:border-blue-700 dark:text-blue-300 shadow-sm transform scale-105' 
-                                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100 dark:bg-gray-700/50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-600'
-                                    }`}
-                                >
-                                    {tag}
-                                </button>
-                            );
-                        })}
+                        {AVAILABLE_TAGS.map(tag => (
+                            <button
+                                key={tag}
+                                type="button"
+                                onClick={() => handleToggleTag(tag)}
+                                className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition-all ${
+                                    tags.includes(tag)
+                                        ? 'bg-amber-600 border-amber-600 text-white shadow-sm'
+                                        : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-amber-400'
+                                }`}
+                            >
+                                {tag}
+                            </button>
+                        ))}
                     </div>
                 </div>
-        
-                <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <button type="submit" className="flex-1 bg-brand text-white py-3 rounded-xl font-black hover:opacity-80 transition shadow-md">
-                        Save Changes
-                    </button>
-                    <button type="button" onClick={onBack} className="flex-1 bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-white py-3 rounded-xl font-bold hover:bg-gray-300 dark:hover:bg-gray-600 transition">
-                        Cancel
-                    </button>
+
+                <div className="flex gap-3 pt-2">
+                    <button type="button" onClick={onBack} className="flex-1 py-3 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition">Cancel</button>
+                    <button type="submit" className="flex-1 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black transition shadow-md">Save Changes</button>
                 </div>
             </form>
         </div>
