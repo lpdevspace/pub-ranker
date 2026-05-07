@@ -39,7 +39,7 @@ export default function TaproomPage({ db, groupId, pubs, allUsers, criteria }) {
     return (
         <div className="max-w-2xl mx-auto space-y-6 animate-fadeIn pb-20">
             <div>
-                <h2 className="text-3xl font-black text-gray-800 dark:text-white">The Taproom</h2>
+                <h2 className="text-3xl font-black text-gray-800 dark:text-white">🍺 The Taproom</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Live activity and recent ratings from the group.</p>
             </div>
 
@@ -57,56 +57,39 @@ export default function TaproomPage({ db, groupId, pubs, allUsers, criteria }) {
                         const avatarUrl = getUserAvatar(activity.userId, allUsers);
                         const pub = getPub(activity.pubId);
                         const time = activity.timestamp?.toDate ? activity.timestamp.toDate().toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : 'Just now';
-                        const scaleRatings = activity.ratings.filter(r => r.type === 'scale' && r.value !== null);
-                        const avgScore = scaleRatings.length > 0
-                            ? (scaleRatings.reduce((sum, r) => sum + r.value, 0) / scaleRatings.length).toFixed(1)
-                            : null;
 
                         return (
-                            <div key={activity.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 overflow-hidden">
-                                <div className="p-4 flex items-center justify-between border-b border-gray-50 dark:border-gray-700/50">
-                                    <div className="flex items-center gap-3">
-                                        {avatarUrl ? (
-                                            <img src={avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-600" />
-                                        ) : (
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
-                                                {displayName.charAt(0).toUpperCase()}
-                                            </div>
-                                        )}
-                                        <div>
-                                            <p className="font-bold text-gray-900 dark:text-white leading-tight">{displayName}</p>
-                                            <p className="text-xs text-gray-500">Rated <span className="font-bold text-brand">{pub.name}</span></p>
-                                        </div>
+                            <div key={activity.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                                {/* Activity Header */}
+                                <div className="flex items-center gap-3 p-4 border-b border-gray-100 dark:border-gray-700">
+                                    {avatarUrl
+                                        ? <img src={avatarUrl} alt={displayName} className="w-10 h-10 rounded-full object-cover" />
+                                        : <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white font-bold">{displayName[0]?.toUpperCase()}</div>
+                                    }
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-bold text-gray-800 dark:text-white text-sm truncate">{displayName}</p>
+                                        <p className="text-xs text-gray-400 dark:text-gray-500">rated <span className="font-semibold text-gray-600 dark:text-gray-300">{pub.name}</span> · {time}</p>
                                     </div>
-                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{time}</span>
+                                    {pub.photoURL && <img src={pub.photoURL} alt={pub.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />}
                                 </div>
-                                <div className="p-4 flex flex-col md:flex-row gap-4">
-                                    {pub.photoURL && (
-                                        <img src={pub.photoURL} alt={pub.name} className="w-full md:w-32 h-32 object-cover rounded-xl shadow-sm" />
-                                    )}
-                                    <div className="flex-1 space-y-3">
-                                        {avgScore && (
-                                            <div className="inline-flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/50">
-                                                <span className="text-xl">⭐</span>
-                                                <span className="font-black text-blue-700 dark:text-blue-400 text-lg">{avgScore}/10 Average</span>
-                                            </div>
-                                        )}
-                                        {activity.textReview && (
-                                            <div className="relative">
-                                                <span className="absolute -top-2 -left-2 text-3xl text-gray-200 dark:text-gray-700 font-serif">"</span>
-                                                <p className="italic text-gray-700 dark:text-gray-300 font-medium pl-4 z-10 relative">{activity.textReview}</p>
-                                            </div>
-                                        )}
-                                        <div className="flex flex-wrap gap-2 pt-2">
-                                            {activity.ratings.slice(0, 4).map(r => (
-                                                <span key={r.id} className="text-[10px] bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded font-bold uppercase tracking-wider">
-                                                    {getCriterionName(r.criterionId)}: <span className="text-brand ml-1">{r.type === 'yes-no' ? (r.value ? 'Yes' : 'No') : r.value}</span>
-                                                </span>
-                                            ))}
-                                            {activity.ratings.length > 4 && <span className="text-xs text-gray-400 font-bold">+{activity.ratings.length - 4} more</span>}
-                                        </div>
+
+                                {/* Ratings */}
+                                {activity.ratings.length > 0 && (
+                                    <div className="px-4 py-3 flex flex-wrap gap-2">
+                                        {activity.ratings.map((r, i) => (
+                                            <span key={i} className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-xs font-bold px-2.5 py-1 rounded-full">
+                                                {getCriterionName(r.criterionId)}: <span className="tabular-nums">{r.value}</span>
+                                            </span>
+                                        ))}
                                     </div>
-                                </div>
+                                )}
+
+                                {/* Text Review */}
+                                {activity.textReview && (
+                                    <div className="px-4 pb-4">
+                                        <p className="text-sm text-gray-600 dark:text-gray-300 italic border-l-2 border-amber-300 dark:border-amber-700 pl-3">"{activity.textReview}"</p>
+                                    </div>
+                                )}
                             </div>
                         );
                     })}
