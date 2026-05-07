@@ -2,16 +2,16 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Chart from 'chart.js/auto';
 import 'leaflet/dist/leaflet.css';
 
-// ── Amber score tier colours ──────────────────────────────────────────────────
-// 8.5+  → amber-600  (the best)
-// 7–8.4 → amber-400  (solid)
-// 5–6.9 → yellow-500 (average)
-// <5    → red-400    (below par)
+// ── Score tier colours using brand palette ──────────────────────────────────
+// 8.5+ → brand primary (best)
+// 7–8.4 → amber gold
+// 5–6.9 → yellow
+// <5   → red
 const scoreTierBg = (score) => {
-    if (score >= 8.5) return 'rgba(217,119,6,0.85)';   // amber-600
-    if (score >= 7)   return 'rgba(251,191,36,0.85)';  // amber-400
-    if (score >= 5)   return 'rgba(234,179,8,0.75)';   // yellow-500
-    return 'rgba(239,68,68,0.75)';                      // red-400
+    if (score >= 8.5) return 'rgba(180,100,20,0.85)';
+    if (score >= 7)   return 'rgba(210,155,30,0.85)';
+    if (score >= 5)   return 'rgba(234,179,8,0.75)';
+    return 'rgba(180,40,40,0.75)';
 };
 
 export function HorizontalBarChart({ data }) {
@@ -46,17 +46,23 @@ export function StatCard({ title, value, subValue, onClick }) {
     return (
         <div
             onClick={onClick}
-            className={`bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 transition-all duration-300 ${
-                onClick ? 'cursor-pointer hover:shadow-md hover:border-amber-400 dark:hover:border-amber-500 hover:-translate-y-1' : ''
-            }`}
+            style={{
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-lg)',
+                padding: 'var(--space-4)',
+                boxShadow: 'var(--shadow-sm)',
+                transition: 'all var(--transition-interactive)',
+                cursor: onClick ? 'pointer' : 'default',
+            }}
+            onMouseEnter={e => { if (onClick) { e.currentTarget.style.boxShadow = 'var(--shadow-md)'; e.currentTarget.style.borderColor = 'var(--color-brand)'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
+            onMouseLeave={e => { if (onClick) { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.transform = 'none'; } }}
         >
-            <h3 className={`text-sm font-bold uppercase tracking-wider truncate ${
-                onClick ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'
-            }`}>
+            <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: onClick ? 'var(--color-brand)' : 'var(--color-text-muted)', marginBottom: 'var(--space-1)' }}>
                 {title} {onClick && '↗'}
             </h3>
-            <p className="text-3xl font-black text-gray-900 dark:text-white truncate mt-1">{value}</p>
-            {subValue && <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1">{subValue}</p>}
+            <p style={{ fontSize: 'var(--text-2xl)', fontWeight: 900, color: 'var(--color-text)', marginTop: 'var(--space-1)' }}>{value}</p>
+            {subValue && <p style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>{subValue}</p>}
         </div>
     );
 }
@@ -87,17 +93,14 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
 
     useEffect(() => {
         if (!db || !groupId) return;
-
         const unsubSettings = db.collection('groups').doc(groupId).onSnapshot(doc => {
             if (doc.exists) setLivePubId(doc.data().livePubId || '');
         });
-
         const unsubCrawls = db.collection('crawls')
             .where('groupId', '==', groupId)
             .orderBy('createdAt', 'desc')
             .limit(5)
             .onSnapshot(snap => setRecentCrawls(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-
         const unsubEvents = db.collection('events')
             .where('groupId', '==', groupId)
             .orderBy('date', 'asc')
@@ -107,7 +110,6 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                     snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(e => e.date >= now).slice(0, 5)
                 );
             });
-
         return () => { unsubSettings(); unsubCrawls(); unsubEvents(); };
     }, [db, groupId]);
 
@@ -195,36 +197,36 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
 
             {/* ── First Quest Banner ── */}
             {user && !hasCompletedFirstQuest && (
-                <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl p-5 text-white shadow-xl relative overflow-hidden group border border-amber-400">
-                    <div className="relative z-10 flex items-center justify-between">
+                <div style={{ background: 'linear-gradient(135deg, var(--color-brand), var(--color-brand-dark))', borderRadius: 'var(--radius-xl)', padding: 'var(--space-5)', color: '#fff', boxShadow: 'var(--shadow-lg)', position: 'relative', overflow: 'hidden', border: '1px solid var(--color-brand-light)' }} className="group">
+                    <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div>
-                            <h3 className="font-black text-xl flex items-center gap-2 mb-1">
-                                <span className="text-2xl animate-bounce">🏆</span> Your First Quest
+                            <h3 style={{ fontWeight: 900, fontSize: 'var(--text-lg)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
+                                <span className="animate-bounce" style={{ fontSize: '1.5rem' }}>🏆</span> Your First Quest
                             </h3>
-                            <p className="text-sm font-medium opacity-90 max-w-md">
+                            <p style={{ fontSize: 'var(--text-sm)', fontWeight: 500, opacity: 0.9, maxWidth: '28rem' }}>
                                 Welcome to the crew! Head over to the Directory or Hit List and drop your very first rating to unlock the 'First Pint' badge.
                             </p>
                         </div>
                         <button
                             onClick={() => setPage('pubs')}
-                            className="hidden sm:block px-6 py-2 bg-white text-amber-700 font-black rounded-xl shadow-md hover:scale-105 transition-transform"
+                            className="hidden sm:block"
+                            style={{ padding: 'var(--space-2) var(--space-6)', background: '#fff', color: 'var(--color-brand-dark)', fontWeight: 900, borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', border: 'none', cursor: 'pointer' }}
                         >
                             Start Rating →
                         </button>
                     </div>
-                    {/* Warm glow */}
-                    <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-1000 pointer-events-none" />
+                    <div style={{ position: 'absolute', right: '-2.5rem', top: '-2.5rem', width: '10rem', height: '10rem', background: 'rgba(255,255,255,0.15)', borderRadius: '50%', filter: 'blur(2rem)', pointerEvents: 'none' }} />
                 </div>
             )}
 
             {/* ── Page heading ── */}
             <div>
-                <h2 className="text-3xl font-black text-gray-800 dark:text-white">Group Dashboard</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Your city's drinking analytics.</p>
+                <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}>Group Dashboard</h2>
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>Your city's drinking analytics.</p>
             </div>
 
             {/* ── Stat Cards ── */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4" style={{ gap: 'var(--space-4)' }}>
                 <StatCard title="Visited Pubs"    value={pubsArray.length}    onClick={() => setPage('pubs')} />
                 <StatCard title="Pubs to Visit"   value={newPubsArray.length} onClick={() => setPage('toVisit')} />
                 <StatCard title="Total Raters"    value={usersSize} />
@@ -238,16 +240,16 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
             </div>
 
             {/* ── Live Location Tracker ── */}
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden">
-                {livePubId && <div className="absolute inset-0 bg-amber-500 opacity-5 animate-pulse pointer-events-none" />}
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4 relative z-10">
-                    <div className="flex items-center gap-4">
-                        <div className={`text-4xl ${livePubId ? 'animate-bounce' : 'grayscale opacity-50'}`}>📍</div>
+            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-4)', boxShadow: 'var(--shadow-sm)', position: 'relative', overflow: 'hidden' }}>
+                {livePubId && <div style={{ position: 'absolute', inset: 0, background: 'var(--color-brand)', opacity: 0.04, pointerEvents: 'none' }} className="animate-pulse" />}
+                <div className="flex flex-col md:flex-row justify-between items-center" style={{ gap: 'var(--space-4)', position: 'relative', zIndex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+                        <div className={livePubId ? 'animate-bounce' : 'grayscale opacity-50'} style={{ fontSize: '2.5rem' }}>📍</div>
                         <div>
-                            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Current Group Location</h3>
+                            <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Current Group Location</h3>
                             {livePubId
-                                ? <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{pubsArray.find(p => p.id === livePubId)?.name || 'Unknown Pub'}</p>
-                                : <p className="text-lg font-bold text-gray-800 dark:text-gray-200">Not currently at a pub.</p>
+                                ? <p style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--color-brand)' }}>{pubsArray.find(p => p.id === livePubId)?.name || 'Unknown Pub'}</p>
+                                : <p style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text)' }}>Not currently at a pub.</p>
                             }
                         </div>
                     </div>
@@ -255,7 +257,10 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                         <select
                             value={livePubId}
                             onChange={handleSetLiveLocation}
-                            className="w-full md:w-64 px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-gray-50 dark:bg-gray-700 dark:text-white font-bold cursor-pointer shadow-sm"
+                            className="w-full md:w-64"
+                            style={{ padding: 'var(--space-3) var(--space-4)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-2)', color: 'var(--color-text)', fontWeight: 700, cursor: 'pointer', boxShadow: 'var(--shadow-sm)', outline: 'none' }}
+                            onFocus={e => e.target.style.borderColor = 'var(--color-brand)'}
+                            onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
                         >
                             <option value="">🏠 Everyone went home</option>
                             <optgroup label="Active Pubs">
@@ -268,28 +273,28 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
 
             {/* ── Guinness Index ── */}
             {(cheapestPint || priciestPint) && (
-                <div className="bg-gradient-to-r from-amber-700 to-amber-500 p-1 rounded-2xl shadow-sm">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 flex flex-col md:flex-row justify-between items-center gap-6">
-                        <div className="flex items-center gap-4">
-                            <span className="text-5xl drop-shadow-md">🍺</span>
+                <div style={{ background: 'linear-gradient(135deg, var(--color-brand-dark), var(--color-brand))', padding: '3px', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-sm)' }}>
+                    <div style={{ background: 'var(--color-surface)', borderRadius: 'calc(var(--radius-xl) - 3px)', padding: 'var(--space-5)', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-6)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+                            <span style={{ fontSize: '3rem' }}>🍺</span>
                             <div>
-                                <h3 className="text-xl font-black text-gray-800 dark:text-white uppercase tracking-wider">The Guinness Index</h3>
-                                <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Tracking the exact price of a pint</p>
+                                <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: 'var(--color-text)', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--font-display)' }}>The Guinness Index</h3>
+                                <p style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-muted)' }}>Tracking the exact price of a pint</p>
                             </div>
                         </div>
-                        <div className="flex gap-8 w-full md:w-auto">
+                        <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
                             {cheapestPint && (
-                                <div className="flex-1 md:flex-none border-r border-gray-100 dark:border-gray-700 pr-8">
-                                    <p className="text-[11px] text-green-600 dark:text-green-400 font-black uppercase mb-1 tracking-wider">Cheapest Pint</p>
-                                    <p className="text-3xl font-black text-gray-900 dark:text-white">£{cheapestPint.avgPrice.toFixed(2)}</p>
-                                    <p className="text-sm font-bold text-gray-500 dark:text-gray-400 truncate max-w-[150px] mt-1">{cheapestPint.pub.name}</p>
+                                <div style={{ borderRight: '1px solid var(--color-divider)', paddingRight: 'var(--space-8)' }}>
+                                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-success)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 'var(--space-1)' }}>Cheapest Pint</p>
+                                    <p style={{ fontSize: 'var(--text-2xl)', fontWeight: 900, color: 'var(--color-text)' }}>£{cheapestPint.avgPrice.toFixed(2)}</p>
+                                    <p style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text-muted)', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 'var(--space-1)' }}>{cheapestPint.pub.name}</p>
                                 </div>
                             )}
                             {priciestPint && (
-                                <div className="flex-1 md:flex-none">
-                                    <p className="text-[11px] text-red-600 dark:text-red-400 font-black uppercase mb-1 tracking-wider">Priciest Pint</p>
-                                    <p className="text-3xl font-black text-gray-900 dark:text-white">£{priciestPint.avgPrice.toFixed(2)}</p>
-                                    <p className="text-sm font-bold text-gray-500 dark:text-gray-400 truncate max-w-[150px] mt-1">{priciestPint.pub.name}</p>
+                                <div>
+                                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-error)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 'var(--space-1)' }}>Priciest Pint</p>
+                                    <p style={{ fontSize: 'var(--text-2xl)', fontWeight: 900, color: 'var(--color-text)' }}>£{priciestPint.avgPrice.toFixed(2)}</p>
+                                    <p style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text-muted)', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 'var(--space-1)' }}>{priciestPint.pub.name}</p>
                                 </div>
                             )}
                         </div>
@@ -298,49 +303,42 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
             )}
 
             {/* ── Pub of the Month + Leaderboard Chart ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 'var(--space-6)' }}>
 
-                {/* Pub of the Month card — amber bordered */}
+                {/* Pub of the Month */}
                 <div
                     onClick={() => setPage('pubs')}
-                    className="bg-gradient-to-br from-amber-500 to-amber-700 p-[3px] rounded-2xl shadow-lg flex flex-col transition-all hover:-translate-y-1 hover:shadow-amber-500/30 duration-300 cursor-pointer group"
+                    style={{ background: 'linear-gradient(135deg, var(--color-brand), var(--color-brand-dark))', padding: '3px', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)', cursor: 'pointer', display: 'flex', flexDirection: 'column', transition: 'all var(--transition-interactive)' }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg), 0 8px 24px rgba(0,0,0,0.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }}
+                    className="group"
                 >
-                    <div className="bg-white dark:bg-gray-800 rounded-[13px] p-6 flex flex-col h-full relative overflow-hidden">
-                        {/* Soft warm glow */}
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse pointer-events-none" />
-
-                        <div className="flex justify-between items-center mb-4 relative z-10">
-                            <h3 className="text-sm font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-                                🔥 Pub of the Month
-                            </h3>
-                            <span className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">↗</span>
+                    <div style={{ background: 'var(--color-surface)', borderRadius: 'calc(var(--radius-xl) - 3px)', padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', overflow: 'hidden' }}>
+                        <div style={{ position: 'absolute', top: 0, right: 0, width: '8rem', height: '8rem', background: 'var(--color-brand-light)', borderRadius: '50%', filter: 'blur(2rem)', opacity: 0.15, pointerEvents: 'none' }} className="animate-pulse" />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)', position: 'relative', zIndex: 1 }}>
+                            <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: 'var(--color-brand)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>🔥 Pub of the Month</h3>
+                            <span style={{ color: 'var(--color-text-faint)', opacity: 0, transition: 'opacity var(--transition-interactive)' }} className="group-hover:opacity-100">↗</span>
                         </div>
-
                         {spotlightPub ? (
-                            <div className="flex-1 flex flex-col justify-center items-center text-center z-10">
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', zIndex: 1 }}>
                                 {spotlightPub.photoURL ? (
-                                    <img
-                                        src={spotlightPub.photoURL}
-                                        alt={spotlightPub.name}
-                                        className="w-24 h-24 rounded-full object-cover mb-4 border-4 border-amber-200 dark:border-amber-800 shadow-md group-hover:scale-105 transition-transform"
-                                        loading="lazy" width="96" height="96"
-                                    />
+                                    <img src={spotlightPub.photoURL} alt={spotlightPub.name}
+                                        style={{ width: '6rem', height: '6rem', borderRadius: '50%', objectFit: 'cover', marginBottom: 'var(--space-4)', border: '4px solid var(--color-brand-light)', boxShadow: 'var(--shadow-md)' }}
+                                        className="group-hover:scale-105 transition-transform" loading="lazy" width="96" height="96" />
                                 ) : (
-                                    <div className="text-6xl mb-4 drop-shadow-md group-hover:scale-105 transition-transform">👑</div>
+                                    <div style={{ fontSize: '4rem', marginBottom: 'var(--space-4)' }} className="group-hover:scale-105 transition-transform">👑</div>
                                 )}
-                                <p className="text-3xl font-black text-gray-900 dark:text-white mb-1 leading-tight">{spotlightPub.name}</p>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 font-semibold mb-6">📍 {spotlightPub.location}</p>
-
-                                {/* Score badge — amber tinted */}
-                                <div className="mt-auto bg-amber-50 dark:bg-amber-900/20 px-6 py-3 rounded-2xl border border-amber-200 dark:border-amber-800 shadow-sm w-full">
-                                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1">Group Rating</span>
-                                    <p className="text-3xl font-black text-amber-700 dark:text-amber-400">
-                                        {spotlightPub.avgScore.toFixed(1)}<span className="text-lg text-amber-300">/10</span>
+                                <p style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--color-text)', marginBottom: 'var(--space-1)', fontFamily: 'var(--font-display)', lineHeight: 1.2 }}>{spotlightPub.name}</p>
+                                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', fontWeight: 600, marginBottom: 'var(--space-6)' }}>📍 {spotlightPub.location}</p>
+                                <div style={{ marginTop: 'auto', background: 'var(--color-surface-offset)', padding: 'var(--space-3) var(--space-6)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', width: '100%', textAlign: 'center' }}>
+                                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 'var(--space-1)' }}>Group Rating</span>
+                                    <p style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--color-brand)' }}>
+                                        {spotlightPub.avgScore.toFixed(1)}<span style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-muted)' }}>/10</span>
                                     </p>
                                 </div>
                             </div>
                         ) : (
-                            <p className="text-gray-500 dark:text-gray-400 text-sm my-auto text-center italic">
+                            <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', margin: 'auto', textAlign: 'center', fontStyle: 'italic' }}>
                                 Rate a pub to see it crowned here.
                             </p>
                         )}
@@ -348,35 +346,33 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                 </div>
 
                 {/* Top 10 Chart */}
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 lg:col-span-2">
-                    <div className="flex justify-between items-end mb-4">
+                <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-6)', boxShadow: 'var(--shadow-sm)' }} className="lg:col-span-2">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'var(--space-4)' }}>
                         <div>
-                            <h3 className="text-lg font-bold text-gray-800 dark:text-white">The Top 10 Leaderboard</h3>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Colour-coded by quality tier.</p>
+                            <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text)' }}>The Top 10 Leaderboard</h3>
+                            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>Colour-coded by quality tier.</p>
                         </div>
                     </div>
-                    <div className="h-72"><HorizontalBarChart data={pubChartData} /></div>
+                    <div style={{ height: '18rem' }}><HorizontalBarChart data={pubChartData} /></div>
                 </div>
             </div>
 
             {/* ── Events + Activity Feed ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 'var(--space-6)' }}>
 
                 {/* Upcoming Events */}
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col lg:col-span-1">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-white">Upcoming Events</h3>
-                        <button onClick={() => setPage('events')} className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline">
-                            View All
-                        </button>
+                <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-6)', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column' }} className="lg:col-span-1">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-6)' }}>
+                        <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text)' }}>Upcoming Events</h3>
+                        <button onClick={() => setPage('events')} style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-brand)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>View All</button>
                     </div>
                     {upcomingEvents.length === 0 ? (
-                        <div className="text-center my-auto py-8">
-                            <span className="text-4xl mb-2 block opacity-50">📅</span>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">No events planned.</p>
+                        <div style={{ textAlign: 'center', margin: 'auto', padding: 'var(--space-8) 0' }}>
+                            <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: 'var(--space-2)', opacity: 0.5 }}>📅</span>
+                            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No events planned.</p>
                         </div>
                     ) : (
-                        <div className="space-y-4 overflow-y-auto pr-2">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', overflowY: 'auto', paddingRight: 'var(--space-2)' }}>
                             {upcomingEvents.map(event => {
                                 const eventDate = new Date(event.date);
                                 const pub = pubsArray.find(p => p.id === event.pubId);
@@ -384,17 +380,17 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                                     <div
                                         key={event.id}
                                         onClick={() => setPage('events')}
-                                        className="flex gap-3 items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-100 dark:border-gray-600 cursor-pointer hover:border-amber-400 dark:hover:border-amber-600 transition"
+                                        style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center', background: 'var(--color-surface-offset)', padding: 'var(--space-3)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', cursor: 'pointer', transition: 'border-color var(--transition-interactive)' }}
+                                        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-brand)'}
+                                        onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-border)'}
                                     >
-                                        <div className="bg-amber-600 text-white rounded-lg p-2 text-center min-w-[3rem] shadow-sm">
-                                            <p className="text-[10px] uppercase font-black leading-none">
-                                                {eventDate.toLocaleDateString(undefined, { month: 'short' })}
-                                            </p>
-                                            <p className="text-lg font-black leading-none mt-1">{eventDate.getDate()}</p>
+                                        <div style={{ background: 'var(--color-brand)', color: '#fff', borderRadius: 'var(--radius-md)', padding: 'var(--space-2)', textAlign: 'center', minWidth: '3rem', boxShadow: 'var(--shadow-sm)' }}>
+                                            <p style={{ fontSize: '0.625rem', textTransform: 'uppercase', fontWeight: 900, lineHeight: 1 }}>{eventDate.toLocaleDateString(undefined, { month: 'short' })}</p>
+                                            <p style={{ fontSize: 'var(--text-lg)', fontWeight: 900, lineHeight: 1, marginTop: 'var(--space-1)' }}>{eventDate.getDate()}</p>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="font-bold text-gray-800 dark:text-white truncate text-sm">{event.title}</h4>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">📍 {pub?.name || 'Unknown Pub'}</p>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <h4 style={{ fontWeight: 700, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'var(--text-sm)' }}>{event.title}</h4>
+                                            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {pub?.name || 'Unknown Pub'}</p>
                                         </div>
                                     </div>
                                 );
@@ -404,23 +400,23 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                 </div>
 
                 {/* Group Activity Feed */}
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col lg:col-span-2">
-                    <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Group Activity Feed</h3>
+                <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-6)', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column' }} className="lg:col-span-2">
+                    <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text)', marginBottom: 'var(--space-6)' }}>Group Activity Feed</h3>
                     {timelineItems.length === 0 ? (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center my-auto italic pb-6">No recent activity.</p>
+                        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', textAlign: 'center', margin: 'auto', fontStyle: 'italic', paddingBottom: 'var(--space-6)' }}>No recent activity.</p>
                     ) : (
-                        <div className="relative border-l-2 border-amber-100 dark:border-amber-900/30 ml-4 space-y-6 flex-1 overflow-y-auto pr-4 pb-2">
+                        <div style={{ position: 'relative', borderLeft: '2px solid var(--color-brand-light)', marginLeft: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', flex: 1, overflowY: 'auto', paddingRight: 'var(--space-4)', paddingBottom: 'var(--space-2)' }}>
                             {timelineItems.map(item => (
-                                <div key={item.id} className="relative pl-6 group">
-                                    <span className="absolute -left-[18px] top-1 bg-white dark:bg-gray-800 border-2 border-amber-200 dark:border-amber-800 rounded-full w-9 h-9 flex items-center justify-center text-lg shadow-sm group-hover:scale-110 transition-transform z-10">
+                                <div key={item.id} style={{ position: 'relative', paddingLeft: 'var(--space-6)' }} className="group">
+                                    <span style={{ position: 'absolute', left: '-18px', top: '0.25rem', background: 'var(--color-surface)', border: '2px solid var(--color-brand-light)', borderRadius: '50%', width: '2.25rem', height: '2.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-lg)', boxShadow: 'var(--shadow-sm)', zIndex: 1, transition: 'transform var(--transition-interactive)' }} className="group-hover:scale-110">
                                         {item.emoji}
                                     </span>
-                                    <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-600 shadow-sm hover:border-amber-200 dark:hover:border-amber-800 transition">
-                                        <div className="flex justify-between items-start mb-1">
-                                            <p className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">{item.title}</p>
-                                            <p className="text-[10px] text-gray-400 font-bold bg-white dark:bg-gray-800 px-2 py-0.5 rounded-full shadow-sm">{item.dateLabel}</p>
+                                    <div style={{ background: 'var(--color-surface-offset)', padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)', transition: 'border-color var(--transition-interactive)' }} className="hover:border-brand">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-1)' }}>
+                                            <p style={{ fontSize: 'var(--text-xs)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-brand)' }}>{item.title}</p>
+                                            <p style={{ fontSize: '0.625rem', color: 'var(--color-text-faint)', fontWeight: 700, background: 'var(--color-surface)', padding: '1px var(--space-2)', borderRadius: 'var(--radius-full)', boxShadow: 'var(--shadow-sm)' }}>{item.dateLabel}</p>
                                         </div>
-                                        <p className="text-gray-800 dark:text-white font-semibold text-sm">{item.text}</p>
+                                        <p style={{ color: 'var(--color-text)', fontWeight: 600, fontSize: 'var(--text-sm)' }}>{item.text}</p>
                                     </div>
                                 </div>
                             ))}

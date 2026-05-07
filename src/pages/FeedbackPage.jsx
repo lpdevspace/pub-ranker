@@ -13,10 +13,8 @@ export default function FeedbackPage({ db, user }) {
         setSubmitting(true);
         try {
             await db.collection('feedback').add({
-                type,
-                message: message.trim(),
-                userId: user.uid,
-                userEmail: user.email,
+                type, message: message.trim(),
+                userId: user.uid, userEmail: user.email,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             setSubmitted(true);
@@ -28,37 +26,49 @@ export default function FeedbackPage({ db, user }) {
 
     if (submitted) {
         return (
-            <div className="max-w-lg mx-auto text-center py-16 animate-fadeIn">
-                <div className="text-6xl mb-4">🍻</div>
-                <h2 className="text-3xl font-black text-gray-800 dark:text-white mb-2">Cheers!</h2>
-                <p className="text-gray-500 dark:text-gray-400">Your feedback has been sent. We really appreciate it.</p>
-                <button onClick={() => { setSubmitted(false); setMessage(''); }} className="mt-6 bg-amber-600 hover:bg-amber-700 text-white font-bold px-6 py-2 rounded-xl transition">Send More Feedback</button>
+            <div style={{ maxWidth: 'var(--content-narrow)', margin: '0 auto', textAlign: 'center', padding: 'var(--space-16) var(--space-4)' }} className="animate-fadeIn">
+                <div style={{ fontSize: '4rem', marginBottom: 'var(--space-4)' }}>🍻</div>
+                <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--color-text)', marginBottom: 'var(--space-2)', fontFamily: 'var(--font-display)' }}>Cheers!</h2>
+                <p style={{ color: 'var(--color-text-muted)' }}>Your feedback has been sent. We really appreciate it.</p>
+                <button
+                    onClick={() => { setSubmitted(false); setMessage(''); }}
+                    style={{ marginTop: 'var(--space-6)', background: 'var(--color-brand)', color: '#fff', fontWeight: 700, padding: 'var(--space-2) var(--space-6)', borderRadius: 'var(--radius-lg)', border: 'none', cursor: 'pointer', transition: 'background var(--transition-interactive)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--color-brand-dark)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'var(--color-brand)'}
+                >
+                    Send More Feedback
+                </button>
             </div>
         );
     }
 
+    const feedbackTypes = ['bug', 'feature', 'other'];
+
     return (
-        <div className="max-w-lg mx-auto animate-fadeIn">
-            <div className="mb-6">
-                <h2 className="text-3xl font-black text-gray-800 dark:text-white">💬 Feedback</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Got a bug, an idea, or just want to say something? We're listening.</p>
+        <div style={{ maxWidth: 'var(--content-narrow)', margin: '0 auto' }} className="animate-fadeIn">
+            <div style={{ marginBottom: 'var(--space-6)' }}>
+                <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}>💬 Feedback</h2>
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>Got a bug, an idea, or just want to say something? We're listening.</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 p-6 space-y-5">
+            <form onSubmit={handleSubmit} style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-md)', border: '1px solid var(--color-border)', padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
                 {/* Type Selector */}
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Type of Feedback</label>
-                    <div className="flex gap-2">
-                        {['bug', 'feature', 'other'].map(t => (
+                    <label style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)', marginBottom: 'var(--space-2)' }}>Type of Feedback</label>
+                    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                        {feedbackTypes.map(t => (
                             <button
-                                key={t}
-                                type="button"
-                                onClick={() => setType(t)}
-                                className={`flex-1 py-2 rounded-xl text-sm font-bold capitalize transition border ${
-                                    type === t
-                                        ? 'bg-amber-600 border-amber-600 text-white'
-                                        : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-amber-400'
-                                }`}
+                                key={t} type="button" onClick={() => setType(t)}
+                                style={{
+                                    flex: 1, padding: 'var(--space-2) 0', borderRadius: 'var(--radius-lg)',
+                                    fontSize: 'var(--text-sm)', fontWeight: 700, textTransform: 'capitalize',
+                                    border: '1px solid', cursor: 'pointer', transition: 'all var(--transition-interactive)',
+                                    background: type === t ? 'var(--color-brand)' : 'var(--color-surface-offset)',
+                                    borderColor: type === t ? 'var(--color-brand)' : 'var(--color-border)',
+                                    color: type === t ? '#fff' : 'var(--color-text-muted)'
+                                }}
+                                onMouseEnter={e => { if (type !== t) e.currentTarget.style.borderColor = 'var(--color-brand)'; }}
+                                onMouseLeave={e => { if (type !== t) e.currentTarget.style.borderColor = 'var(--color-border)'; }}
                             >
                                 {t === 'bug' ? '🐛 Bug' : t === 'feature' ? '✨ Feature' : '💬 Other'}
                             </button>
@@ -68,21 +78,23 @@ export default function FeedbackPage({ db, user }) {
 
                 {/* Message */}
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Your Message</label>
+                    <label style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)', marginBottom: 'var(--space-1)' }}>Your Message</label>
                     <textarea
-                        value={message}
-                        onChange={e => setMessage(e.target.value)}
+                        value={message} onChange={e => setMessage(e.target.value)}
                         placeholder={type === 'bug' ? 'Describe what happened and how to reproduce it...' : type === 'feature' ? 'Describe your idea...' : 'Tell us anything...'}
                         rows={5}
-                        className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
+                        style={{ width: '100%', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', outline: 'none', resize: 'none', fontSize: 'var(--text-base)', fontFamily: 'var(--font-body)' }}
+                        onFocus={e => e.target.style.borderColor = 'var(--color-brand)'}
+                        onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
                         required
                     />
                 </div>
 
                 <button
-                    type="submit"
-                    disabled={submitting || !message.trim()}
-                    className="w-full bg-amber-600 hover:bg-amber-700 text-white font-black py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    type="submit" disabled={submitting || !message.trim()}
+                    style={{ width: '100%', background: 'var(--color-brand)', color: '#fff', fontWeight: 900, padding: 'var(--space-3) 0', borderRadius: 'var(--radius-lg)', border: 'none', cursor: submitting || !message.trim() ? 'not-allowed' : 'pointer', opacity: submitting || !message.trim() ? 0.5 : 1, fontSize: 'var(--text-base)', transition: 'background var(--transition-interactive)' }}
+                    onMouseEnter={e => { if (!submitting && message.trim()) e.currentTarget.style.background = 'var(--color-brand-dark)'; }}
+                    onMouseLeave={e => e.currentTarget.style.background = 'var(--color-brand)'}
                 >
                     {submitting ? 'Sending...' : 'Send Feedback 🚀'}
                 </button>

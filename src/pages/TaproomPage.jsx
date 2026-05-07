@@ -37,21 +37,21 @@ export default function TaproomPage({ db, groupId, pubs, allUsers, criteria }) {
     const getCriterionName = (cid) => criteria.find(c => c.id === cid)?.name || 'Score';
 
     return (
-        <div className="max-w-2xl mx-auto space-y-6 animate-fadeIn pb-20">
+        <div style={{ maxWidth: '42rem', margin: '0 auto' }} className="space-y-6 animate-fadeIn pb-20">
             <div>
-                <h2 className="text-3xl font-black text-gray-800 dark:text-white">🍺 The Taproom</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Live activity and recent ratings from the group.</p>
+                <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}>🍺 The Taproom</h2>
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>Live activity and recent ratings from the group.</p>
             </div>
 
             {loading ? (
-                <div className="text-center py-12 animate-pulse text-gray-400">Pouring pints...</div>
+                <div style={{ textAlign: 'center', padding: 'var(--space-12) 0', color: 'var(--color-text-faint)' }} className="animate-pulse">Pouring pints...</div>
             ) : activities.length === 0 ? (
-                <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl text-center shadow-sm border border-gray-100 dark:border-gray-700">
-                    <span className="text-4xl mb-3 block">🦗</span>
-                    <p className="text-gray-500 font-medium">It's quiet in here. Go rate some pubs!</p>
+                <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-8)', textAlign: 'center', boxShadow: 'var(--shadow-sm)' }}>
+                    <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: 'var(--space-3)' }}>🦗</span>
+                    <p style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>It's quiet in here. Go rate some pubs!</p>
                 </div>
             ) : (
-                <div className="space-y-6">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
                     {activities.map((activity) => {
                         const displayName = getUserDisplayName(activity.userId, allUsers);
                         const avatarUrl = getUserAvatar(activity.userId, allUsers);
@@ -59,26 +59,26 @@ export default function TaproomPage({ db, groupId, pubs, allUsers, criteria }) {
                         const time = activity.timestamp?.toDate ? activity.timestamp.toDate().toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : 'Just now';
 
                         return (
-                            <div key={activity.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                            <div key={activity.id} style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
                                 {/* Activity Header */}
-                                <div className="flex items-center gap-3 p-4 border-b border-gray-100 dark:border-gray-700">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: 'var(--space-4)', borderBottom: '1px solid var(--color-divider)' }}>
                                     {avatarUrl
-                                        ? <img src={avatarUrl} alt={displayName} className="w-10 h-10 rounded-full object-cover" />
-                                        : <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white font-bold">{displayName[0]?.toUpperCase()}</div>
+                                        ? <img src={avatarUrl} alt={displayName} style={{ width: '2.5rem', height: '2.5rem', borderRadius: '50%', objectFit: 'cover' }} />
+                                        : <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-brand), var(--color-brand-dark))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700 }}>{displayName[0]?.toUpperCase()}</div>
                                     }
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-bold text-gray-800 dark:text-white text-sm truncate">{displayName}</p>
-                                        <p className="text-xs text-gray-400 dark:text-gray-500">rated <span className="font-semibold text-gray-600 dark:text-gray-300">{pub.name}</span> · {time}</p>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <p style={{ fontWeight: 700, color: 'var(--color-text)', fontSize: 'var(--text-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</p>
+                                        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)' }}>rated <span style={{ fontWeight: 600, color: 'var(--color-text-muted)' }}>{pub.name}</span> · {time}</p>
                                     </div>
-                                    {pub.photoURL && <img src={pub.photoURL} alt={pub.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />}
+                                    {pub.photoURL && <img src={pub.photoURL} alt={pub.name} style={{ width: '3rem', height: '3rem', borderRadius: 'var(--radius-lg)', objectFit: 'cover', flexShrink: 0 }} />}
                                 </div>
 
                                 {/* Ratings */}
                                 {activity.ratings.length > 0 && (
-                                    <div className="px-4 py-3 flex flex-wrap gap-2">
+                                    <div style={{ padding: 'var(--space-3) var(--space-4)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
                                         {activity.ratings.map((r, i) => (
-                                            <span key={i} className="inline-flex items-center gap-1 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-xs font-bold px-2.5 py-1 rounded-full">
-                                                {getCriterionName(r.criterionId)}: <span className="tabular-nums">{r.value}</span>
+                                            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)', background: 'var(--color-brand-highlight)', color: 'var(--color-brand)', fontSize: 'var(--text-xs)', fontWeight: 700, padding: 'var(--space-1) var(--space-2)', borderRadius: 'var(--radius-full)' }}>
+                                                {getCriterionName(r.criterionId)}: <span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.value}</span>
                                             </span>
                                         ))}
                                     </div>
@@ -86,8 +86,8 @@ export default function TaproomPage({ db, groupId, pubs, allUsers, criteria }) {
 
                                 {/* Text Review */}
                                 {activity.textReview && (
-                                    <div className="px-4 pb-4">
-                                        <p className="text-sm text-gray-600 dark:text-gray-300 italic border-l-2 border-amber-300 dark:border-amber-700 pl-3">"{activity.textReview}"</p>
+                                    <div style={{ padding: '0 var(--space-4) var(--space-4)' }}>
+                                        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', fontStyle: 'italic', borderLeft: '2px solid var(--color-brand-light)', paddingLeft: 'var(--space-3)' }}>"{ activity.textReview}"</p>
                                     </div>
                                 )}
                             </div>
