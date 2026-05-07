@@ -16,23 +16,20 @@ export default function SpinTheWheelPage({ pubs, criteria, scores }) {
     
     // Filters
     const [criterionId, setCriterionId] = useState('');
-    const [tagFilter, setTagFilter] = useState(''); // <-- NEW TAG FILTER
+    const [tagFilter, setTagFilter] = useState('');
     
     const [rotation, setRotation] = useState(0); 
     const canvasRef = useRef(null);
 
     const yesNoCriteria = criteria.filter(c => c.type === 'yes-no');
 
-    // --- FILTER LOGIC (UPDATED WITH TAGS) ---
     useEffect(() => {
-        // 1. Filter by Status (Visited / Hit List)
         let result = pubs.filter(pub => {
             const isVisited = pub.status === 'visited';
             const isToVisit = pub.status !== 'visited';
             return (includeVisited && isVisited) || (includeToVisit && isToVisit);
         });
 
-        // 2. Filter by Rating (Yes/No Criteria)
         if (criterionId) {
             result = result.filter(pub => {
                 const pubScores = scores[pub.id];
@@ -41,17 +38,13 @@ export default function SpinTheWheelPage({ pubs, criteria, scores }) {
             });
         }
 
-        // 3. Filter by Amenities (Tags)
         if (tagFilter) {
-            result = result.filter(pub => {
-                return Array.isArray(pub.tags) && pub.tags.includes(tagFilter);
-            });
+            result = result.filter(pub => Array.isArray(pub.tags) && pub.tags.includes(tagFilter));
         }
 
         setFilteredPubs(result);
     }, [pubs, scores, criteria, includeVisited, includeToVisit, criterionId, tagFilter]);
 
-    // --- DRAW THE WHEEL ---
     useEffect(() => {
         if (!canvasRef.current || filteredPubs.length === 0) return;
 
@@ -64,7 +57,7 @@ export default function SpinTheWheelPage({ pubs, criteria, scores }) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         const sliceAngle = (Math.PI * 2) / filteredPubs.length;
-        const colors = ['#3B82F6', '#8B5CF6', '#EC4899', '#EF4444', '#F59E0B', '#10B981', '#06B6D4'];
+        const colors = ['#b45309', '#d97706', '#f59e0b', '#92400e', '#fbbf24', '#78350f', '#fcd34d'];
 
         filteredPubs.forEach((pub, i) => {
             const startAngle = i * sliceAngle;
@@ -151,17 +144,16 @@ export default function SpinTheWheelPage({ pubs, criteria, scores }) {
     return (
         <div className="space-y-8 max-w-5xl mx-auto animate-fadeIn">
             <div className="text-center">
-                <h2 className="text-4xl font-black text-gray-800 dark:text-white mb-2 transition-colors">Spin the Wheel</h2>
+                <h2 className="text-4xl font-black text-gray-800 dark:text-white mb-2">Spin the Wheel</h2>
                 <p className="text-gray-500 dark:text-gray-400">Can't decide where to go? Let fate decide.</p>
             </div>
 
-            {/* --- CONTROLS (Updated to 3 columns) --- */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-colors duration-300">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-3">
                         <p className="font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider text-sm">Pool of Pubs</p>
                         <div className="flex flex-col xl:flex-row gap-3">
-                            <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all ${includeVisited ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+                            <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all ${includeVisited ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
                                 <input type="checkbox" checked={includeVisited} onChange={() => setIncludeVisited(!includeVisited)} className="hidden" />
                                 <span className="font-bold text-sm">✅ Visited</span>
                             </label>
@@ -174,74 +166,55 @@ export default function SpinTheWheelPage({ pubs, criteria, scores }) {
 
                     <div className="space-y-3">
                         <label className="block font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider text-sm">Rating Filter</label>
-                        <select
-                            value={criterionId}
-                            onChange={e => setCriterionId(e.target.value)}
-                            className="w-full px-4 py-3 font-semibold border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50 dark:bg-gray-700 dark:text-white transition-colors cursor-pointer"
-                        >
+                        <select value={criterionId} onChange={e => setCriterionId(e.target.value)} className="w-full px-4 py-3 font-semibold border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:border-amber-500 bg-gray-50 dark:bg-gray-700 dark:text-white transition-colors cursor-pointer">
                             <option value="">No Filter (Include All)</option>
-                            {yesNoCriteria.map(c => (
-                                <option key={c.id} value={c.id}>Must have: {c.name}</option>
-                            ))}
+                            {yesNoCriteria.map(c => <option key={c.id} value={c.id}>Must have: {c.name}</option>)}
                         </select>
                     </div>
 
-                    {/* --- NEW: AMENITIES TAG FILTER --- */}
                     <div className="space-y-3">
                         <label className="block font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider text-sm">Amenities Filter</label>
-                        <select
-                            value={tagFilter}
-                            onChange={e => setTagFilter(e.target.value)}
-                            className="w-full px-4 py-3 font-semibold border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:border-blue-500 bg-gray-50 dark:bg-gray-700 dark:text-white transition-colors cursor-pointer"
-                        >
+                        <select value={tagFilter} onChange={e => setTagFilter(e.target.value)} className="w-full px-4 py-3 font-semibold border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:border-amber-500 bg-gray-50 dark:bg-gray-700 dark:text-white transition-colors cursor-pointer">
                             <option value="">No Filter (Include All)</option>
-                            {AVAILABLE_TAGS.map(tag => (
-                                <option key={tag} value={tag}>Must have: {tag}</option>
-                            ))}
+                            {AVAILABLE_TAGS.map(tag => <option key={tag} value={tag}>Must have: {tag}</option>)}
                         </select>
                     </div>
                 </div>
             </div>
 
-            {/* --- THE WHEEL --- */}
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 transition-colors duration-300 flex flex-col items-center overflow-hidden">
-                
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 flex flex-col items-center overflow-hidden">
                 <div className="relative w-full max-w-[450px] aspect-square mb-8 mt-4">
-                    <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center">
-                        <div className="w-8 h-12 bg-gray-800 dark:bg-white shadow-2xl" style={{ clipPath: 'polygon(50% 100%, 0 0, 100% 0)' }}></div>
-                    </div>
-
-                    <div 
-                        className="w-full h-full rounded-full shadow-[0_0_40px_rgba(0,0,0,0.1)] dark:shadow-[0_0_40px_rgba(255,255,255,0.05)] overflow-hidden border-8 border-gray-800 dark:border-gray-100 bg-gray-100 dark:bg-gray-700"
-                        style={{
-                            transform: `rotate(${rotation}deg)`,
-                            transition: isSpinning ? 'transform 4s cubic-bezier(0.17, 0.67, 0.1, 1)' : 'none'
-                        }}
-                    >
-                        {filteredPubs.length > 0 ? (
-                            <canvas ref={canvasRef} width={800} height={800} className="w-full h-full object-contain" />
-                        ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-center p-8">
-                                <span className="text-4xl mb-2 opacity-50">🎡</span>
-                                <p className="text-gray-500 dark:text-gray-400 font-bold">No pubs match your current filters!</p>
-                            </div>
-                        )}
-                    </div>
+                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-10 text-4xl drop-shadow-md">▼</div>
+                    {filteredPubs.length > 0 ? (
+                        <canvas
+                            ref={canvasRef}
+                            width={450}
+                            height={450}
+                            className="w-full h-full rounded-full shadow-2xl"
+                            style={{ transform: `rotate(${rotation}deg)`, transition: isSpinning ? 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none' }}
+                        />
+                    ) : (
+                        <div className="w-full h-full rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                            <p className="text-gray-400 font-bold text-center px-8">No pubs match your filters!</p>
+                        </div>
+                    )}
                 </div>
 
                 <button
                     onClick={handleSpin}
                     disabled={isSpinning || filteredPubs.length === 0}
-                    className="w-full max-w-sm bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-xl font-black text-2xl uppercase tracking-widest hover:from-blue-700 hover:to-purple-700 transition transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-xl shadow-blue-500/30"
+                    className="w-full max-w-sm bg-amber-600 text-white py-4 rounded-xl font-black text-2xl uppercase tracking-widest hover:bg-amber-700 transition transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-xl shadow-amber-500/30"
                 >
-                    {isSpinning ? 'Spinning...' : 'SPIN THE WHEEL'}
+                    {isSpinning ? 'Spinning...' : filteredPubs.length === 0 ? 'No Pubs!' : '🍺 SPIN!'}
                 </button>
 
-                <div className={`mt-8 text-center transition-all duration-500 ${spinResult ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-4 hidden'}`}>
-                    <p className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1">The Winner Is</p>
-                    <h3 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-2 drop-shadow-sm">{spinResult?.name}</h3>
-                    <p className="text-xl text-gray-600 dark:text-gray-300 font-medium">📍 {spinResult?.location}</p>
-                </div>
+                {spinResult && !isSpinning && (
+                    <div className="mt-8 text-center animate-bounce-in p-6 bg-amber-50 dark:bg-amber-900/30 rounded-2xl border-2 border-amber-300 dark:border-amber-700 w-full max-w-sm">
+                        <p className="text-sm font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-2">Tonight's Pub Is...</p>
+                        <h3 className="text-5xl font-black text-amber-600 dark:text-amber-400 mb-2 drop-shadow-sm">{spinResult?.name}</h3>
+                        {spinResult?.location && <p className="text-gray-500 dark:text-gray-400">📍 {spinResult.location}</p>}
+                    </div>
+                )}
             </div>
         </div>
     );
