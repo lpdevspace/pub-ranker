@@ -8,12 +8,12 @@ export default function AdminPage({
     const [activeTab, setActiveTab] = useState('settings'); 
 
     // --- SETTINGS STATES ---
-    const [editGroupName, setEditGroupName] = useState(currentGroup.groupName || "");
-    const [editGroupCover, setEditGroupCover] = useState(currentGroup.coverPhoto || "");
-    const [brandColor, setBrandColor] = useState(currentGroup.brandColor || "#2563eb"); 
-    const [requireApproval, setRequireApproval] = useState(currentGroup.requireApproval || false);
-    const [city, setCity] = useState(currentGroup.city || "");
-    const [isPublic, setIsPublic] = useState(currentGroup.isPublic || false);
+    const [editGroupName, setEditGroupName] = useState(currentGroup?.groupName || "");
+    const [editGroupCover, setEditGroupCover] = useState(currentGroup?.coverPhoto || "");
+    const [brandColor, setBrandColor] = useState(currentGroup?.brandColor || "#2563eb"); 
+    const [requireApproval, setRequireApproval] = useState(currentGroup?.requireApproval || false);
+    const [city, setCity] = useState(currentGroup?.city || "");
+    const [isPublic, setIsPublic] = useState(currentGroup?.isPublic || false);
     const [isSavingSettings, setIsSavingSettings] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncProgress, setSyncProgress] = useState("");
@@ -36,12 +36,12 @@ export default function AdminPage({
     const [savingWeights, setSavingWeights] = useState(false);
 
     // --- MEMBERS STATE ---
-    const [pendingMembers, setPendingMembers] = useState(currentGroup.pendingMembers || []);
-    const [memberTitles, setMemberTitles] = useState(currentGroup.memberTitles || {});
+    const [pendingMembers, setPendingMembers] = useState(currentGroup?.pendingMembers || []);
+    const [memberTitles, setMemberTitles] = useState(currentGroup?.memberTitles || {});
     const [editingTitleId, setEditingTitleId] = useState(null);
     const [editingTitleText, setEditingTitleText] = useState("");
-    const [managers, setManagers] = useState(currentGroup.managers || []);
-    const [members, setMembers] = useState(currentGroup.members || []);
+    const [managers, setManagers] = useState(currentGroup?.managers || []);
+    const [members, setMembers] = useState(currentGroup?.members || []);
 
     // --- CRITERIA STATE ---
     const [newCriterionName, setNewCriterionName] = useState("");
@@ -74,24 +74,33 @@ export default function AdminPage({
     // --- AUDIT LOGS STATE ---
     const [auditLogs, setAuditLogs] = useState([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
+
+    // Guard: if currentGroup hasn't loaded yet, show a loading state
+    if (!currentGroup) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <p className="text-gray-500 dark:text-gray-400">Loading group data...</p>
+            </div>
+        );
+    }
     
-    const inviteCode = currentGroup?.id || groupRef.id;
+    const inviteCode = currentGroup?.id || groupRef?.id;
     const inviteUrl = `${window.location.origin}?invite=${inviteCode}`;
     
-    const isCurrentUserOwner = currentGroup.ownerUid === user.uid;
-    const isCurrentUserManager = currentGroup.managers?.includes(user.uid);
+    const isCurrentUserOwner = currentGroup?.ownerUid === user?.uid;
+    const isCurrentUserManager = currentGroup?.managers?.includes(user?.uid);
     const canManageSettings = isCurrentUserOwner || isCurrentUserManager;
     
     useEffect(() => {
-        setManagers(currentGroup.managers || []);
-        setMembers(currentGroup.members || []);
-        setPendingMembers(currentGroup.pendingMembers || []);
-        setMemberTitles(currentGroup.memberTitles || {});
-        setEditGroupName(currentGroup.groupName || "");
-        setEditGroupCover(currentGroup.coverPhoto || "");
-        setRequireApproval(currentGroup.requireApproval || false);
-        setCity(currentGroup.city || "");
-        setIsPublic(currentGroup.isPublic || false);
+        setManagers(currentGroup?.managers || []);
+        setMembers(currentGroup?.members || []);
+        setPendingMembers(currentGroup?.pendingMembers || []);
+        setMemberTitles(currentGroup?.memberTitles || {});
+        setEditGroupName(currentGroup?.groupName || "");
+        setEditGroupCover(currentGroup?.coverPhoto || "");
+        setRequireApproval(currentGroup?.requireApproval || false);
+        setCity(currentGroup?.city || "");
+        setIsPublic(currentGroup?.isPublic || false);
     }, [currentGroup]);
 
     useEffect(() => {
@@ -162,7 +171,7 @@ export default function AdminPage({
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", `${currentGroup.groupName.replace(/\s+/g, '_')}_Pubs.csv`);
+        link.setAttribute("download", `${(currentGroup?.groupName || 'group').replace(/\s+/g, '_')}_Pubs.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -387,7 +396,6 @@ export default function AdminPage({
                 status: "to-visit"
             });
 
-            // --- NEW: Increment pubCount on the group document ---
             if (groupRef) {
                 await groupRef.update({ pubCount: firebase.firestore.FieldValue.increment(1) });
             }
@@ -463,7 +471,6 @@ export default function AdminPage({
                 status: "to-visit"
             });
             
-            // --- NEW: Increment pubCount on the group document ---
             if (groupRef) {
                 await groupRef.update({ pubCount: firebase.firestore.FieldValue.increment(1) });
             }
@@ -489,7 +496,6 @@ export default function AdminPage({
         try {
             await pubsRef.doc(pubId).delete();
             
-            // --- NEW: Decrement pubCount on the group document ---
             if (groupRef) {
                 await groupRef.update({ pubCount: firebase.firestore.FieldValue.increment(-1) });
             }
@@ -510,7 +516,7 @@ export default function AdminPage({
         <div className="space-y-6 max-w-4xl mx-auto">
             <div>
                 <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Group Admin</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Managing <span className="font-bold text-blue-600 dark:text-blue-400">{currentGroup.groupName}</span></p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Managing <span className="font-bold text-blue-600 dark:text-blue-400">{currentGroup?.groupName}</span></p>
             </div>
 
             <div className="flex overflow-x-auto bg-gray-200 dark:bg-gray-700 p-1 rounded-xl shadow-inner gap-1 hide-scrollbar">
@@ -694,7 +700,7 @@ export default function AdminPage({
                                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                         {members.map((uid) => {
                                             const isManager = managers.includes(uid);
-                                            const isGroupOwner = currentGroup.ownerUid === uid;
+                                            const isGroupOwner = currentGroup?.ownerUid === uid;
                                             return (
                                                 <tr key={uid} className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
                                                     <td className="px-4 py-4 font-semibold text-gray-800 dark:text-gray-200">
