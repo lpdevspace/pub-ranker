@@ -2,9 +2,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { firebase } from '../firebase';
 import { getUserDisplayName } from '../utils/users';
 
-// ── Animated SVG dark-mode toggle ──────────────────────────────────────────
-// Shows a crisp sun in light mode, a crescent moon in dark mode.
-// `size` controls width/height in px. Inherits colour via currentColor.
 function DarkModeToggle({ isDarkMode, onToggle, size = 20 }) {
     return (
         <button
@@ -15,7 +12,6 @@ function DarkModeToggle({ isDarkMode, onToggle, size = 20 }) {
             className="flex items-center justify-center rounded-full text-gray-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-600 dark:hover:text-amber-400 dark:text-gray-400 transition-all duration-200"
         >
             {isDarkMode ? (
-                // Sun — shown when currently in dark mode (click to go light)
                 <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <circle cx="12" cy="12" r="5" />
                     <line x1="12" y1="1"  x2="12" y2="3" />
@@ -28,7 +24,6 @@ function DarkModeToggle({ isDarkMode, onToggle, size = 20 }) {
                     <line x1="18.36" y1="5.64"  x2="19.78" y2="4.22" />
                 </svg>
             ) : (
-                // Moon — shown when currently in light mode (click to go dark)
                 <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                 </svg>
@@ -37,15 +32,11 @@ function DarkModeToggle({ isDarkMode, onToggle, size = 20 }) {
     );
 }
 
-// ── Pint-glass SVG logo mark ────────────────────────────────────────────────
 function PintMark({ size = 28 }) {
     return (
         <svg width={size} height={size} viewBox="0 0 32 40" fill="none" aria-hidden="true">
-            {/* Glass body */}
             <path d="M6 4 L4 36 Q4 38 6 38 L26 38 Q28 38 28 36 L26 4 Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" fill="none" />
-            {/* Foam top */}
             <path d="M7 4 Q10 1 13 4 Q16 7 19 4 Q22 1 25 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
-            {/* Beer fill */}
             <path d="M8 14 L7.5 36 Q7.5 37 8.5 37 L23.5 37 Q24.5 37 24.5 36 L24 14 Z" fill="currentColor" opacity="0.15" />
         </svg>
     );
@@ -62,7 +53,6 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
     const displayName = userProfile?.nickname || userProfile?.displayName || user?.email || 'User';
     const avatarUrl = userProfile?.avatarUrl || '';
 
-    // Global search
     const searchResults = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
         if (q.length < 2) return [];
@@ -93,13 +83,13 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
         return (
             <button
                 onClick={() => setPage(targetPage)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold transition-all duration-200 whitespace-nowrap ${
                     isActive
-                        ? 'bg-amber-600 text-white shadow-sm scale-[1.02]'
+                        ? 'bg-amber-600 text-white shadow-sm'
                         : 'text-gray-500 dark:text-gray-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-700 dark:hover:text-amber-400'
                 }`}
             >
-                <span className="text-base">{icon}</span>
+                <span className="text-sm">{icon}</span>
                 <span>{name}</span>
             </button>
         );
@@ -179,23 +169,23 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
             )}
 
             {/* ── HEADER ── */}
-            <header className="sticky top-0 z-[100] bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 mb-6 transition-colors duration-300">
+            <header className="sticky top-0 z-[100] bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 transition-colors duration-300">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
                     {/* Top Bar */}
-                    <div className="flex justify-between items-center h-16">
+                    <div className="flex justify-between items-center h-14">
 
                         {/* Logo */}
-                        <div className="flex items-center gap-2.5 pr-4 min-w-0">
+                        <div className="flex items-center gap-2.5 min-w-0">
                             <span className="text-amber-600 dark:text-amber-400 flex-shrink-0">
-                                <PintMark size={28} />
+                                <PintMark size={26} />
                             </span>
                             <div className="flex flex-col justify-center min-w-0">
-                                <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight truncate leading-tight">
+                                <h1 className="text-xl font-black text-gray-900 dark:text-white tracking-tight leading-tight truncate">
                                     Pub Ranker
                                 </h1>
                                 {groupName && (
-                                    <span className="text-[10px] sm:text-xs text-amber-600 dark:text-amber-400 font-bold uppercase tracking-widest truncate">
+                                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-widest truncate leading-tight">
                                         {groupName}
                                     </span>
                                 )}
@@ -203,12 +193,11 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                         </div>
 
                         {/* Desktop Controls */}
-                        <div className="hidden md:flex items-center gap-1">
-                            {/* Search */}
+                        <div className="hidden md:flex items-center gap-1 flex-shrink-0">
                             <button
                                 onClick={() => setShowSearch(true)}
                                 aria-label="Search pubs"
-                                title="Search pubs (⌘K)"
+                                title="Search pubs"
                                 className="flex items-center justify-center w-9 h-9 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400 transition"
                             >
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
@@ -216,7 +205,6 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                 </svg>
                             </button>
 
-                            {/* Dark mode toggle — SVG sun/moon */}
                             <DarkModeToggle isDarkMode={isDarkMode} onToggle={toggleDarkMode} />
 
                             {canManageGroup && (
@@ -254,9 +242,8 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                 </button>
                             )}
 
-                            <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1" />
+                            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1" />
 
-                            {/* Switch group */}
                             <button
                                 onClick={onSwitchGroup}
                                 title="Switch Group"
@@ -269,7 +256,6 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                 <span className="hidden lg:inline">Switch</span>
                             </button>
 
-                            {/* For Venues pill */}
                             <button
                                 onClick={() => setPage('business')}
                                 className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-full text-xs font-black uppercase tracking-wider transition shadow-sm"
@@ -277,9 +263,8 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                 For Venues
                             </button>
 
-                            <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1" />
+                            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1" />
 
-                            {/* Avatar / profile */}
                             <button
                                 onClick={() => setShowProfile(true)}
                                 className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
@@ -297,7 +282,6 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                 </span>
                             </button>
 
-                            {/* Sign out */}
                             <button
                                 onClick={handleSignOut}
                                 aria-label="Sign out"
@@ -312,8 +296,8 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                             </button>
                         </div>
 
-                        {/* Mobile Controls — search + dark toggle + avatar */}
-                        <div className="md:hidden flex items-center gap-1">
+                        {/* Mobile Controls */}
+                        <div className="md:hidden flex items-center gap-1 flex-shrink-0">
                             <button
                                 onClick={() => setShowSearch(true)}
                                 aria-label="Search pubs"
@@ -323,10 +307,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                     <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
                                 </svg>
                             </button>
-
-                            {/* Dark mode toggle visible in mobile header too */}
                             <DarkModeToggle isDarkMode={isDarkMode} onToggle={toggleDarkMode} size={18} />
-
                             <button
                                 onClick={() => setShowProfile(true)}
                                 aria-label="Open profile"
@@ -340,19 +321,19 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                         </div>
                     </div>
 
-                    {/* Scrollable Nav row */}
-                    <div className="py-2.5 flex overflow-x-auto gap-1 hide-scrollbar items-center border-t border-gray-100 dark:border-gray-800/50">
-                        <NavButton name="Dashboard"  targetPage="dashboard"  icon="📊" />
-                        <NavButton name="Taproom"    targetPage="taproom"    icon="📱" />
-                        <NavButton name="Directory"  targetPage="pubs"       icon="🍻" />
-                        <NavButton name="Hit List"   targetPage="toVisit"    icon="🎯" />
-                        <NavButton name="Insights"   targetPage="insights"   icon="📈" />
-                        <NavButton name="Events"     targetPage="events"     icon="📅" />
-                        <NavButton name="Map"        targetPage="map"        icon="🗺️" />
+                    {/* Nav row */}
+                    <div className="pb-2 flex overflow-x-auto gap-1 hide-scrollbar items-center border-t border-gray-100 dark:border-gray-800/50 pt-1.5">
+                        <NavButton name="Dashboard"   targetPage="dashboard"   icon="📊" />
+                        <NavButton name="Taproom"     targetPage="taproom"     icon="📱" />
+                        <NavButton name="Directory"   targetPage="pubs"        icon="🍻" />
+                        <NavButton name="Hit List"    targetPage="toVisit"     icon="🎯" />
+                        <NavButton name="Insights"    targetPage="insights"    icon="📈" />
+                        <NavButton name="Events"      targetPage="events"      icon="📅" />
+                        <NavButton name="Map"         targetPage="map"         icon="🗺️" />
                         <NavButton name="Leaderboard" targetPage="leaderboard" icon="🏆" />
-                        <NavButton name="Versus"     targetPage="individual" icon="🥊" />
-                        <NavButton name="Spin"       targetPage="spin"       icon="🎡" />
-                        <NavButton name="Feedback"   targetPage="feedback"   icon="💬" />
+                        <NavButton name="Versus"      targetPage="individual"  icon="🥊" />
+                        <NavButton name="Spin"        targetPage="spin"        icon="🎡" />
+                        <NavButton name="Feedback"    targetPage="feedback"    icon="💬" />
                     </div>
                 </div>
             </header>
@@ -397,7 +378,6 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                     })}
                 </div>
 
-                {/* More drawer */}
                 {isNavOpen && (
                     <div className="absolute bottom-16 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shadow-2xl animate-fadeIn">
                         <div className="grid grid-cols-3 gap-1 p-3">

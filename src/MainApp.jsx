@@ -39,11 +39,7 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
     const [selectedPub, setSelectedPub] = useState(null);
     const [selectedPubForDetail, setSelectedPubForDetail] = useState(null);
 
-    // All Firestore listeners centralised in one hook
-    // Note: userMembers is now derived internally by useGroupData to avoid circular reference
     const { groupRef, groupData, pubs, criteria, rawScores, users } = useGroupData({ db, groupId });
-
-    // Score map built via memoised aggregation — only recomputes when rawScores changes
     const scores = useScoreCalculations(rawScores);
 
     const canManageGroup = groupData &&
@@ -56,7 +52,6 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
         catch (e) { console.error('Error switching group:', e); }
     };
 
-    // Rating view overrides normal page routing
     if (selectedPub) {
         return (
             <RateView
@@ -125,7 +120,9 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                 criteria={criteria}
                 groupId={groupId}
             />
-            <main>{renderPage()}</main>
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+                {renderPage()}
+            </main>
         </>
     );
 }
