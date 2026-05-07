@@ -1,56 +1,114 @@
 @import "tailwindcss";
+@import "./styles/brand.css";
+
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* --- NEW: DYNAMIC BRAND COLOR --- */
+/* Google Fonts — Playfair Display (display) + Work Sans (body) */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Work+Sans:wght@300..800&display=swap');
+
+/* Tailwind brand colour slot */
 @theme {
-  /* This automatically creates Tailwind classes like bg-brand, text-brand, border-brand */
-  --color-brand: var(--theme-color, #2563eb); 
+  --color-brand: var(--theme-color, #b45309);
 }
 
-/* Add your custom CSS from the old HTML file below */
+/* Base resets */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+  scroll-padding-top: 4rem;
+}
+
+body {
+  min-height: 100dvh;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  text-wrap: balance;
+  line-height: 1.15;
+}
+
+p, li { text-wrap: pretty; }
+
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+input, button, textarea, select { font: inherit; color: inherit; }
+
+::selection {
+  background: color-mix(in oklch, var(--color-brand) 20%, transparent);
+  color: var(--color-text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Legacy component styles ─── */
+
 .loader {
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #3498db;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    animation: spin 1s linear infinite;
+  border: 4px solid var(--color-divider);
+  border-top: 4px solid var(--color-brand);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .modal-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 50;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.55);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
 }
 
 .map-container {
-    height: 600px;
-    width: 100%;
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    z-index: 10;
+  height: 600px;
+  width: 100%;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  z-index: 10;
 }
 
 .custom-pin {
-    background: transparent !important;
-    border: none !important;
+  background: transparent !important;
+  border: none !important;
 }
 
-/* Leaflet Dark Mode Night Theme */
+/* Leaflet dark mode */
 html.dark .leaflet-container {
-  background: #1f2937; /* Tailwind gray-800 */
+  background: #1e1a16;
 }
 html.dark .leaflet-layer,
 html.dark .leaflet-control-zoom-in,
