@@ -5,7 +5,8 @@ import LoadingScreen from '../components/LoadingScreen';
 export default function GroupPortal({ user, userProfile, auth, db }) {
     const [groups, setGroups] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [view, setView] = useState('list'); // 'list' | 'create' | 'join'
+    const [selecting, setSelecting] = useState(null); // groupId being entered
+    const [view, setView] = useState('list');
     const [newGroupName, setNewGroupName] = useState('');
     const [joinCode, setJoinCode] = useState('');
     const [error, setError] = useState('');
@@ -26,21 +27,41 @@ export default function GroupPortal({ user, userProfile, auth, db }) {
         return () => unsubscribe();
     }, [user, db]);
 
+    // Enter a group — sets activeGroupId on the user doc which triggers App.jsx to load MainApp
+    const handleSelectGroup = async (groupId) => {
+        if (selecting) return;
+        setSelecting(groupId);
+        setError('');
+        try {
+            await db.collection('users').doc(user.uid).update({
+                activeGroupId: groupId,
+                groups: firebase.firestore.FieldValue.arrayUnion(groupId),
+            });
+            // App.jsx will react to the userProfile snapshot and render MainApp automatically
+        } catch (err) {
+            console.error('Failed to select group:', err);
+            setError('Could not enter group. Please try again.');
+            setSelecting(null);
+        }
+    };
+
     const handleCreate = async (e) => {
         e.preventDefault();
         if (!newGroupName.trim()) return;
         setSubmitting(true); setError('');
         try {
             const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-            await db.collection('groups').add({
+            const ref = await db.collection('groups').add({
                 name: newGroupName.trim(),
                 code,
                 members: [user.uid],
                 admins: [user.uid],
+                ownerUid: user.uid,
                 createdBy: user.uid,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             });
-            setSuccess(`Group "${newGroupName.trim()}" created!`);
+            // Auto-enter the newly created group
+            await handleSelectGroup(ref.id);
             setNewGroupName('');
             setView('list');
         } catch (err) {
@@ -63,7 +84,8 @@ export default function GroupPortal({ user, userProfile, auth, db }) {
                 setSubmitting(false); return;
             }
             await groupDoc.ref.update({ members: firebase.firestore.FieldValue.arrayUnion(user.uid) });
-            setSuccess(`Joined "${groupDoc.data().name}"!`);
+            // Auto-enter the joined group
+            await handleSelectGroup(groupDoc.id);
             setJoinCode('');
             setView('list');
         } catch (err) {
@@ -117,7 +139,7 @@ export default function GroupPortal({ user, userProfile, auth, db }) {
                     fontWeight: 600,
                     fontSize: 'var(--text-sm)',
                 }}>
-                    ✓ {success}
+                    checkmark {success}
                 </div>
             )}
             {error && (
@@ -130,7 +152,7 @@ export default function GroupPortal({ user, userProfile, auth, db }) {
                     fontWeight: 600,
                     fontSize: 'var(--text-sm)',
                 }}>
-                    ✕ {error}
+                    {error}
                 </div>
             )}
 
@@ -174,7 +196,7 @@ export default function GroupPortal({ user, userProfile, auth, db }) {
                                 className="btn-brand"
                                 style={{ flex: 1, opacity: submitting ? 0.55 : 1 }}
                             >
-                                {submitting ? 'Creating…' : 'Create Group'}
+                                {submitting ? 'Creating...' : 'Create Group'}
                             </button>
                         </div>
                     </form>
@@ -225,7 +247,7 @@ export default function GroupPortal({ user, userProfile, auth, db }) {
                                 className="btn-brand"
                                 style={{ flex: 1, opacity: submitting ? 0.55 : 1 }}
                             >
-                                {submitting ? 'Joining…' : 'Join Group'}
+                                {submitting ? 'Joining...' : 'Join Group'}
                             </button>
                         </div>
                     </form>
@@ -249,25 +271,51 @@ export default function GroupPortal({ user, userProfile, auth, db }) {
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                     {groups.map(group => (
-                        <div
+                        <button
                             key={group.id}
+                            onClick={() => handleSelectGroup(group.id)}
+                            disabled={!!selecting}
                             className="card-warm"
-                            style={{ padding: 'var(--space-5)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-4)' }}
+                            style={{
+                                padding: 'var(--space-5)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 'var(--space-4)',
+                                width: '100%',
+                                textAlign: 'left',
+                                cursor: selecting === group.id ? 'wait' : 'pointer',
+                                opacity: selecting && selecting !== group.id ? 0.5 : 1,
+                                transition: 'opacity 0.2s, transform 0.15s',
+                                border: 'none',
+                                background: 'none',
+                            }}
                         >
                             <div>
                                 <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-base)', color: 'var(--color-text)', fontWeight: 700, marginBottom: 'var(--space-1)' }}>
                                     {group.name}
                                 </h3>
                                 <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-                                    {group.members?.length || 1} member{(group.members?.length || 1) !== 1 ? 's' : ''} ·{' '}
+                                    {group.members?.length || 1} member{(group.members?.length || 1) !== 1 ? 's' : ''}{' '}·{' '}
                                     Code:{' '}
                                     <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--color-brand)', letterSpacing: '0.08em' }}>
                                         {group.code}
                                     </span>
                                 </p>
                             </div>
-                            <span style={{ fontSize: '1.75rem' }}>🍺</span>
-                        </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexShrink: 0 }}>
+                                {selecting === group.id ? (
+                                    <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', fontWeight: 600 }}>Entering...</span>
+                                ) : (
+                                    <>
+                                        <span style={{ fontSize: '1.75rem' }}>🍺</span>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} aria-hidden="true">
+                                            <path d="M9 18l6-6-6-6" />
+                                        </svg>
+                                    </>
+                                )}
+                            </div>
+                        </button>
                     ))}
                 </div>
             )}
