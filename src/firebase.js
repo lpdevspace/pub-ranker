@@ -1,6 +1,7 @@
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
+import 'firebase/compat/storage';
 
 // ✅ SECURITY FIX: All sensitive values loaded from environment variables.
 // Copy .env.example to .env and fill in your values. NEVER commit .env to git.
@@ -18,7 +19,8 @@ if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
-const auth = firebase.auth();
-const db   = firebase.firestore();
+const auth    = firebase.auth();
+const db      = firebase.firestore();
+const storage = firebase.storage();
 
-export { firebase, auth, db };
+export { firebase, auth, db, storage };
