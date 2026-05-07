@@ -4,17 +4,16 @@ import useGroupData from './hooks/useGroupData';
 import useScoreCalculations from './hooks/useScoreCalculations';
 
 // Pages
-import Dashboard from './pages/Dashboard.jsx';
-import PubDirectoryPage from './pages/PubDirectory.jsx';
+import Dashboard from './pages/DashboardPage.jsx';
+import PubDirectoryPage from './pages/PubsPage.jsx';
 import RateView from './pages/RateView.jsx';
-import ToVisitPage from './pages/ToVisitPage.jsx';
-import PubDetailPage from './pages/PubDetailPage.jsx';
+import ToVisitPage from './pages/PubsToVisitPage.jsx';
 import InsightsPage from './pages/InsightsPage.jsx';
 import EventsPage from './pages/EventsPage.jsx';
 import MapPage from './pages/MapPage.jsx';
 import LeaderboardPage from './pages/LeaderboardPage.jsx';
-import IndividualPage from './pages/IndividualPage.jsx';
-import SpinPage from './pages/SpinPage.jsx';
+import IndividualPage from './pages/IndividualRankingsPage.jsx';
+import SpinPage from './pages/SpinTheWheelPage.jsx';
 import FeedbackPage from './pages/FeedbackPage.jsx';
 import TaproomPage from './pages/TaproomPage.jsx';
 import VenuePortalPage from './pages/VenuePortalPage.jsx';
@@ -70,24 +69,6 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                 onBack={() => setSelectedPub(null)}
                 groupRef={groupRef}
                 groupId={groupId}
-            />
-        );
-    }
-
-    // Pub detail view
-    if (selectedPubForDetail) {
-        return (
-            <PubDetailPage
-                pub={selectedPubForDetail}
-                scores={scores}
-                criteria={criteria}
-                users={users}
-                user={user}
-                groupRef={groupRef}
-                groupId={groupId}
-                onBack={() => setSelectedPubForDetail(null)}
-                onRate={(pub) => { setSelectedPubForDetail(null); setSelectedPub(pub); }}
-                canManageGroup={canManageGroup}
             />
         );
     }
