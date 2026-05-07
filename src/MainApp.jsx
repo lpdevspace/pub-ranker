@@ -174,7 +174,7 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                 criteria={criteria}
                 groupId={groupId}
             />
-            <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 pt-6">
+            <main className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 pt-6">
                 {renderPage()}
             </main>
         </>
