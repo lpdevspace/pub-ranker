@@ -18,13 +18,11 @@ export default function App() {
     const [showAuth, setShowAuth] = useState(false);
     const [featureFlags, setFeatureFlags] = useState({});
 
-    // Dark mode effect
     useEffect(() => {
         document.documentElement.classList.toggle('dark', isDarkMode);
         localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
     }, [isDarkMode]);
 
-    // Auth + user profile listener
     useEffect(() => {
         let profileUnsubscribe = null;
         const authUnsubscribe = auth.onAuthStateChanged(async (currentUser) => {
@@ -68,7 +66,6 @@ export default function App() {
         return () => { authUnsubscribe(); if (profileUnsubscribe) profileUnsubscribe(); };
     }, []);
 
-    // Global settings listener (announcement, maintenance, feature flags)
     useEffect(() => {
         const unsub = db.collection('global').doc('settings').onSnapshot((doc) => {
             if (doc.exists) {
@@ -84,12 +81,10 @@ export default function App() {
         return () => unsub();
     }, []);
 
-    // Venue portal: gated by Firestore field, not just hostname
     const isVenueOwner = userProfile?.isVenueOwner === true;
     const isBusinessDomain = window.location.hostname.startsWith('business');
     const showVenuePortal = isBusinessDomain && isVenueOwner;
 
-    // --- Render logic ---
     let currentScreen;
 
     if (authLoading) {
@@ -157,26 +152,26 @@ export default function App() {
         );
 
     } else if (!userProfile.activeGroupId || !userProfile.groups?.includes(userProfile.activeGroupId)) {
+        // Group selection screen — centred narrow layout
         currentScreen = (
-            <div className="container mx-auto p-4 max-w-7xl">
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4">
                 <GroupPortal user={user} userProfile={userProfile} auth={auth} db={db} />
             </div>
         );
 
     } else {
+        // Main app — no extra wrapper, MainApp handles its own layout
         currentScreen = (
-            <div className="container mx-auto p-4 max-w-7xl">
-                <MainApp
-                    user={user}
-                    userProfile={userProfile}
-                    groupId={userProfile.activeGroupId}
-                    auth={auth}
-                    db={db}
-                    isDarkMode={isDarkMode}
-                    toggleDarkMode={() => setIsDarkMode(prev => !prev)}
-                    featureFlags={featureFlags}
-                />
-            </div>
+            <MainApp
+                user={user}
+                userProfile={userProfile}
+                groupId={userProfile.activeGroupId}
+                auth={auth}
+                db={db}
+                isDarkMode={isDarkMode}
+                toggleDarkMode={() => setIsDarkMode(prev => !prev)}
+                featureFlags={featureFlags}
+            />
         );
     }
 
