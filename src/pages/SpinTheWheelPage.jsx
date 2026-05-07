@@ -142,7 +142,7 @@ export default function SpinTheWheelPage({ pubs, criteria, scores }) {
     };
 
     return (
-        <div className="space-y-8 max-w-5xl mx-auto animate-fadeIn">
+        <div className="space-y-8 max-w-2xl mx-auto animate-fadeIn py-8">
             <div className="text-center">
                 <h2 className="text-4xl font-black text-gray-800 dark:text-white mb-2">Spin the Wheel</h2>
                 <p className="text-gray-500 dark:text-gray-400">Can't decide where to go? Let fate decide.</p>
