@@ -70,6 +70,16 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
     const { groupRef, groupData, pubs, criteria, rawScores, users } = useGroupData({ db, groupId });
     const scores = useScoreCalculations(rawScores);
 
+    // Convert users array [ { uid, displayName, ... } ] to keyed object { [uid]: { ... } }
+    // Pages (PubsPage, DashboardPage, etc.) all expect allUsers[uid].displayName
+    const allUsers = useMemo(() => {
+        if (!Array.isArray(users)) return {};
+        return users.reduce((acc, u) => {
+            if (u.uid) acc[u.uid] = u;
+            return acc;
+        }, {});
+    }, [users]);
+
     const canManageGroup = groupData &&
         (groupData.ownerUid === user.uid || groupData.managers?.includes(user.uid));
 
@@ -120,14 +130,17 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
     }
 
     const sharedProps = {
-        pubs, criteria, scores, users, user, userProfile,
+        pubs, criteria, scores,
+        users,      // raw array (for components that iterate members)
+        allUsers,   // keyed object { [uid]: user } for name lookups
+        user, userProfile,
         groupRef, groupId, db, featureFlags, canManageGroup, isStaff,
     };
 
     const renderPage = () => {
         switch (page) {
             case 'taproom':     return <TaproomPage {...sharedProps} onSelectPub={setSelectedPub} onViewDetail={setSelectedPubForDetail} />;
-            case 'pubs':        return <PubDirectoryPage {...sharedProps} onSelectPub={setSelectedPub} onViewDetail={setSelectedPubForDetail} />;
+            case 'pubs':        return <PubDirectoryPage {...sharedProps} onSelectPub={setSelectedPub} onViewDetail={setSelectedPubForDetail} currentUser={user} />;
             case 'toVisit':     return <ToVisitPage {...sharedProps} onSelectPub={setSelectedPub} onViewDetail={setSelectedPubForDetail} />;
             case 'insights':    return <InsightsPage {...sharedProps} />;
             case 'events':      return <EventsPage {...sharedProps} />;
