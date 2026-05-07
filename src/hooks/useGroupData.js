@@ -6,9 +6,9 @@ import { firebase } from '../firebase';
  * Manages all real-time Firestore listeners for a given group.
  * Centralises subscription logic that was previously scattered across MainApp.
  *
- * Returns: { groupData, pubs, criteria, scores, users }
+ * Returns: { groupRef, groupData, pubs, criteria, rawScores, users }
  */
-export default function useGroupData({ db, groupId, userMembers }) {
+export default function useGroupData({ db, groupId }) {
     const [groupData, setGroupData] = useState(null);
     const [pubs, setPubs] = useState([]);
     const [criteria, setCriteria] = useState([]);
@@ -55,18 +55,19 @@ export default function useGroupData({ db, groupId, userMembers }) {
         return () => unsub();
     }, [groupRef]);
 
-    // Members — only load current group's members (max 30 per Firestore 'in' limit)
+    // Members — derived from groupData.members once it loads
     useEffect(() => {
-        if (!userMembers?.length) return;
-        const memberIds = userMembers.slice(0, 30);
+        const memberIds = groupData?.members;
+        if (!memberIds?.length) return;
+        const ids = memberIds.slice(0, 30);
         const unsub = db
             .collection('users')
-            .where(firebase.firestore.FieldPath.documentId(), 'in', memberIds)
+            .where(firebase.firestore.FieldPath.documentId(), 'in', ids)
             .onSnapshot(snap =>
                 setUsers(snap.docs.map(d => ({ uid: d.id, ...d.data() })))
             );
         return () => unsub();
-    }, [db, userMembers]);
+    }, [db, groupData?.members]);
 
     return { groupRef, groupData, pubs, criteria, rawScores, users };
 }

@@ -40,11 +40,8 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
     const [selectedPubForDetail, setSelectedPubForDetail] = useState(null);
 
     // All Firestore listeners centralised in one hook
-    const { groupRef, groupData, pubs, criteria, rawScores, users } = useGroupData({
-        db,
-        groupId,
-        userMembers: groupData?.members,
-    });
+    // Note: userMembers is now derived internally by useGroupData to avoid circular reference
+    const { groupRef, groupData, pubs, criteria, rawScores, users } = useGroupData({ db, groupId });
 
     // Score map built via memoised aggregation — only recomputes when rawScores changes
     const scores = useScoreCalculations(rawScores);
