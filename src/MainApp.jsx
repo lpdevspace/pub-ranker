@@ -18,13 +18,41 @@ import FeedbackPage from './pages/FeedbackPage.jsx';
 import TaproomPage from './pages/TaproomPage.jsx';
 import VenuePortalPage from './pages/VenuePortalPage.jsx';
 
-// Route guard
+// ── URL <-> page key mapping ────────────────────────────────────────────────
+const PATH_TO_PAGE = {
+    '/':             'dashboard',
+    '/dashboard':    'dashboard',
+    '/taproom':      'taproom',
+    '/pubs':         'pubs',
+    '/hitlist':      'toVisit',
+    '/insights':     'insights',
+    '/events':       'events',
+    '/map':          'map',
+    '/leaderboard':  'leaderboard',
+    '/versus':       'individual',
+    '/spin':         'spin',
+    '/feedback':     'feedback',
+    '/venues':       'business',
+    '/admin':        'admin',
+    '/superadmin':   'superadmin',
+};
+
+const PAGE_TO_PATH = Object.fromEntries(
+    Object.entries(PATH_TO_PAGE).filter(([path]) => path !== '/').map(([path, page]) => [page, path])
+);
+PAGE_TO_PATH['dashboard'] = '/dashboard';
+
+function getPageFromURL() {
+    const path = window.location.pathname;
+    return PATH_TO_PAGE[path] || 'dashboard';
+}
+
+// ── Route guard ─────────────────────────────────────────────────────────────
 function ProtectedRoute({ allowed, children, fallback = null }) {
     if (!allowed) return fallback;
     return children;
 }
 
-// Redirect component used when a protected route is blocked
 function RedirectToDashboard({ setPage }) {
     useEffect(() => { setPage('dashboard'); }, [setPage]);
     return null;
@@ -35,7 +63,7 @@ const AdminPageLoader = React.lazy(() => import('./pages/AdminPage.jsx'));
 const SuperAdminPageLoader = React.lazy(() => import('./pages/SuperAdminPage.jsx'));
 
 export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMode, toggleDarkMode, featureFlags = {} }) {
-    const [page, setPage] = useState('dashboard');
+    const [page, setPageState] = useState(getPageFromURL);
     const [selectedPub, setSelectedPub] = useState(null);
     const [selectedPubForDetail, setSelectedPubForDetail] = useState(null);
 
@@ -46,6 +74,32 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
         (groupData.ownerUid === user.uid || groupData.managers?.includes(user.uid));
 
     const isStaff = userProfile?.isSuperAdmin || userProfile?.isAdmin || userProfile?.isModerator;
+
+    // Navigate: update state + push to browser history
+    const setPage = (newPage) => {
+        const path = PAGE_TO_PATH[newPage] || '/dashboard';
+        if (window.location.pathname !== path) {
+            window.history.pushState({ page: newPage }, '', path);
+        }
+        setPageState(newPage);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // Handle browser back/forward buttons
+    useEffect(() => {
+        const onPop = (e) => {
+            const p = e.state?.page || getPageFromURL();
+            setPageState(p);
+        };
+        window.addEventListener('popstate', onPop);
+        return () => window.removeEventListener('popstate', onPop);
+    }, []);
+
+    // On first mount, replace state so the initial entry has page metadata
+    useEffect(() => {
+        const p = getPageFromURL();
+        window.history.replaceState({ page: p }, '', PAGE_TO_PATH[p] || '/dashboard');
+    }, []);
 
     const handleSwitchGroup = async () => {
         try { await db.collection('users').doc(user.uid).update({ activeGroupId: null }); }
