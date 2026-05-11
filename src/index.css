@@ -1,4 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Work+Sans:wght@300..800&display=swap');
+/* Fontshare — Satoshi (body/UI) */
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,600,700,800&display=swap');
+
+/* Google Fonts — Instrument Serif (display/headings) */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
+
 @import "tailwindcss";
 @import "./styles/brand.css";
 
@@ -29,10 +34,18 @@ body {
   line-height: 1.6;
 }
 
+/* Headings use the display font by default */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
   text-wrap: balance;
   line-height: 1.15;
+  font-weight: 400; /* Instrument Serif is most elegant at regular weight */
+}
+
+/* Subheadings (h4–h6) should use body font for UI legibility */
+h4, h5, h6 {
+  font-family: var(--font-body);
+  font-weight: 600;
 }
 
 p, li { text-wrap: pretty; }
