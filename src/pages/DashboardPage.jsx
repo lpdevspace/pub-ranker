@@ -2,11 +2,6 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Chart from 'chart.js/auto';
 import 'leaflet/dist/leaflet.css';
 
-// ── Score tier colours using brand palette ──────────────────────────────────
-// 8.5+ → brand primary (best)
-// 7–8.4 → amber gold
-// 5–6.9 → yellow
-// <5   → red
 const scoreTierBg = (score) => {
     if (score >= 8.5) return 'rgba(180,100,20,0.85)';
     if (score >= 7)   return 'rgba(210,155,30,0.85)';
@@ -32,7 +27,7 @@ export function HorizontalBarChart({ data }) {
                 plugins: { legend: { display: false } },
                 scales: {
                     x: { beginAtZero: true, max: 10 },
-                    y: { ticks: { font: { weight: 'bold' } } },
+                    y: { ticks: { font: { family: 'Satoshi, Inter, sans-serif', weight: '600', size: 13 } } },
                 },
             },
         });
@@ -46,23 +41,24 @@ export function StatCard({ title, value, subValue, onClick }) {
     return (
         <div
             onClick={onClick}
+            className="card-warm"
             style={{
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-lg)',
-                padding: 'var(--space-4)',
-                boxShadow: 'var(--shadow-sm)',
-                transition: 'all var(--transition-interactive)',
+                padding: 'var(--space-5)',
                 cursor: onClick ? 'pointer' : 'default',
             }}
             onMouseEnter={e => { if (onClick) { e.currentTarget.style.boxShadow = 'var(--shadow-md)'; e.currentTarget.style.borderColor = 'var(--color-brand)'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
             onMouseLeave={e => { if (onClick) { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.transform = 'none'; } }}
         >
-            <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: onClick ? 'var(--color-brand)' : 'var(--color-text-muted)', marginBottom: 'var(--space-1)' }}>
+            {/* Label */}
+            <p className="text-label" style={{ color: onClick ? 'var(--color-brand)' : undefined, marginBottom: 'var(--space-2)' }}>
                 {title} {onClick && '↗'}
-            </h3>
-            <p style={{ fontSize: 'var(--text-2xl)', fontWeight: 900, color: 'var(--color-text)', marginTop: 'var(--space-1)' }}>{value}</p>
-            {subValue && <p style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>{subValue}</p>}
+            </p>
+            {/* Big KPI number */}
+            <p className="text-kpi" style={{ marginTop: 'var(--space-1)' }}>{value}</p>
+            {/* Sub-value */}
+            {subValue && (
+                <p className="text-muted" style={{ marginTop: 'var(--space-2)', fontWeight: 600 }}>{subValue}</p>
+            )}
         </div>
     );
 }
@@ -200,17 +196,17 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                 <div style={{ background: 'linear-gradient(135deg, var(--color-brand), var(--color-brand-dark))', borderRadius: 'var(--radius-xl)', padding: 'var(--space-5)', color: '#fff', boxShadow: 'var(--shadow-lg)', position: 'relative', overflow: 'hidden', border: '1px solid var(--color-brand-light)' }} className="group">
                     <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div>
-                            <h3 style={{ fontWeight: 900, fontSize: 'var(--text-lg)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
+                            <h3 style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 'var(--text-lg)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
                                 <span className="animate-bounce" style={{ fontSize: '1.5rem' }}>🏆</span> Your First Quest
                             </h3>
-                            <p style={{ fontSize: 'var(--text-sm)', fontWeight: 500, opacity: 0.9, maxWidth: '28rem' }}>
+                            <p style={{ fontSize: 'var(--text-sm)', fontWeight: 400, opacity: 0.9, maxWidth: '28rem', fontFamily: 'var(--font-body)' }}>
                                 Welcome to the crew! Head over to the Directory or Hit List and drop your very first rating to unlock the 'First Pint' badge.
                             </p>
                         </div>
                         <button
                             onClick={() => setPage('pubs')}
                             className="hidden sm:block"
-                            style={{ padding: 'var(--space-2) var(--space-6)', background: '#fff', color: 'var(--color-brand-dark)', fontWeight: 900, borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', border: 'none', cursor: 'pointer' }}
+                            style={{ padding: 'var(--space-2) var(--space-6)', background: '#fff', color: 'var(--color-brand-dark)', fontWeight: 700, fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', border: 'none', cursor: 'pointer' }}
                         >
                             Start Rating →
                         </button>
@@ -221,8 +217,8 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
 
             {/* ── Page heading ── */}
             <div>
-                <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}>Group Dashboard</h2>
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>Your city's drinking analytics.</p>
+                <h2 className="text-page-title">Group Dashboard</h2>
+                <p className="text-muted" style={{ marginTop: 'var(--space-1)' }}>Your city's drinking analytics.</p>
             </div>
 
             {/* ── Stat Cards ── */}
@@ -240,16 +236,16 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
             </div>
 
             {/* ── Live Location Tracker ── */}
-            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-4)', boxShadow: 'var(--shadow-sm)', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-5)', boxShadow: 'var(--shadow-sm)', position: 'relative', overflow: 'hidden' }}>
                 {livePubId && <div style={{ position: 'absolute', inset: 0, background: 'var(--color-brand)', opacity: 0.04, pointerEvents: 'none' }} className="animate-pulse" />}
                 <div className="flex flex-col md:flex-row justify-between items-center" style={{ gap: 'var(--space-4)', position: 'relative', zIndex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
                         <div className={livePubId ? 'animate-bounce' : 'grayscale opacity-50'} style={{ fontSize: '2.5rem' }}>📍</div>
                         <div>
-                            <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Current Group Location</h3>
+                            <p className="text-label" style={{ marginBottom: 'var(--space-1)' }}>Current Group Location</p>
                             {livePubId
-                                ? <p style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--color-brand)' }}>{pubsArray.find(p => p.id === livePubId)?.name || 'Unknown Pub'}</p>
-                                : <p style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text)' }}>Not currently at a pub.</p>
+                                ? <p className="text-page-title" style={{ color: 'var(--color-brand)' }}>{pubsArray.find(p => p.id === livePubId)?.name || 'Unknown Pub'}</p>
+                                : <p className="text-section-heading">Not currently at a pub.</p>
                             }
                         </div>
                     </div>
@@ -258,7 +254,7 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                             value={livePubId}
                             onChange={handleSetLiveLocation}
                             className="w-full md:w-64"
-                            style={{ padding: 'var(--space-3) var(--space-4)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-2)', color: 'var(--color-text)', fontWeight: 700, cursor: 'pointer', boxShadow: 'var(--shadow-sm)', outline: 'none' }}
+                            style={{ padding: 'var(--space-3) var(--space-4)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-2)', color: 'var(--color-text)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', outline: 'none' }}
                             onFocus={e => e.target.style.borderColor = 'var(--color-brand)'}
                             onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
                         >
@@ -278,23 +274,23 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
                             <span style={{ fontSize: '3rem' }}>🍺</span>
                             <div>
-                                <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: 'var(--color-text)', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--font-display)' }}>The Guinness Index</h3>
-                                <p style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-muted)' }}>Tracking the exact price of a pint</p>
+                                <h3 className="text-section-heading" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--font-display)', fontWeight: 400, fontSize: 'var(--text-lg)' }}>The Guinness Index</h3>
+                                <p className="text-muted">Tracking the exact price of a pint</p>
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: 'var(--space-8)' }}>
                             {cheapestPint && (
                                 <div style={{ borderRight: '1px solid var(--color-divider)', paddingRight: 'var(--space-8)' }}>
-                                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-success)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 'var(--space-1)' }}>Cheapest Pint</p>
-                                    <p style={{ fontSize: 'var(--text-2xl)', fontWeight: 900, color: 'var(--color-text)' }}>£{cheapestPint.avgPrice.toFixed(2)}</p>
-                                    <p style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text-muted)', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 'var(--space-1)' }}>{cheapestPint.pub.name}</p>
+                                    <p className="text-label" style={{ color: 'var(--color-success)', marginBottom: 'var(--space-1)' }}>Cheapest Pint</p>
+                                    <p className="text-kpi">£{cheapestPint.avgPrice.toFixed(2)}</p>
+                                    <p className="text-muted" style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 'var(--space-1)', fontWeight: 600 }}>{cheapestPint.pub.name}</p>
                                 </div>
                             )}
                             {priciestPint && (
                                 <div>
-                                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-error)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 'var(--space-1)' }}>Priciest Pint</p>
-                                    <p style={{ fontSize: 'var(--text-2xl)', fontWeight: 900, color: 'var(--color-text)' }}>£{priciestPint.avgPrice.toFixed(2)}</p>
-                                    <p style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text-muted)', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 'var(--space-1)' }}>{priciestPint.pub.name}</p>
+                                    <p className="text-label" style={{ color: 'var(--color-error)', marginBottom: 'var(--space-1)' }}>Priciest Pint</p>
+                                    <p className="text-kpi">£{priciestPint.avgPrice.toFixed(2)}</p>
+                                    <p className="text-muted" style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 'var(--space-1)', fontWeight: 600 }}>{priciestPint.pub.name}</p>
                                 </div>
                             )}
                         </div>
@@ -316,7 +312,7 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                     <div style={{ background: 'var(--color-surface)', borderRadius: 'calc(var(--radius-xl) - 3px)', padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', overflow: 'hidden' }}>
                         <div style={{ position: 'absolute', top: 0, right: 0, width: '8rem', height: '8rem', background: 'var(--color-brand-light)', borderRadius: '50%', filter: 'blur(2rem)', opacity: 0.15, pointerEvents: 'none' }} className="animate-pulse" />
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)', position: 'relative', zIndex: 1 }}>
-                            <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 900, color: 'var(--color-brand)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>🔥 Pub of the Month</h3>
+                            <p className="text-label" style={{ color: 'var(--color-brand)' }}>🔥 Pub of the Month</p>
                             <span style={{ color: 'var(--color-text-faint)', opacity: 0, transition: 'opacity var(--transition-interactive)' }} className="group-hover:opacity-100">↗</span>
                         </div>
                         {spotlightPub ? (
@@ -328,17 +324,18 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                                 ) : (
                                     <div style={{ fontSize: '4rem', marginBottom: 'var(--space-4)' }} className="group-hover:scale-105 transition-transform">👑</div>
                                 )}
-                                <p style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--color-text)', marginBottom: 'var(--space-1)', fontFamily: 'var(--font-display)', lineHeight: 1.2 }}>{spotlightPub.name}</p>
-                                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', fontWeight: 600, marginBottom: 'var(--space-6)' }}>📍 {spotlightPub.location}</p>
+                                {/* Pub name — uses display font */}
+                                <p className="text-page-title" style={{ marginBottom: 'var(--space-1)', lineHeight: 1.2 }}>{spotlightPub.name}</p>
+                                <p className="text-muted" style={{ fontWeight: 600, marginBottom: 'var(--space-6)' }}>📍 {spotlightPub.location}</p>
                                 <div style={{ marginTop: 'auto', background: 'var(--color-surface-offset)', padding: 'var(--space-3) var(--space-6)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', width: '100%', textAlign: 'center' }}>
-                                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 'var(--space-1)' }}>Group Rating</span>
-                                    <p style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--color-brand)' }}>
-                                        {spotlightPub.avgScore.toFixed(1)}<span style={{ fontSize: 'var(--text-base)', color: 'var(--color-text-muted)' }}>/10</span>
+                                    <p className="text-label" style={{ marginBottom: 'var(--space-1)' }}>Group Rating</p>
+                                    <p className="text-kpi" style={{ color: 'var(--color-brand)' }}>
+                                        {spotlightPub.avgScore.toFixed(1)}<span className="text-muted" style={{ fontSize: 'var(--text-base)' }}>/10</span>
                                     </p>
                                 </div>
                             </div>
                         ) : (
-                            <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)', margin: 'auto', textAlign: 'center', fontStyle: 'italic' }}>
+                            <p className="text-muted" style={{ margin: 'auto', textAlign: 'center', fontStyle: 'italic' }}>
                                 Rate a pub to see it crowned here.
                             </p>
                         )}
@@ -349,8 +346,8 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                 <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-6)', boxShadow: 'var(--shadow-sm)' }} className="lg:col-span-2">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'var(--space-4)' }}>
                         <div>
-                            <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text)' }}>The Top 10 Leaderboard</h3>
-                            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>Colour-coded by quality tier.</p>
+                            <h3 className="text-section-heading">The Top 10 Leaderboard</h3>
+                            <p className="text-muted" style={{ marginTop: 'var(--space-1)' }}>Colour-coded by quality tier.</p>
                         </div>
                     </div>
                     <div style={{ height: '18rem' }}><HorizontalBarChart data={pubChartData} /></div>
@@ -363,13 +360,13 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                 {/* Upcoming Events */}
                 <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-6)', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column' }} className="lg:col-span-1">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-6)' }}>
-                        <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text)' }}>Upcoming Events</h3>
-                        <button onClick={() => setPage('events')} style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-brand)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>View All</button>
+                        <h3 className="text-section-heading">Upcoming Events</h3>
+                        <button onClick={() => setPage('events')} style={{ fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-brand)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>View All</button>
                     </div>
                     {upcomingEvents.length === 0 ? (
                         <div style={{ textAlign: 'center', margin: 'auto', padding: 'var(--space-8) 0' }}>
                             <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: 'var(--space-2)', opacity: 0.5 }}>📅</span>
-                            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No events planned.</p>
+                            <p className="text-muted" style={{ fontStyle: 'italic' }}>No events planned.</p>
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', overflowY: 'auto', paddingRight: 'var(--space-2)' }}>
@@ -384,13 +381,13 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                                         onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-brand)'}
                                         onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-border)'}
                                     >
-                                        <div style={{ background: 'var(--color-brand)', color: '#fff', borderRadius: 'var(--radius-md)', padding: 'var(--space-2)', textAlign: 'center', minWidth: '3rem', boxShadow: 'var(--shadow-sm)' }}>
-                                            <p style={{ fontSize: '0.625rem', textTransform: 'uppercase', fontWeight: 900, lineHeight: 1 }}>{eventDate.toLocaleDateString(undefined, { month: 'short' })}</p>
-                                            <p style={{ fontSize: 'var(--text-lg)', fontWeight: 900, lineHeight: 1, marginTop: 'var(--space-1)' }}>{eventDate.getDate()}</p>
+                                        <div style={{ background: 'var(--color-brand)', color: '#fff', borderRadius: 'var(--radius-md)', padding: 'var(--space-2)', textAlign: 'center', minWidth: '3rem', boxShadow: 'var(--shadow-sm)', fontFamily: 'var(--font-body)' }}>
+                                            <p style={{ fontSize: '0.625rem', textTransform: 'uppercase', fontWeight: 700, lineHeight: 1 }}>{eventDate.toLocaleDateString(undefined, { month: 'short' })}</p>
+                                            <p style={{ fontSize: 'var(--text-lg)', fontWeight: 700, lineHeight: 1, marginTop: 'var(--space-1)', fontFamily: 'var(--font-body)' }}>{eventDate.getDate()}</p>
                                         </div>
                                         <div style={{ flex: 1, minWidth: 0 }}>
-                                            <h4 style={{ fontWeight: 700, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'var(--text-sm)' }}>{event.title}</h4>
-                                            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {pub?.name || 'Unknown Pub'}</p>
+                                            <p className="text-card-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</p>
+                                            <p className="text-muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'var(--text-xs)' }}>📍 {pub?.name || 'Unknown Pub'}</p>
                                         </div>
                                     </div>
                                 );
@@ -401,9 +398,9 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
 
                 {/* Group Activity Feed */}
                 <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-6)', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column' }} className="lg:col-span-2">
-                    <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text)', marginBottom: 'var(--space-6)' }}>Group Activity Feed</h3>
+                    <h3 className="text-section-heading" style={{ marginBottom: 'var(--space-6)' }}>Group Activity Feed</h3>
                     {timelineItems.length === 0 ? (
-                        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', textAlign: 'center', margin: 'auto', fontStyle: 'italic', paddingBottom: 'var(--space-6)' }}>No recent activity.</p>
+                        <p className="text-muted" style={{ textAlign: 'center', margin: 'auto', fontStyle: 'italic', paddingBottom: 'var(--space-6)' }}>No recent activity.</p>
                     ) : (
                         <div style={{ position: 'relative', borderLeft: '2px solid var(--color-brand-light)', marginLeft: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', flex: 1, overflowY: 'auto', paddingRight: 'var(--space-4)', paddingBottom: 'var(--space-2)' }}>
                             {timelineItems.map(item => (
@@ -413,10 +410,10 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                                     </span>
                                     <div style={{ background: 'var(--color-surface-offset)', padding: 'var(--space-4)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)', transition: 'border-color var(--transition-interactive)' }} className="hover:border-brand">
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-1)' }}>
-                                            <p style={{ fontSize: 'var(--text-xs)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-brand)' }}>{item.title}</p>
-                                            <p style={{ fontSize: '0.625rem', color: 'var(--color-text-faint)', fontWeight: 700, background: 'var(--color-surface)', padding: '1px var(--space-2)', borderRadius: 'var(--radius-full)', boxShadow: 'var(--shadow-sm)' }}>{item.dateLabel}</p>
+                                            <p className="text-label" style={{ color: 'var(--color-brand)' }}>{item.title}</p>
+                                            <p style={{ fontSize: '0.625rem', color: 'var(--color-text-faint)', fontWeight: 700, fontFamily: 'var(--font-body)', background: 'var(--color-surface)', padding: '1px var(--space-2)', borderRadius: 'var(--radius-full)', boxShadow: 'var(--shadow-sm)' }}>{item.dateLabel}</p>
                                         </div>
-                                        <p style={{ color: 'var(--color-text)', fontWeight: 600, fontSize: 'var(--text-sm)' }}>{item.text}</p>
+                                        <p className="text-body" style={{ fontWeight: 500 }}>{item.text}</p>
                                     </div>
                                 </div>
                             ))}
