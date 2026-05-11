@@ -63,27 +63,92 @@ const makeNumberIcon = (n, color) =>
         popupAnchor: [0, -18],
     });
 
-/* ─── rich hover tooltip HTML ───────────────────────────────────────────── */
+/* ─── OSRM routing ───────────────────────────────────────────────────────
+   Free, no API key. Uses the public OSRM demo server.
+   profile: 'foot' (walking) | 'driving' (driving)
+   Returns { coords: [[lat,lng],...], steps: [{instruction,distance,duration},...],
+             totalDistance, totalDuration } or null on failure.
+────────────────────────────────────────────────────────────────────────── */
+async function fetchRoute(waypoints, profile = 'foot') {
+    if (waypoints.length < 2) return null;
+    // OSRM expects lng,lat order in the URL
+    const coords = waypoints.map(([lat, lng]) => `${lng},${lat}`).join(';');
+    const url = `https://router.project-osrm.org/route/v1/${profile}/${coords}?overview=full&geometries=geojson&steps=true&annotations=false`;
+    try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (data.code !== 'Ok' || !data.routes?.length) return null;
+        const route = data.routes[0];
+        // geometry is GeoJSON [lng, lat] — flip to Leaflet [lat, lng]
+        const routeCoords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+        // flatten step instructions from all legs
+        const steps = route.legs.flatMap(leg =>
+            (leg.steps || []).map(step => ({
+                instruction: step.maneuver?.type
+                    ? formatInstruction(step.maneuver, step.name)
+                    : (step.name || 'Continue'),
+                distance: step.distance,   // metres
+                duration: step.duration,   // seconds
+            }))
+        ).filter(s => s.instruction && s.instruction !== 'arrive' && s.distance > 0);
+        return {
+            coords: routeCoords,
+            steps,
+            totalDistance: route.distance,
+            totalDuration: route.duration,
+        };
+    } catch (e) {
+        console.error('OSRM routing error:', e);
+        return null;
+    }
+}
+
+function formatInstruction(maneuver, streetName) {
+    const street = streetName && streetName !== '' ? ` onto ${streetName}` : '';
+    const typeMap = {
+        depart:      `Start${street}`,
+        arrive:      'Arrive at destination',
+        turn:        `Turn ${maneuver.modifier || ''}${street}`,
+        'new name':  `Continue${street}`,
+        merge:       `Merge${street}`,
+        'on ramp':   `Take the ramp${street}`,
+        'off ramp':  `Exit the ramp${street}`,
+        fork:        `Keep ${maneuver.modifier || 'straight'} at the fork${street}`,
+        roundabout:  `Take the roundabout${street}`,
+        rotary:      `Take the rotary${street}`,
+        continue:    `Continue${street}`,
+        straight:    `Go straight${street}`,
+    };
+    return typeMap[maneuver.type] || `${maneuver.type}${street}`;
+}
+
+function fmtDist(m) {
+    return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`;
+}
+function fmtDuration(s) {
+    const mins = Math.round(s / 60);
+    if (mins < 60) return `${mins} min`;
+    return `${Math.floor(mins / 60)}h ${mins % 60}min`;
+}
+
+/* ─── tooltip / popup builders ─────────────────────────────────────────── */
 
 const buildTooltipHTML = (pub, score, hasScore, color) => {
     const photoBlock = pub.photoURL
         ? `<img src="${pub.photoURL}" alt="${pub.name}"
              style="width:100%;height:9rem;object-fit:cover;display:block;border-radius:0.6rem 0.6rem 0 0;" />`
         : `<div style="width:100%;height:5rem;background:${color};opacity:0.35;border-radius:0.6rem 0.6rem 0 0;"></div>`;
-
     const scoreBadge = hasScore
         ? `<span style="background:${color};color:#fff;padding:2px 9px;border-radius:9999px;font-size:0.78rem;font-weight:800;">${score.toFixed(1)}/10</span>
            <span style="color:#888;font-size:0.72rem;font-weight:700;">${tierLabel(score, hasScore)}</span>`
         : `<span style="color:#aaa;font-size:0.78rem;font-style:italic;">Not yet rated</span>`;
-
     const listType = pub._listType === 'visited'
         ? `<span style="background:#dcfce7;color:#166534;border-radius:9999px;padding:1px 7px;font-size:0.65rem;font-weight:700;">✓ Visited</span>`
         : `<span style="background:#fef9c3;color:#854d0e;border-radius:9999px;padding:1px 7px;font-size:0.65rem;font-weight:700;">📋 To Visit</span>`;
-
     const tagsBlock = (pub.tags || []).length
         ? `<p style="font-size:0.68rem;color:#999;margin-top:5px;line-height:1.5;">${pub.tags.slice(0, 4).join(' · ')}</p>`
         : '';
-
     return `
       <div style="width:220px;font-family:Satoshi,Inter,system-ui,sans-serif;pointer-events:none;">
         ${photoBlock}
@@ -99,30 +164,24 @@ const buildTooltipHTML = (pub, score, hasScore, color) => {
       </div>`;
 };
 
-/* ─── popup HTML (on click) ─────────────────────────────────────────────── */
-
 const buildPopupHTML = (pub, score, hasScore, color) => {
     const photoBlock = pub.photoURL
         ? `<img src="${pub.photoURL}" alt="${pub.name}"
              style="width:100%;height:10rem;object-fit:cover;display:block;border-radius:0.6rem 0.6rem 0 0;" />`
         : `<div style="width:100%;height:5rem;background:${color};opacity:0.35;border-radius:0.6rem 0.6rem 0 0;"></div>`;
-
     const scoreHTML = hasScore
         ? `<span style="background:${color};color:#fff;padding:2px 9px;border-radius:9999px;font-weight:800;font-size:0.8rem;">${score.toFixed(1)}/10</span>
            <span style="color:#888;font-size:0.75rem;font-weight:600;">${tierLabel(score, hasScore)}</span>`
         : `<span style="color:#aaa;font-size:0.8rem;">Not yet rated</span>`;
-
     const tagsHTML = (pub.tags || []).length
         ? `<p style="font-size:0.7rem;color:#888;margin-top:5px;">${pub.tags.slice(0, 4).join(' · ')}</p>`
         : '';
-
     const googleHTML = pub.googleLink
         ? `<a href="${pub.googleLink}" target="_blank" rel="noopener noreferrer"
              style="display:block;text-align:center;margin-top:9px;background:#f3f0ec;border:1px solid #ddd;border-radius:0.5rem;padding:6px;font-size:0.75rem;font-weight:700;color:#555;text-decoration:none;">
              📍 Open in Google Maps
            </a>`
         : '';
-
     return `
       <div style="width:230px;font-family:Satoshi,Inter,system-ui,sans-serif;">
         ${photoBlock}
@@ -147,20 +206,25 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
     const mapRef       = useRef(null);
     const leafletRef   = useRef(null);
     const markersRef   = useRef({});
-    const crawlLineRef = useRef(null);
+    const crawlLineRef = useRef([]);   // array — may be multiple polylines + markers
 
-    const [filter,          setFilter]          = useState('all');
-    const [tierFilter,      setTierFilter]      = useState('all');
-    const [selectedPub,     setSelectedPub]     = useState(null);
-    const [crawls,          setCrawls]          = useState([]);
-    const [activeCrawl,     setActiveCrawl]     = useState(null);
-    const [drawerOpen,      setDrawerOpen]      = useState(false);
-    const [crawlName,       setCrawlName]       = useState('');
-    const [crawlDate,       setCrawlDate]       = useState('');
-    const [crawlPubIds,     setCrawlPubIds]     = useState([]);
-    const [geocoding,       setGeocoding]       = useState(false);
-    const [geocodeProgress, setGeocodeProgress] = useState({ done: 0, total: 0 });
-    const [localPubs,       setLocalPubs]       = useState([]);
+    const [filter,           setFilter]           = useState('all');
+    const [tierFilter,       setTierFilter]        = useState('all');
+    const [selectedPub,      setSelectedPub]       = useState(null);
+    const [crawls,           setCrawls]            = useState([]);
+    const [activeCrawl,      setActiveCrawl]       = useState(null);
+    const [drawerOpen,       setDrawerOpen]        = useState(false);
+    const [crawlName,        setCrawlName]         = useState('');
+    const [crawlDate,        setCrawlDate]         = useState('');
+    const [crawlPubIds,      setCrawlPubIds]       = useState([]);
+    const [geocoding,        setGeocoding]         = useState(false);
+    const [geocodeProgress,  setGeocodeProgress]   = useState({ done: 0, total: 0 });
+    const [localPubs,        setLocalPubs]         = useState([]);
+    // routing state
+    const [travelMode,       setTravelMode]        = useState('foot');  // 'foot' | 'driving'
+    const [routeData,        setRouteData]         = useState(null);    // { coords, steps, totalDistance, totalDuration }
+    const [routeLoading,     setRouteLoading]      = useState(false);
+    const [directionsOpen,   setDirectionsOpen]    = useState(false);
 
     const allPubs = useMemo(() => [
         ...pubsArray.map(p => ({ ...p, _listType: 'visited' })),
@@ -242,49 +306,54 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
         return true;
     }), [localPubs, filter, tierFilter, pubScoreMap]);
 
-    /* ── sync markers — hover tooltip + click popup ── */
+    /* ── sync markers ── */
     useEffect(() => {
         if (!leafletRef.current) return;
         Object.values(markersRef.current).forEach(m => m.remove());
         markersRef.current = {};
-
         filteredPubs.forEach(pub => {
             if (!pub.lat || !pub.lng) return;
             const { score, hasScore } = pubScoreMap[pub.id] || { score: 0, hasScore: false };
             const color  = tierColor(score, hasScore);
             const label  = hasScore ? score.toFixed(1) : '';
             const marker = L.marker([pub.lat, pub.lng], { icon: makeIcon(color, label) });
-
-            // hover tooltip — rich card with photo
             marker.bindTooltip(buildTooltipHTML(pub, score, hasScore, color), {
-                direction: 'top',
-                offset: [0, -30],
-                opacity: 1,
-                className: 'pub-hover-tooltip',
+                direction: 'top', offset: [0, -30], opacity: 1, className: 'pub-hover-tooltip',
             });
-
-            // click popup — slightly larger, includes Google Maps link
             marker.bindPopup(buildPopupHTML(pub, score, hasScore, color), { maxWidth: 250 });
-
             marker.on('click', () => setSelectedPub(pub));
             marker.addTo(leafletRef.current);
             markersRef.current[pub.id] = marker;
         });
     }, [filteredPubs, pubScoreMap]);
 
-    /* ── crawl route preview ── */
-    useEffect(() => {
-        if (!leafletRef.current) return;
-        if (crawlLineRef.current) { crawlLineRef.current.remove(); crawlLineRef.current = null; }
-        const ids = activeCrawl ? activeCrawl.pubIds : crawlPubIds;
-        if (!ids || ids.length < 2) return;
-        const coords = ids.map(id => localPubs.find(p => p.id === id))
-            .filter(p => p?.lat && p?.lng).map(p => [p.lat, p.lng]);
-        if (coords.length < 2) return;
-        crawlLineRef.current = L.polyline(coords, { color: '#b46414', weight: 4, dashArray: '10 6', opacity: 0.85 })
-            .addTo(leafletRef.current);
-        leafletRef.current.fitBounds(crawlLineRef.current.getBounds(), { padding: [40, 40] });
+    /* ── clear crawl layers helper ── */
+    const clearCrawlLayers = useCallback(() => {
+        crawlLineRef.current.forEach(l => l.remove());
+        crawlLineRef.current = [];
+        // remove crawl-numbered markers
+        Object.keys(markersRef.current).filter(k => k.startsWith('crawl_')).forEach(k => {
+            markersRef.current[k].remove();
+            delete markersRef.current[k];
+        });
+    }, []);
 
+    /* ── fetch route whenever active crawl or travel mode changes ── */
+    useEffect(() => {
+        clearCrawlLayers();
+        setRouteData(null);
+        setDirectionsOpen(false);
+
+        const ids = activeCrawl ? activeCrawl.pubIds : (crawlPubIds.length >= 2 ? crawlPubIds : null);
+        if (!ids || ids.length < 2 || !leafletRef.current) return;
+
+        const waypoints = ids
+            .map(id => localPubs.find(p => p.id === id))
+            .filter(p => p?.lat && p?.lng)
+            .map(p => [p.lat, p.lng]);
+        if (waypoints.length < 2) return;
+
+        // draw numbered stop markers immediately
         ids.forEach((id, idx) => {
             const pub = localPubs.find(p => p.id === id);
             if (!pub?.lat || !pub?.lng) return;
@@ -295,7 +364,31 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
                 .addTo(leafletRef.current);
             markersRef.current[`crawl_${id}_${idx}`] = m;
         });
-    }, [activeCrawl, crawlPubIds, localPubs, pubScoreMap]);
+
+        // fetch real route
+        setRouteLoading(true);
+        fetchRoute(waypoints, travelMode).then(result => {
+            setRouteLoading(false);
+            if (!result || !leafletRef.current) {
+                // fallback: straight dashed line
+                const fallback = L.polyline(waypoints, { color: '#b46414', weight: 4, dashArray: '10 6', opacity: 0.85 })
+                    .addTo(leafletRef.current);
+                crawlLineRef.current.push(fallback);
+                leafletRef.current.fitBounds(fallback.getBounds(), { padding: [40, 40] });
+                return;
+            }
+            setRouteData(result);
+            // outer glow
+            const glow = L.polyline(result.coords, { color: '#ffffff', weight: 8, opacity: 0.5 })
+                .addTo(leafletRef.current);
+            // main route line
+            const line = L.polyline(result.coords, { color: travelMode === 'foot' ? '#b46414' : '#1d6db5', weight: 5, opacity: 0.9 })
+                .addTo(leafletRef.current);
+            crawlLineRef.current.push(glow, line);
+            leafletRef.current.fitBounds(line.getBounds(), { padding: [40, 40] });
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeCrawl, crawlPubIds, travelMode, localPubs]);
 
     /* ── fly to pub ── */
     const flyToPub = useCallback((pub) => {
@@ -323,12 +416,11 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
     const deleteCrawl = async (id) => {
         if (!window.confirm('Delete this crawl?')) return;
         await db.collection('crawls').doc(id).delete().catch(console.error);
-        if (activeCrawl?.id === id) setActiveCrawl(null);
+        if (activeCrawl?.id === id) { setActiveCrawl(null); setRouteData(null); }
     };
 
     const toggleCrawlPub = (id) =>
         setCrawlPubIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-
     const movePubUp   = (i) => { if (i === 0) return; const a = [...crawlPubIds]; [a[i-1],a[i]] = [a[i],a[i-1]]; setCrawlPubIds(a); };
     const movePubDown = (i) => { if (i === crawlPubIds.length-1) return; const a = [...crawlPubIds]; [a[i],a[i+1]] = [a[i+1],a[i]]; setCrawlPubIds(a); };
 
@@ -339,10 +431,14 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
 
     const card = { background:'var(--color-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--radius-xl)', boxShadow:'var(--shadow-sm)' };
 
+    // the crawl whose ids to show in directions
+    const activeIds = activeCrawl ? activeCrawl.pubIds : crawlPubIds;
+    const activeStops = activeIds.map(id => localPubs.find(p => p.id === id)).filter(Boolean);
+
     return (
         <div className="animate-fadeIn pb-20" style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
 
-            {/* ── tooltip styles injected once ── */}
+            {/* ── tooltip styles ── */}
             <style>{`
                 .pub-hover-tooltip {
                     background: transparent !important;
@@ -350,9 +446,7 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
                     box-shadow: none !important;
                     padding: 0 !important;
                 }
-                .pub-hover-tooltip .leaflet-tooltip-content {
-                    padding: 0 !important;
-                }
+                .pub-hover-tooltip .leaflet-tooltip-content { padding: 0 !important; }
                 .pub-hover-tooltip::before { display: none !important; }
                 .leaflet-tooltip.pub-hover-tooltip {
                     background: #fff;
@@ -367,6 +461,8 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
                     display: block !important;
                     border-top-color: #fff;
                 }
+                @keyframes spin { to { transform: rotate(360deg); } }
+                @keyframes routePulse { 0%,100%{opacity:0.9} 50%{opacity:0.55} }
             `}</style>
 
             {/* ── page header ── */}
@@ -422,7 +518,7 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
                 ))}
             </div>
 
-            {/* ══ MAP — full width, top of page ══ */}
+            {/* ══ MAP ══ */}
             <div style={{ ...card, overflow:'hidden', height:'32rem', position:'relative' }}>
                 <div ref={mapRef} style={{ width:'100%', height:'100%' }} />
                 {geocoding && (
@@ -431,13 +527,105 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
                         Auto-locating pubs… {geocodeProgress.done}/{geocodeProgress.total}
                     </div>
                 )}
+                {routeLoading && (
+                    <div style={{ position:'absolute', bottom:'1rem', left:'50%', transform:'translateX(-50%)', background:'var(--color-surface)', border:'1px solid var(--color-border)', borderRadius:'var(--radius-full)', padding:'var(--space-2) var(--space-5)', boxShadow:'var(--shadow-md)', zIndex:1001, fontFamily:'var(--font-body)', fontWeight:700, fontSize:'var(--text-xs)', color:'var(--color-brand)', display:'flex', alignItems:'center', gap:'var(--space-2)', whiteSpace:'nowrap' }}>
+                        <span style={{ display:'inline-block', animation:'spin 1.2s linear infinite' }}>🗺️</span>
+                        Calculating route…
+                    </div>
+                )}
                 {/* hover hint */}
                 <div style={{ position:'absolute', top:'var(--space-3)', right:'var(--space-3)', background:'rgba(255,255,255,0.92)', border:'1px solid rgba(0,0,0,0.08)', borderRadius:'var(--radius-lg)', padding:'var(--space-2) var(--space-3)', zIndex:500, fontSize:'0.7rem', fontFamily:'var(--font-body)', fontWeight:600, color:'#555', backdropFilter:'blur(4px)', pointerEvents:'none' }}>
                     Hover a pin · Click for details
                 </div>
             </div>
 
-            {/* ══ PUB LIST — horizontal scrolling strip below the map ══ */}
+            {/* ══ ROUTE INFO BAR — shown when a crawl route is active ══ */}
+            {routeData && activeStops.length >= 2 && (
+                <div style={{ ...card, padding:'var(--space-4) var(--space-5)', display:'flex', flexWrap:'wrap', alignItems:'center', gap:'var(--space-4)' }}>
+                    {/* travel mode toggle */}
+                    <div style={{ display:'flex', gap:'var(--space-2)', background:'var(--color-surface-offset)', borderRadius:'var(--radius-lg)', padding:'var(--space-1)' }}>
+                        {[['foot','🚶 Walking'],['driving','🚗 Driving']].map(([mode, label]) => (
+                            <button key={mode} onClick={() => setTravelMode(mode)}
+                                style={{ padding:'var(--space-2) var(--space-4)', borderRadius:'var(--radius-md)', fontWeight:700, fontFamily:'var(--font-body)', fontSize:'var(--text-xs)', border:'none', background:travelMode===mode ? 'var(--color-brand)' : 'transparent', color:travelMode===mode ? '#fff' : 'var(--color-text-muted)', cursor:'pointer', transition:'all var(--transition-interactive)' }}
+                            >{label}</button>
+                        ))}
+                    </div>
+                    {/* summary */}
+                    <div style={{ display:'flex', gap:'var(--space-5)', flex:1, flexWrap:'wrap' }}>
+                        <div style={{ textAlign:'center' }}>
+                            <p style={{ fontSize:'var(--text-xs)', color:'var(--color-text-muted)', fontFamily:'var(--font-body)', fontWeight:600 }}>TOTAL DISTANCE</p>
+                            <p style={{ fontSize:'var(--text-lg)', fontWeight:800, fontFamily:'var(--font-display)', color:'var(--color-text)' }}>{fmtDist(routeData.totalDistance)}</p>
+                        </div>
+                        <div style={{ textAlign:'center' }}>
+                            <p style={{ fontSize:'var(--text-xs)', color:'var(--color-text-muted)', fontFamily:'var(--font-body)', fontWeight:600 }}>{travelMode === 'foot' ? 'WALK TIME' : 'DRIVE TIME'}</p>
+                            <p style={{ fontSize:'var(--text-lg)', fontWeight:800, fontFamily:'var(--font-display)', color:'var(--color-text)' }}>{fmtDuration(routeData.totalDuration)}</p>
+                        </div>
+                        <div style={{ textAlign:'center' }}>
+                            <p style={{ fontSize:'var(--text-xs)', color:'var(--color-text-muted)', fontFamily:'var(--font-body)', fontWeight:600 }}>STOPS</p>
+                            <p style={{ fontSize:'var(--text-lg)', fontWeight:800, fontFamily:'var(--font-display)', color:'var(--color-text)' }}>{activeStops.length}</p>
+                        </div>
+                    </div>
+                    {/* directions toggle */}
+                    <button
+                        onClick={() => setDirectionsOpen(o => !o)}
+                        style={{ padding:'var(--space-2) var(--space-4)', borderRadius:'var(--radius-lg)', fontWeight:700, fontFamily:'var(--font-body)', fontSize:'var(--text-xs)', border:`1px solid var(--color-border)`, background:'var(--color-surface-2)', color:'var(--color-text)', cursor:'pointer', display:'flex', alignItems:'center', gap:'var(--space-2)', transition:'all var(--transition-interactive)' }}
+                        onMouseEnter={e=>e.currentTarget.style.borderColor='var(--color-brand)'}
+                        onMouseLeave={e=>e.currentTarget.style.borderColor='var(--color-border)'}
+                    >
+                        📋 {directionsOpen ? 'Hide' : 'Show'} Directions
+                        <span style={{ transition:'transform 0.2s', transform:directionsOpen?'rotate(180deg)':'none', display:'inline-block' }}>▾</span>
+                    </button>
+                </div>
+            )}
+
+            {/* ══ STEP-BY-STEP DIRECTIONS PANEL ══ */}
+            {routeData && directionsOpen && (
+                <div style={{ ...card, padding:'var(--space-5) var(--space-6)' }}>
+                    <h3 className="text-section-heading" style={{ marginBottom:'var(--space-4)' }}>
+                        {travelMode === 'foot' ? '🚶' : '🚗'} Turn-by-Turn Directions
+                    </h3>
+
+                    {/* stop sequence */}
+                    <div style={{ display:'flex', gap:'var(--space-2)', overflowX:'auto', paddingBottom:'var(--space-3)', marginBottom:'var(--space-4)', borderBottom:'1px solid var(--color-divider)', scrollbarWidth:'thin' }}>
+                        {activeStops.map((pub, idx) => (
+                            <React.Fragment key={pub.id}>
+                                <div style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:'var(--space-2)', minWidth:'5rem', maxWidth:'7rem' }}>
+                                    {pub.photoURL
+                                        ? <img src={pub.photoURL} alt={pub.name} loading="lazy" width="56" height="56"
+                                               style={{ width:'3.5rem', height:'3.5rem', borderRadius:'50%', objectFit:'cover', border:'3px solid var(--color-brand)' }} />
+                                        : <div style={{ width:'3.5rem', height:'3.5rem', borderRadius:'50%', background:tierColor(pubScoreMap[pub.id]?.score||0, pubScoreMap[pub.id]?.hasScore||false), display:'flex', alignItems:'center', justifyContent:'center', border:'3px solid var(--color-brand)', color:'#fff', fontWeight:900, fontSize:'0.9rem' }}>{idx+1}</div>
+                                    }
+                                    <p style={{ fontSize:'0.65rem', fontWeight:700, fontFamily:'var(--font-body)', textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'100%' }}>{pub.name}</p>
+                                    <span style={{ background:'var(--color-brand)', color:'#fff', borderRadius:'var(--radius-full)', padding:'1px 7px', fontSize:'0.6rem', fontWeight:900 }}>Stop {idx+1}</span>
+                                </div>
+                                {idx < activeStops.length - 1 && (
+                                    <div style={{ flexShrink:0, display:'flex', alignItems:'center', color:'var(--color-text-faint)', fontSize:'1.2rem', paddingTop:'1rem' }}>→</div>
+                                )}
+                            </React.Fragment>
+                        ))}
+                    </div>
+
+                    {/* step list */}
+                    <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-2)' }}>
+                        {routeData.steps.map((step, idx) => (
+                            <div key={idx} style={{ display:'flex', alignItems:'flex-start', gap:'var(--space-3)', padding:'var(--space-3) var(--space-4)', borderRadius:'var(--radius-lg)', background: idx % 2 === 0 ? 'var(--color-surface-offset)' : 'transparent' }}>
+                                <span style={{ width:'1.75rem', height:'1.75rem', borderRadius:'50%', background:'var(--color-surface-dynamic)', color:'var(--color-text-muted)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.65rem', fontWeight:900, flexShrink:0 }}>{idx+1}</span>
+                                <div style={{ flex:1 }}>
+                                    <p style={{ fontSize:'var(--text-sm)', fontWeight:600, fontFamily:'var(--font-body)', color:'var(--color-text)', lineHeight:1.4 }}>{step.instruction}</p>
+                                    <p style={{ fontSize:'var(--text-xs)', color:'var(--color-text-muted)', marginTop:'var(--space-1)' }}>{fmtDist(step.distance)} · {fmtDuration(step.duration)}</p>
+                                </div>
+                            </div>
+                        ))}
+                        {/* arrival */}
+                        <div style={{ display:'flex', alignItems:'center', gap:'var(--space-3)', padding:'var(--space-3) var(--space-4)', borderRadius:'var(--radius-lg)', background:'var(--color-primary-highlight)', border:'1px solid var(--color-primary)' }}>
+                            <span style={{ fontSize:'1.2rem' }}>🍺</span>
+                            <p style={{ fontSize:'var(--text-sm)', fontWeight:700, fontFamily:'var(--font-body)', color:'var(--color-primary)' }}>You've arrived at {activeStops[activeStops.length-1]?.name}. Enjoy!</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ══ PUB LIST ══ */}
             <div style={{ ...card, padding:'var(--space-4)' }}>
                 <p className="text-label" style={{ marginBottom:'var(--space-3)' }}>
                     {filteredPubs.filter(p=>p.lat&&p.lng).length} pubs shown — click to fly to location
@@ -459,12 +647,10 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
                                 onMouseEnter={e => { if (hasCoords && !isSelected) e.currentTarget.style.borderColor='var(--color-brand)'; }}
                                 onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor='var(--color-border)'; }}
                             >
-                                {/* card photo */}
                                 {pub.photoURL
                                     ? <img src={pub.photoURL} alt={pub.name} loading="lazy" width="144" height="72"
                                            style={{ width:'100%', height:'4.5rem', objectFit:'cover', display:'block' }} />
                                     : <div style={{ width:'100%', height:'4.5rem', background:color, opacity:0.25 }} />}
-                                {/* card body */}
                                 <div style={{ padding:'var(--space-2) var(--space-2) var(--space-3)' }}>
                                     <p style={{ fontWeight:700, fontSize:'var(--text-xs)', fontFamily:'var(--font-body)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginBottom:'var(--space-1)' }}>{pub.name}</p>
                                     <p className="text-muted" style={{ fontSize:'0.65rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginBottom:'var(--space-2)' }}>{pub.location}</p>
@@ -515,6 +701,16 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
                                         ))}
                                         {stopPubs.length > 4 && <p className="text-muted" style={{ fontSize:'var(--text-xs)', paddingLeft:'calc(1.25rem + var(--space-2))' }}>+{stopPubs.length-4} more</p>}
                                     </div>
+                                    {/* travel mode toggle per saved crawl */}
+                                    {isActive && (
+                                        <div style={{ display:'flex', gap:'var(--space-2)', background:'var(--color-surface)', borderRadius:'var(--radius-lg)', padding:'var(--space-1)' }}>
+                                            {[['foot','🚶'],['driving','🚗']].map(([mode, icon]) => (
+                                                <button key={mode} onClick={() => setTravelMode(mode)}
+                                                    style={{ flex:1, padding:'var(--space-2)', borderRadius:'var(--radius-md)', fontWeight:700, fontFamily:'var(--font-body)', fontSize:'var(--text-xs)', border:'none', background:travelMode===mode ? 'var(--color-brand)' : 'transparent', color:travelMode===mode ? '#fff' : 'var(--color-text-muted)', cursor:'pointer', transition:'all var(--transition-interactive)' }}
+                                                >{icon} {mode === 'foot' ? 'Walk' : 'Drive'}</button>
+                                            ))}
+                                        </div>
+                                    )}
                                     <button
                                         onClick={() => { setActiveCrawl(isActive ? null : crawl); if (!isActive) setCrawlPubIds([]); }}
                                         style={{ padding:'var(--space-2) var(--space-4)', borderRadius:'var(--radius-lg)', fontWeight:700, fontFamily:'var(--font-body)', fontSize:'var(--text-xs)', border:`1px solid ${isActive ? 'var(--color-brand)' : 'var(--color-border)'}`, background:isActive ? 'var(--color-brand)' : 'transparent', color:isActive ? '#fff' : 'var(--color-text)', cursor:'pointer', transition:'all var(--transition-interactive)' }}
