@@ -3,7 +3,7 @@
   Art direction: warm British pub → confident, characterful, social
   Palette: bitter amber accent, warm cream/oak surfaces
   Typography: Instrument Serif (display) + Satoshi (body/UI)
-  Updated: refined type scale, better font pairing, improved utilities
+  Updated: global heading safeguards, .heading-ui utility, page-wide coverage
 */
 
 :root,
@@ -147,6 +147,26 @@ html.dark {
   }
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   GLOBAL HEADING SAFEGUARDS
+   Tailwind utility classes (font-bold, font-semibold, text-xl, etc.) can
+   accidentally override the font-family set in index.css on h1–h3.
+   These rules re-assert the display font at higher specificity so that
+   page-level headings always render in Instrument Serif regardless of
+   what Tailwind classes are applied.
+──────────────────────────────────────────────────────────────────────── */
+
+h1, h2, h3,
+.text-display,
+.text-page-title,
+.text-kpi {
+  font-family: var(--font-display) !important;
+}
+
+h4, h5, h6 {
+  font-family: var(--font-body) !important;
+}
+
 /* ─── Utility classes using brand tokens ─── */
 
 /* Typography */
@@ -154,13 +174,25 @@ html.dark {
 .font-body     { font-family: var(--font-body) !important; }
 .tabular-nums  { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
 
+/*
+  .heading-ui — for UI headings that intentionally use Satoshi bold
+  (e.g. admin panel section titles, modal titles, settings headers)
+  Use this when you want a heading-size text in the body font.
+  Overrides the h1–h3 display-font rule above.
+*/
+.heading-ui {
+  font-family: var(--font-body) !important;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
 /* ─── Page-level heading hierarchy ─── */
 /* Use these on h1/h2/h3/p elements for consistent typography across all pages */
 
 .text-display {
   font-family: var(--font-display);
   font-size: var(--text-2xl);
-  font-weight: 400;               /* Instrument Serif looks best at regular weight */
+  font-weight: 400;
   line-height: 1.1;
   letter-spacing: -0.01em;
   color: var(--color-text);
