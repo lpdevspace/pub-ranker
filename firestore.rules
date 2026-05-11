@@ -6,12 +6,30 @@ service cloud.firestore {
     function getUserData() { return exists(/databases/$(database)/documents/users/$(request.auth.uid)) ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data : {}; }
     function isNotBanned() { return getUserData().get('isBanned', false) == false; }
     function isSuperAdmin() { return isSignedIn() && getUserData().get('isSuperAdmin', false) == true; }
-    
-    // 🔥 SECURITY FIX: Prevent megabyte-sized text uploads from crashing the app
+
+    // ────────────────────────────────────────────────────────────
+    // INPUT VALIDATION HELPERS (S3 FIX)
+    // Prevent oversized text being written to any document.
+    // ────────────────────────────────────────────────────────────
     function isValidText(text, maxLen) {
       return text is string && text.size() <= maxLen;
     }
-    
+    // Shorthand for optional fields that may be absent
+    function isValidOptionalText(data, field, maxLen) {
+      return !(field in data) || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // RATE LIMITING HELPER (S2 FIX)
+    // Checks that the user has not submitted a score in the last
+    // 5 seconds by reading their rateLimit document.
+    // ────────────────────────────────────────────────────────────
+    function notRateLimited() {
+      let rateDoc = /databases/$(database)/documents/rateLimits/$(request.auth.uid);
+      return !exists(rateDoc) ||
+             get(rateDoc).data.get('lastScoreAt', 0) < (request.time.toMillis() - 5000);
+    }
+
     function canDeleteGlobalPubs() {
       return isSuperAdmin() || (isSignedIn() && getUserData().get('isAdmin', false) == true) || (isSignedIn() && getUserData().get('permissions', {}).get('canDeletePubs', false) == true);
     }
@@ -32,62 +50,97 @@ service cloud.firestore {
       return joiningMembers || leavingMembers || joiningPending;
     }
 
+    // ────────────────────────────────────────────────────────────
+    // USERS (S1 FIX)
+    // Changed from `allow read: if true` to require sign-in.
+    // ────────────────────────────────────────────────────────────
     match /users/{userId} {
-      allow read: if true;
-      allow create: if isSignedIn() && request.auth.uid == userId && !('isSuperAdmin' in request.resource.data) && !('isAdmin' in request.resource.data) && !('isModerator' in request.resource.data) && !('permissions' in request.resource.data) && !('assignedRole' in request.resource.data);
-      allow update: if (isSignedIn() && request.auth.uid == userId && isNotBanned() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isSuperAdmin', 'isAdmin', 'isModerator', 'isBanned', 'permissions', 'assignedRole'])) || isSuperAdmin();
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId
+        && !('isSuperAdmin' in request.resource.data)
+        && !('isAdmin' in request.resource.data)
+        && !('isModerator' in request.resource.data)
+        && !('permissions' in request.resource.data)
+        && !('assignedRole' in request.resource.data);
+      allow update: if (isSignedIn() && request.auth.uid == userId && isNotBanned()
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isSuperAdmin', 'isAdmin', 'isModerator', 'isBanned', 'permissions', 'assignedRole'])
+        && isValidOptionalText(request.resource.data, 'displayName', 60)
+        && isValidOptionalText(request.resource.data, 'bio', 300)
+      ) || isSuperAdmin();
       allow delete: if isSuperAdmin();
     }
 
+    // ────────────────────────────────────────────────────────────
+    // RATE LIMITS (S2 FIX)
+    // ────────────────────────────────────────────────────────────
+    match /rateLimits/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow write: if isSignedIn() && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['lastScoreAt'])
+        && request.resource.data.lastScoreAt is int;
+    }
+
     match /groups/{groupId} {
-      allow read: if true; 
-      allow create: if isSignedIn() && isNotBanned(); 
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isNotBanned();
       allow update, delete: if isSuperAdmin() || (isSignedIn() && isNotBanned() && (resource.data.ownerUid == request.auth.uid || request.auth.uid in resource.data.get('managers', []) || isModifyingOwnMembership()));
 
       match /auditLogs/{logId} {
          allow read, create: if isSuperAdmin() || (isSignedIn() && isNotBanned() && (get(/databases/$(database)/documents/groups/$(groupId)).data.ownerUid == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.get('managers', [])));
-         allow update, delete: if false; 
+         allow update, delete: if false;
       }
       match /scores/{scoreId} {
-         allow read: if true;
-         allow create: if isSignedIn() && isNotBanned() && request.resource.data.userId == request.auth.uid;
+         allow read: if isSignedIn();
+         allow create: if isSignedIn() && isNotBanned()
+           && request.resource.data.userId == request.auth.uid
+           && notRateLimited()
+           && request.resource.data.value is number
+           && request.resource.data.value >= 0
+           && request.resource.data.value <= 10;
          allow update: if isSuperAdmin() || (isSignedIn() && isNotBanned() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid);
          allow delete: if isSuperAdmin() || (isSignedIn() && isNotBanned() && resource.data.userId == request.auth.uid);
          match /comments/{commentId} {
-            allow read: if true;
-            allow create: if isSignedIn() && isNotBanned() && request.resource.data.userId == request.auth.uid;
-            allow update: if isSuperAdmin() || (isSignedIn() && isNotBanned() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid);
+            allow read: if isSignedIn();
+            allow create: if isSignedIn() && isNotBanned()
+              && request.resource.data.userId == request.auth.uid
+              && isValidText(request.resource.data.text, 500);
+            allow update: if isSuperAdmin() || (isSignedIn() && isNotBanned() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid && isValidText(request.resource.data.text, 500));
             allow delete: if isSuperAdmin() || (isSignedIn() && isNotBanned() && resource.data.userId == request.auth.uid);
          }
       }
     }
 
     match /{path=**}/pubs/{pubId} {
-      allow read: if true;
-      allow create: if isSignedIn() && isNotBanned();
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isNotBanned()
+        && isValidText(request.resource.data.name, 120)
+        && isValidOptionalText(request.resource.data, 'address', 200);
       allow update: if canDeleteGlobalPubs() || (isSignedIn() && isNotBanned() && (
           resource.data.get('isLocked', false) == false ||
           (resource.data.get('claimedBy', []) is list && request.auth.uid in resource.data.get('claimedBy', []))
-      )); 
-      allow delete: if canDeleteGlobalPubs(); 
+      ));
+      allow delete: if canDeleteGlobalPubs();
     }
 
     match /{path=**}/criteria/{critId} {
-      allow read: if true;
-      allow create, update: if isSignedIn() && isNotBanned(); 
-      allow delete: if canDeleteGlobalPubs(); 
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isNotBanned()
+        && isValidOptionalText(request.resource.data, 'name', 80);
+      allow delete: if canDeleteGlobalPubs();
     }
 
     match /{path=**}/scores/{scoreId} {
-      allow read: if true;
-      allow create: if isSignedIn() && isNotBanned() && request.resource.data.userId == request.auth.uid;
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isNotBanned()
+        && request.resource.data.userId == request.auth.uid
+        && notRateLimited()
+        && request.resource.data.value is number
+        && request.resource.data.value >= 0
+        && request.resource.data.value <= 10;
       allow update: if isSuperAdmin() || (isSignedIn() && isNotBanned() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid);
       allow delete: if isSuperAdmin() || (isSignedIn() && isNotBanned() && resource.data.userId == request.auth.uid);
     }
 
-    // ✓ FIX: field names now match MapPage saveCrawl()
-    //   - creatorId  (was: createdBy)
-    //   - pubIds     (was: route)
     match /crawls/{crawlId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn()
@@ -95,30 +148,35 @@ service cloud.firestore {
                     && request.resource.data.creatorId == request.auth.uid
                     && request.resource.data.pubIds is list
                     && request.resource.data.pubIds.size() >= 2
-                    && request.resource.data.pubIds.size() <= 30;
+                    && request.resource.data.pubIds.size() <= 30
+                    && isValidOptionalText(request.resource.data, 'name', 100);
       allow update, delete: if isSuperAdmin()
                              || (isSignedIn() && isNotBanned() && resource.data.creatorId == request.auth.uid);
     }
-    
+
     match /events/{eventId} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isNotBanned(); 
-      allow delete: if isSuperAdmin() || (isSignedIn() && isNotBanned() && resource.data.createdBy == request.auth.uid); 
+      allow create, update: if isSignedIn() && isNotBanned()
+        && isValidText(request.resource.data.title, 80)
+        && isValidOptionalText(request.resource.data, 'description', 500);
+      allow delete: if isSuperAdmin() || (isSignedIn() && isNotBanned() && resource.data.createdBy == request.auth.uid);
     }
 
     match /reports/{reportId} {
-      allow create: if isSignedIn() && isNotBanned();
-      allow read, update, delete: if canModerate(); 
+      allow create: if isSignedIn() && isNotBanned()
+        && isValidOptionalText(request.resource.data, 'reason', 300);
+      allow read, update, delete: if canModerate();
     }
 
     match /global/{docId} {
-      allow read: if true; 
-      allow write: if canEditConfig(); 
+      allow read: if isSignedIn();
+      allow write: if canEditConfig();
     }
 
     match /feedback/{feedbackId} {
-      allow create: if isSignedIn() && isNotBanned(); 
-      allow read, update, delete: if canEditConfig(); 
+      allow create: if isSignedIn() && isNotBanned()
+        && isValidText(request.resource.data.message, 1000);
+      allow read, update, delete: if canEditConfig();
     }
 
     match /venueClaims/{claimId} {
