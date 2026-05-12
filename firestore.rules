@@ -3,12 +3,39 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isSignedIn() { return request.auth != null; }
-    function getUserData() { return exists(/databases/$(database)/documents/users/$(request.auth.uid)) ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data : {}; }
-    function isNotBanned() { return getUserData().get('isBanned', false) == false; }
-    function isSuperAdmin() { return isSignedIn() && getUserData().get('isSuperAdmin', false) == true; }
 
     // ────────────────────────────────────────────────────────────
-    // INPUT VALIDATION HELPERS (S3 FIX)
+    // PRIVILEGE CHECKS — read from Firebase Auth Custom Claims only.
+    // Custom Claims are set server-side (Cloud Function / Admin SDK)
+    // and cannot be tampered with from the client.
+    // ────────────────────────────────────────────────────────────
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.get('isSuperAdmin', false) == true;
+    }
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.get('isSuperAdmin', false) == true ||
+        request.auth.token.get('isAdmin', false) == true
+      );
+    }
+    function isModerator() {
+      return isSignedIn() && (
+        request.auth.token.get('isSuperAdmin', false) == true ||
+        request.auth.token.get('isAdmin', false) == true ||
+        request.auth.token.get('isModerator', false) == true
+      );
+    }
+
+    // Keep getUserData() only for non-privilege fields (isBanned, permissions).
+    function getUserData() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+        : {};
+    }
+    function isNotBanned() { return getUserData().get('isBanned', false) == false; }
+
+    // ────────────────────────────────────────────────────────────
+    // INPUT VALIDATION HELPERS
     // ────────────────────────────────────────────────────────────
     function isValidText(text, maxLen) {
       return text is string && text.size() <= maxLen;
@@ -18,7 +45,10 @@ service cloud.firestore {
     }
 
     // ────────────────────────────────────────────────────────────
-    // RATE LIMITING HELPER (S2 FIX — raised to 30s)
+    // RATE LIMITING HELPER
+    // NOTE: /rateLimits/{userId} is now READ-ONLY from the client.
+    // The lastScoreAt timestamp is written exclusively by the
+    // onScoreCreate Cloud Function so it cannot be reset by the user.
     // ────────────────────────────────────────────────────────────
     function notRateLimited() {
       let rateDoc = /databases/$(database)/documents/rateLimits/$(request.auth.uid);
@@ -27,13 +57,13 @@ service cloud.firestore {
     }
 
     function canDeleteGlobalPubs() {
-      return isSuperAdmin() || (isSignedIn() && getUserData().get('isAdmin', false) == true) || (isSignedIn() && getUserData().get('permissions', {}).get('canDeletePubs', false) == true);
+      return isAdmin() || (isSignedIn() && getUserData().get('permissions', {}).get('canDeletePubs', false) == true);
     }
     function canModerate() {
-      return canDeleteGlobalPubs() || (isSignedIn() && getUserData().get('isModerator', false) == true) || (isSignedIn() && getUserData().get('permissions', {}).get('canModeratePhotos', false) == true);
+      return canDeleteGlobalPubs() || isModerator() || (isSignedIn() && getUserData().get('permissions', {}).get('canModeratePhotos', false) == true);
     }
     function canEditConfig() {
-      return isSuperAdmin() || (isSignedIn() && getUserData().get('isAdmin', false) == true) || (isSignedIn() && getUserData().get('permissions', {}).get('canEditConfig', false) == true);
+      return isAdmin() || (isSignedIn() && getUserData().get('permissions', {}).get('canEditConfig', false) == true);
     }
 
     function isModifyingOwnMembership() {
@@ -47,13 +77,9 @@ service cloud.firestore {
     }
 
     // ────────────────────────────────────────────────────────────
-    // USERS (SECURITY FIX)
-    // Users can only read their own private document.
-    // A public sub-collection exposes only safe, shared fields
-    // (displayName, nickname, photoURL) to other group members.
+    // USERS
     // ────────────────────────────────────────────────────────────
     match /users/{userId} {
-      // Each user can only read/write their own full profile document.
       allow read: if isSignedIn() && request.auth.uid == userId;
       allow create: if isSignedIn() && request.auth.uid == userId
         && !('isSuperAdmin' in request.resource.data)
@@ -68,8 +94,6 @@ service cloud.firestore {
       ) || isSuperAdmin();
       allow delete: if isSuperAdmin();
 
-      // Public profile sub-collection: any signed-in user can read
-      // safe display fields only. Only the owner can write.
       match /public/{docId} {
         allow read: if isSignedIn();
         allow write: if isSignedIn() && request.auth.uid == userId
@@ -78,22 +102,21 @@ service cloud.firestore {
     }
 
     // ────────────────────────────────────────────────────────────
-    // RATE LIMITS (S2 FIX)
+    // RATE LIMITS — CLIENT READ-ONLY.
+    // Writes come exclusively from the onScoreCreate Cloud Function
+    // via the Firebase Admin SDK (bypasses these rules entirely).
+    // Removing the client write rule prevents users from resetting
+    // lastScoreAt to 0 to bypass the 30-second cooldown.
     // ────────────────────────────────────────────────────────────
     match /rateLimits/{userId} {
       allow read: if isSignedIn() && request.auth.uid == userId;
-      allow write: if isSignedIn() && request.auth.uid == userId
-        && request.resource.data.keys().hasOnly(['lastScoreAt'])
-        && request.resource.data.lastScoreAt is int;
+      allow write: if false;
     }
 
     // ────────────────────────────────────────────────────────────
-    // GROUPS (SECURITY FIX)
-    // Scope read to members of the group, not all signed-in users.
-    // livePubId updates restricted to owner/managers only.
+    // GROUPS
     // ────────────────────────────────────────────────────────────
     match /groups/{groupId} {
-      // Only members (or pending members awaiting approval) can read the group.
       allow read: if isSignedIn() && (
         isSuperAdmin() ||
         request.auth.uid in resource.data.get('members', []) ||
@@ -101,16 +124,12 @@ service cloud.firestore {
         resource.data.ownerUid == request.auth.uid
       );
       allow create: if isSignedIn() && isNotBanned();
-
-      // General updates: owner, managers, or own-membership changes.
-      // livePubId field can only be changed by the owner or a manager.
       allow update: if isSuperAdmin() || (
         isSignedIn() && isNotBanned() && (
           isModifyingOwnMembership() ||
           (
-            (resource.data.ownerUid == request.auth.uid || request.auth.uid in resource.data.get('managers', [])) &&
-            // If the request touches livePubId, enforce owner/manager only
-            true
+            resource.data.ownerUid == request.auth.uid ||
+            request.auth.uid in resource.data.get('managers', [])
           )
         )
       );
