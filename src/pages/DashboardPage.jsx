@@ -55,7 +55,7 @@ export function HorizontalBarChart({ data }) {
                             font: { family: 'Satoshi, Inter, sans-serif', weight: '600', size: 12 },
                             callback: (val, idx) => {
                                 const label = data.labels[idx];
-                                return label && label.length > 22 ? label.slice(0, 20) + '…' : label;
+                                return label && label.length > 22 ? label.slice(0, 20) + '\u2026' : label;
                             },
                         },
                     },
@@ -114,7 +114,7 @@ export function StatCard({ title, value, subValue, onClick, icon }) {
         >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-2)' }}>
                 <p className="text-label" style={{ color: onClick ? 'var(--color-brand)' : undefined }}>
-                    {title} {onClick && '↗'}
+                    {title} {onClick && '\u2197'}
                 </p>
                 {icon && <span style={{ fontSize: '1.25rem', opacity: 0.6 }}>{icon}</span>}
             </div>
@@ -126,16 +126,27 @@ export function StatCard({ title, value, subValue, onClick, icon }) {
 
 /* ─── main component ──────────────────────────────────────────────────────── */
 
-export default function DashboardPage({ user, pubs, newPubs, criteria, users, scores, db, groupId, setPage, allUsers }) {
+export default function DashboardPage({ user, userProfile, pubs, newPubs, criteria, users, scores, db, groupId, setPage, allUsers, groupData }) {
     const pubsArray     = Array.isArray(pubs)     ? pubs     : Object.values(pubs     || {});
     const newPubsArray  = Array.isArray(newPubs)  ? newPubs  : Object.values(newPubs  || {});
     const criteriaArray = Array.isArray(criteria) ? criteria : Object.values(criteria || {});
     const scoresObj     = scores || {};
     const usersSize     = users && typeof users.size === 'number' ? users.size : 0;
 
+    // Derive whether the current user is owner or manager of this group.
+    // Used to gate the Live Location control so only privileged users can move the pin.
+    const isOwnerOrManager = useMemo(() => {
+        if (!user?.uid || !groupData) return false;
+        return (
+            groupData.ownerUid === user.uid ||
+            (Array.isArray(groupData.managers) && groupData.managers.includes(user.uid))
+        );
+    }, [user?.uid, groupData]);
+
     const [livePubId,      setLivePubId]      = useState('');
     const [recentCrawls,   setRecentCrawls]   = useState([]);
     const [upcomingEvents, setUpcomingEvents] = useState([]);
+    const [locationError,  setLocationError]  = useState('');
 
     const getUserName = (userId) => {
         const u = allUsers && allUsers[userId];
@@ -172,9 +183,21 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
         return () => { unsubSettings(); unsubCrawls(); unsubEvents(); };
     }, [db, groupId]);
 
+    // SECURITY FIX: Only group owners/managers may update the live location.
+    // The Firestore rule also enforces this server-side; this guard provides
+    // an early client-side check to avoid unnecessary failed writes.
     const handleSetLiveLocation = async (e) => {
-        try { await db.collection('groups').doc(groupId).update({ livePubId: e.target.value }); }
-        catch (err) { console.error('Error updating location:', err); }
+        if (!isOwnerOrManager) {
+            setLocationError('Only the group owner or a manager can change the live location.');
+            return;
+        }
+        setLocationError('');
+        try {
+            await db.collection('groups').doc(groupId).update({ livePubId: e.target.value });
+        } catch (err) {
+            console.error('Error updating location:', err);
+            setLocationError('Failed to update location. You may not have permission.');
+        }
     };
 
     /* ── price data ── */
@@ -246,7 +269,7 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
     const darkHorsePub = useMemo(() => {
         const eligible = weightedRankedPubs.filter(p => p.ratingCount === 1);
         if (!eligible.length) return null;
-        return eligible[0]; // already sorted by score desc
+        return eligible[0];
     }, [weightedRankedPubs]);
 
     /* ── top rater (most pubs scored) ── */
@@ -263,6 +286,7 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
         if (!sorted.length) return null;
         const [uid, count] = sorted[0];
         return { name: getUserName(uid), count };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pubsArray, scoresObj, allUsers]);
 
     /* ── my rating progress ── */
@@ -317,17 +341,17 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
         pubsArray.forEach(p => {
             if (p.createdAt?.toMillis) {
                 const addedBy = p.addedBy ? getUserName(p.addedBy) : 'Someone';
-                items.push({ id: `pub_${p.id}`, emoji: '🍺', title: 'New Pub Added', text: `${addedBy} added ${p.name} to the list.`, time: p.createdAt.toMillis(), dateLabel: new Date(p.createdAt.toMillis()).toLocaleDateString() });
+                items.push({ id: `pub_${p.id}`, emoji: '\uD83C\uDF7A', title: 'New Pub Added', text: `${addedBy} added ${p.name} to the list.`, time: p.createdAt.toMillis(), dateLabel: new Date(p.createdAt.toMillis()).toLocaleDateString() });
             }
         });
         recentCrawls.forEach(c => {
-            if (c.createdAt?.toMillis) items.push({ id: `crawl_${c.id}`, emoji: '🗺️', title: 'Crawl Planned', text: `${c.creatorName} planned: ${c.name}`, time: c.createdAt.toMillis(), dateLabel: new Date(c.createdAt.toMillis()).toLocaleDateString() });
+            if (c.createdAt?.toMillis) items.push({ id: `crawl_${c.id}`, emoji: '\uD83D\uDDFA\uFE0F', title: 'Crawl Planned', text: `${c.creatorName} planned: ${c.name}`, time: c.createdAt.toMillis(), dateLabel: new Date(c.createdAt.toMillis()).toLocaleDateString() });
         });
         criteriaArray.forEach(c => {
-            if (c.createdAt?.toMillis) items.push({ id: `crit_${c.id}`, emoji: '📋', title: 'Rules Updated', text: `New rating category: ${c.name}`, time: c.createdAt.toMillis(), dateLabel: new Date(c.createdAt.toMillis()).toLocaleDateString() });
+            if (c.createdAt?.toMillis) items.push({ id: `crit_${c.id}`, emoji: '\uD83D\uDCCB', title: 'Rules Updated', text: `New rating category: ${c.name}`, time: c.createdAt.toMillis(), dateLabel: new Date(c.createdAt.toMillis()).toLocaleDateString() });
         });
         upcomingEvents.forEach(e => {
-            if (e.createdAt?.toMillis) items.push({ id: `event_${e.id}`, emoji: '📅', title: 'Event Scheduled', text: `${e.title} was added to the calendar.`, time: e.createdAt.toMillis(), dateLabel: new Date(e.createdAt.toMillis()).toLocaleDateString() });
+            if (e.createdAt?.toMillis) items.push({ id: `event_${e.id}`, emoji: '\uD83D\uDCC5', title: 'Event Scheduled', text: `${e.title} was added to the calendar.`, time: e.createdAt.toMillis(), dateLabel: new Date(e.createdAt.toMillis()).toLocaleDateString() });
         });
         const sorted = items.sort((a, b) => b.time - a.time).slice(0, 20);
 
@@ -344,7 +368,8 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
             groups[key].push(item);
         });
         return groups;
-    }, [pubsArray, recentCrawls, criteriaArray, upcomingEvents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pubsArray, recentCrawls, criteriaArray, upcomingEvents, allUsers]);
 
     const overallAvg = weightedRankedPubs.length > 0
         ? (weightedRankedPubs.reduce((sum, p) => sum + p.avgScore, 0) / weightedRankedPubs.length).toFixed(1)
@@ -366,14 +391,14 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                     <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div>
                             <h3 style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 'var(--text-lg)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
-                                <span className="animate-bounce" style={{ fontSize: '1.5rem' }}>🏆</span> Your First Quest
+                                <span className="animate-bounce" style={{ fontSize: '1.5rem' }}>&#x1F3C6;</span> Your First Quest
                             </h3>
                             <p style={{ fontSize: 'var(--text-sm)', fontWeight: 400, opacity: 0.9, maxWidth: '28rem', fontFamily: 'var(--font-body)' }}>
                                 Welcome to the crew! Head to the Directory and drop your first rating to unlock the 'First Pint' badge.
                             </p>
                         </div>
                         <button onClick={() => setPage('pubs')} className="hidden sm:block" style={{ padding: 'var(--space-2) var(--space-6)', background: '#fff', color: 'var(--color-brand-dark)', fontWeight: 700, fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', border: 'none', cursor: 'pointer' }}>
-                            Start Rating →
+                            Start Rating &rarr;
                         </button>
                     </div>
                     <div style={{ position: 'absolute', right: '-2.5rem', top: '-2.5rem', width: '10rem', height: '10rem', background: 'rgba(255,255,255,0.15)', borderRadius: '50%', filter: 'blur(2rem)', pointerEvents: 'none' }} />
@@ -388,7 +413,7 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                 </div>
                 {topRater && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: 'var(--space-2) var(--space-4)', boxShadow: 'var(--shadow-sm)' }}>
-                        <span style={{ fontSize: '1rem' }}>🏅</span>
+                        <span style={{ fontSize: '1rem' }}>&#x1F3C5;</span>
                         <p style={{ fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-text-muted)' }}>
                             Top Rater: <span style={{ color: 'var(--color-brand)' }}>{topRater.name}</span>
                             <span style={{ color: 'var(--color-text-faint)', marginLeft: 'var(--space-1)' }}>({topRater.count} ratings)</span>
@@ -400,7 +425,7 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
             {/* ══ HERO ROW: Pub of Month (left) + KPI cards (right) ══ */}
             <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 'var(--space-4)', alignItems: 'stretch' }}>
 
-                {/* Pub of the Month – full-bleed photo hero */}
+                {/* Pub of the Month */}
                 <div
                     onClick={() => setPage('pubs')}
                     style={{ borderRadius: 'var(--radius-xl)', overflow: 'hidden', boxShadow: 'var(--shadow-lg)', cursor: 'pointer', position: 'relative', minHeight: '16rem', background: 'var(--color-surface-offset)', transition: 'all var(--transition-interactive)' }}
@@ -408,7 +433,6 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                     onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }}
                     className="group"
                 >
-                    {/* Full-bleed photo or gradient */}
                     {spotlightPub?.photoURL ? (
                         <img
                             src={spotlightPub.photoURL}
@@ -420,19 +444,15 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                     ) : (
                         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, var(--color-brand-dark), var(--color-brand))' }} />
                     )}
-                    {/* Gradient overlay */}
                     <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)' }} />
-
-                    {/* Content */}
                     <div style={{ position: 'relative', zIndex: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 'var(--space-5)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-full)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>🔥 Pub of the Month</span>
-                            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '1.25rem', opacity: 0, transition: 'opacity var(--transition-interactive)' }} className="group-hover:opacity-100">↗</span>
+                            <span style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-full)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>&#x1F525; Pub of the Month</span>
                         </div>
                         {spotlightPub ? (
                             <div>
                                 <p style={{ color: '#fff', fontFamily: 'var(--font-display)', fontSize: 'var(--text-xl)', fontWeight: 400, lineHeight: 1.15, marginBottom: 'var(--space-1)', textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>{spotlightPub.name}</p>
-                                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'var(--font-body)', marginBottom: 'var(--space-3)' }}>📍 {spotlightPub.location}</p>
+                                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'var(--font-body)', marginBottom: 'var(--space-3)' }}>&#x1F4CD; {spotlightPub.location}</p>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                                     <span style={{ background: 'var(--color-brand)', color: '#fff', padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-full)', fontWeight: 800, fontSize: 'var(--text-base)', fontFamily: 'var(--font-body)' }}>
                                         {spotlightPub.avgScore.toFixed(1)}/10
@@ -444,25 +464,24 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                             </div>
                         ) : (
                             <div style={{ textAlign: 'center' }}>
-                                <span style={{ fontSize: '2.5rem' }}>👑</span>
+                                <span style={{ fontSize: '2.5rem' }}>&#x1F451;</span>
                                 <p style={{ color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', marginTop: 'var(--space-2)', fontFamily: 'var(--font-body)' }}>Rate a pub to crown it here.</p>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* KPI grid – 2x2 */}
+                {/* KPI grid */}
                 <div className="lg:col-span-2 grid grid-cols-2" style={{ gap: 'var(--space-4)' }}>
-                    <StatCard title="Visited Pubs"   value={pubsArray.length}    onClick={() => setPage('pubs')}    icon="🍺" />
-                    <StatCard title="Pubs to Visit"  value={newPubsArray.length} onClick={() => setPage('toVisit')} icon="📋" />
-                    <StatCard title="Total Raters"   value={usersSize}                                              icon="👥" />
+                    <StatCard title="Visited Pubs"   value={pubsArray.length}    onClick={() => setPage('pubs')}    icon="&#x1F37A;" />
+                    <StatCard title="Pubs to Visit"  value={newPubsArray.length} onClick={() => setPage('toVisit')} icon="&#x1F4CB;" />
+                    <StatCard title="Total Raters"   value={usersSize}                                              icon="&#x1F465;" />
                     <StatCard
                         title="Overall Average"
                         value={overallAvg}
                         subValue="Group Wide"
-                        icon="⭐"
+                        icon="&#x2B50;"
                     />
-                    {/* My Progress – full-width row in the 2-col grid */}
                     {user && (
                         <div className="col-span-2 card-warm" style={{ padding: 'var(--space-4)', display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
                             <div style={{ flex: 1 }}>
@@ -492,32 +511,45 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                 <div style={{ ...padded, position: 'relative', overflow: 'hidden' }}>
                     {livePubId && <div style={{ position: 'absolute', inset: 0, background: 'var(--color-brand)', opacity: 0.04, pointerEvents: 'none' }} className="animate-pulse" />}
                     <div style={{ position: 'relative', zIndex: 1 }}>
-                        <p className="text-label" style={{ marginBottom: 'var(--space-3)' }}>📍 Current Group Location</p>
+                        <p className="text-label" style={{ marginBottom: 'var(--space-3)' }}>&#x1F4CD; Current Group Location</p>
                         {livePubId ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
                                 {livePub?.photoURL ? (
                                     <img src={livePub.photoURL} alt={livePub.name} loading="lazy" width="56" height="56"
                                         style={{ width: '3.5rem', height: '3.5rem', borderRadius: 'var(--radius-lg)', objectFit: 'cover', border: '2px solid var(--color-brand-light)', boxShadow: 'var(--shadow-sm)' }} />
                                 ) : (
-                                    <div className="animate-bounce" style={{ fontSize: '2rem' }}>📍</div>
+                                    <div className="animate-bounce" style={{ fontSize: '2rem' }}>&#x1F4CD;</div>
                                 )}
                                 <p className="text-page-title" style={{ color: 'var(--color-brand)', lineHeight: 1.1 }}>{livePub?.name || 'Unknown Pub'}</p>
                             </div>
                         ) : (
                             <p className="text-section-heading" style={{ marginBottom: 'var(--space-4)', opacity: 0.6 }}>Not currently at a pub.</p>
                         )}
-                        <select
-                            value={livePubId}
-                            onChange={handleSetLiveLocation}
-                            style={{ width: '100%', padding: 'var(--space-3) var(--space-4)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-2)', color: 'var(--color-text)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', outline: 'none' }}
-                            onFocus={e => e.target.style.borderColor = 'var(--color-brand)'}
-                            onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
-                        >
-                            <option value="">🏠 Everyone went home</option>
-                            <optgroup label="Active Pubs">
-                                {pubsArray.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </optgroup>
-                        </select>
+
+                        {/* Only show the control to owners/managers */}
+                        {isOwnerOrManager ? (
+                            <>
+                                <select
+                                    value={livePubId}
+                                    onChange={handleSetLiveLocation}
+                                    style={{ width: '100%', padding: 'var(--space-3) var(--space-4)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-2)', color: 'var(--color-text)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', outline: 'none' }}
+                                    onFocus={e => e.target.style.borderColor = 'var(--color-brand)'}
+                                    onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
+                                >
+                                    <option value="">&#x1F3E0; Everyone went home</option>
+                                    <optgroup label="Active Pubs">
+                                        {pubsArray.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                    </optgroup>
+                                </select>
+                                {locationError && (
+                                    <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-xs)', color: 'var(--color-error)', fontWeight: 600 }}>{locationError}</p>
+                                )}
+                            </>
+                        ) : (
+                            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontStyle: 'italic', marginTop: 'var(--space-2)' }}>
+                                Only the group owner or a manager can change the live location.
+                            </p>
+                        )}
                     </div>
                 </div>
 
@@ -526,7 +558,7 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                     <div style={{ background: 'linear-gradient(135deg, var(--color-brand-dark), var(--color-brand))', padding: '3px', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-sm)' }}>
                         <div style={{ background: 'var(--color-surface)', borderRadius: 'calc(var(--radius-xl) - 3px)', padding: 'var(--space-6)', height: '100%' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
-                                <span style={{ fontSize: '2rem' }}>🍺</span>
+                                <span style={{ fontSize: '2rem' }}>&#x1F37A;</span>
                                 <div>
                                     <h3 className="text-section-heading" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--font-display)', fontWeight: 400 }}>The Guinness Index</h3>
                                     <p className="text-muted" style={{ fontSize: 'var(--text-xs)' }}>Tracking the exact price of a pint</p>
@@ -539,8 +571,8 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                                             <img src={cheapestPint.pub.photoURL} alt={cheapestPint.pub.name} loading="lazy" width="48" height="48"
                                                 style={{ width: '3rem', height: '3rem', borderRadius: 'var(--radius-md)', objectFit: 'cover', marginBottom: 'var(--space-1)' }} />
                                         )}
-                                        <p className="text-label" style={{ color: 'var(--color-success)' }}>💚 Cheapest Pint</p>
-                                        <p className="text-kpi" style={{ fontSize: 'var(--text-xl)' }}>£{cheapestPint.avgPrice.toFixed(2)}</p>
+                                        <p className="text-label" style={{ color: 'var(--color-success)' }}>&#x1F49A; Cheapest Pint</p>
+                                        <p className="text-kpi" style={{ fontSize: 'var(--text-xl)' }}>&pound;{cheapestPint.avgPrice.toFixed(2)}</p>
                                         <p className="text-muted" style={{ fontSize: 'var(--text-xs)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cheapestPint.pub.name}</p>
                                     </div>
                                 )}
@@ -550,8 +582,8 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                                             <img src={priciestPint.pub.photoURL} alt={priciestPint.pub.name} loading="lazy" width="48" height="48"
                                                 style={{ width: '3rem', height: '3rem', borderRadius: 'var(--radius-md)', objectFit: 'cover', marginBottom: 'var(--space-1)' }} />
                                         )}
-                                        <p className="text-label" style={{ color: 'var(--color-error)' }}>🔴 Priciest Pint</p>
-                                        <p className="text-kpi" style={{ fontSize: 'var(--text-xl)' }}>£{priciestPint.avgPrice.toFixed(2)}</p>
+                                        <p className="text-label" style={{ color: 'var(--color-error)' }}>&#x1F534; Priciest Pint</p>
+                                        <p className="text-kpi" style={{ fontSize: 'var(--text-xl)' }}>&pound;{priciestPint.avgPrice.toFixed(2)}</p>
                                         <p className="text-muted" style={{ fontSize: 'var(--text-xs)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{priciestPint.pub.name}</p>
                                     </div>
                                 )}
@@ -559,7 +591,6 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                         </div>
                     </div>
                 ) : (
-                    /* placeholder when no price data */
                     <div style={{ ...padded, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.4 }}>
                         <p className="text-muted" style={{ textAlign: 'center', fontStyle: 'italic' }}>No pint prices logged yet.</p>
                     </div>
@@ -579,12 +610,12 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                                 <img src={biggestDebatePub.photoURL} alt={biggestDebatePub.name} loading="lazy" width="64" height="64"
                                     style={{ width: '4rem', height: '4rem', borderRadius: 'var(--radius-lg)', objectFit: 'cover', flexShrink: 0, border: '2px solid var(--color-border)' }} />
                             ) : (
-                                <div style={{ width: '4rem', height: '4rem', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-offset)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', flexShrink: 0 }}>⚡</div>
+                                <div style={{ width: '4rem', height: '4rem', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-offset)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', flexShrink: 0 }}>&#x26A1;</div>
                             )}
                             <div style={{ flex: 1, minWidth: 0 }}>
-                                <p className="text-label" style={{ color: 'var(--color-warning)', marginBottom: 'var(--space-1)' }}>⚡ Biggest Debate</p>
+                                <p className="text-label" style={{ color: 'var(--color-warning)', marginBottom: 'var(--space-1)' }}>&#x26A1; Biggest Debate</p>
                                 <p className="text-card-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 'var(--space-1)' }}>{biggestDebatePub.name}</p>
-                                <p className="text-muted" style={{ fontSize: 'var(--text-xs)' }}>Members can't agree — avg {biggestDebatePub.avgScore.toFixed(1)}/10</p>
+                                <p className="text-muted" style={{ fontSize: 'var(--text-xs)' }}>Members can't agree &mdash; avg {biggestDebatePub.avgScore.toFixed(1)}/10</p>
                             </div>
                             <span style={{ fontSize: 'var(--text-xl)', fontFamily: 'var(--font-body)', fontWeight: 800, color: 'var(--color-brand)', flexShrink: 0 }}>{biggestDebatePub.avgScore.toFixed(1)}</span>
                         </div>
@@ -599,12 +630,12 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                                 <img src={darkHorsePub.photoURL} alt={darkHorsePub.name} loading="lazy" width="64" height="64"
                                     style={{ width: '4rem', height: '4rem', borderRadius: 'var(--radius-lg)', objectFit: 'cover', flexShrink: 0, border: '2px solid var(--color-border)' }} />
                             ) : (
-                                <div style={{ width: '4rem', height: '4rem', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-offset)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', flexShrink: 0 }}>🌑</div>
+                                <div style={{ width: '4rem', height: '4rem', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-offset)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', flexShrink: 0 }}>&#x1F311;</div>
                             )}
                             <div style={{ flex: 1, minWidth: 0 }}>
-                                <p className="text-label" style={{ color: 'var(--color-purple)', marginBottom: 'var(--space-1)' }}>🌑 Dark Horse</p>
+                                <p className="text-label" style={{ color: 'var(--color-purple)', marginBottom: 'var(--space-1)' }}>&#x1F311; Dark Horse</p>
                                 <p className="text-card-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 'var(--space-1)' }}>{darkHorsePub.name}</p>
-                                <p className="text-muted" style={{ fontSize: 'var(--text-xs)' }}>High rated but only 1 review — go explore!</p>
+                                <p className="text-muted" style={{ fontSize: 'var(--text-xs)' }}>High rated but only 1 review &mdash; go explore!</p>
                             </div>
                             <span style={{ fontSize: 'var(--text-xl)', fontFamily: 'var(--font-body)', fontWeight: 800, color: 'var(--color-brand)', flexShrink: 0 }}>{darkHorsePub.avgScore.toFixed(1)}</span>
                         </div>
@@ -620,7 +651,7 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                             <h3 className="text-section-heading">The Top 10 Leaderboard</h3>
                             <p className="text-muted" style={{ marginTop: 'var(--space-1)', fontSize: 'var(--text-xs)' }}>Colour-coded by quality tier.</p>
                         </div>
-                        <button onClick={() => setPage('leaderboard')} style={{ fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-brand)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Full Leaderboard ↗</button>
+                        <button onClick={() => setPage('leaderboard')} style={{ fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-brand)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Full Leaderboard &#x2197;</button>
                     </div>
                     <div style={{ height: '20rem' }}><HorizontalBarChart data={pubChartData} /></div>
                 </div>
@@ -642,7 +673,7 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                     </div>
                     {upcomingEvents.length === 0 ? (
                         <div style={{ textAlign: 'center', margin: 'auto', padding: 'var(--space-8) 0' }}>
-                            <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: 'var(--space-2)', opacity: 0.5 }}>📅</span>
+                            <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: 'var(--space-2)', opacity: 0.5 }}>&#x1F4C5;</span>
                             <p className="text-muted" style={{ fontStyle: 'italic' }}>No events planned.</p>
                         </div>
                     ) : (
@@ -664,7 +695,7 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                                         </div>
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             <p className="text-card-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</p>
-                                            <p className="text-muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'var(--text-xs)' }}>📍 {pub?.name || 'Unknown Pub'}</p>
+                                            <p className="text-muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'var(--text-xs)' }}>&#x1F4CD; {pub?.name || 'Unknown Pub'}</p>
                                         </div>
                                     </div>
                                 );
@@ -673,7 +704,7 @@ export default function DashboardPage({ user, pubs, newPubs, criteria, users, sc
                     )}
                 </div>
 
-                {/* Group Activity Feed – grouped by date */}
+                {/* Group Activity Feed */}
                 <div style={{ ...padded, display: 'flex', flexDirection: 'column' }} className="lg:col-span-2">
                     <h3 className="text-section-heading" style={{ marginBottom: 'var(--space-5)' }}>Group Activity</h3>
                     {Object.keys(groupedTimeline).length === 0 ? (
