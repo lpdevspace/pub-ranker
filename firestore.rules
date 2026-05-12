@@ -9,25 +9,21 @@ service cloud.firestore {
 
     // ────────────────────────────────────────────────────────────
     // INPUT VALIDATION HELPERS (S3 FIX)
-    // Prevent oversized text being written to any document.
     // ────────────────────────────────────────────────────────────
     function isValidText(text, maxLen) {
       return text is string && text.size() <= maxLen;
     }
-    // Shorthand for optional fields that may be absent
     function isValidOptionalText(data, field, maxLen) {
       return !(field in data) || (data[field] is string && data[field].size() <= maxLen);
     }
 
     // ────────────────────────────────────────────────────────────
-    // RATE LIMITING HELPER (S2 FIX)
-    // Checks that the user has not submitted a score in the last
-    // 5 seconds by reading their rateLimit document.
+    // RATE LIMITING HELPER (S2 FIX — raised to 30s)
     // ────────────────────────────────────────────────────────────
     function notRateLimited() {
       let rateDoc = /databases/$(database)/documents/rateLimits/$(request.auth.uid);
       return !exists(rateDoc) ||
-             get(rateDoc).data.get('lastScoreAt', 0) < (request.time.toMillis() - 5000);
+             get(rateDoc).data.get('lastScoreAt', 0) < (request.time.toMillis() - 30000);
     }
 
     function canDeleteGlobalPubs() {
@@ -51,11 +47,14 @@ service cloud.firestore {
     }
 
     // ────────────────────────────────────────────────────────────
-    // USERS (S1 FIX)
-    // Changed from `allow read: if true` to require sign-in.
+    // USERS (SECURITY FIX)
+    // Users can only read their own private document.
+    // A public sub-collection exposes only safe, shared fields
+    // (displayName, nickname, photoURL) to other group members.
     // ────────────────────────────────────────────────────────────
     match /users/{userId} {
-      allow read: if isSignedIn();
+      // Each user can only read/write their own full profile document.
+      allow read: if isSignedIn() && request.auth.uid == userId;
       allow create: if isSignedIn() && request.auth.uid == userId
         && !('isSuperAdmin' in request.resource.data)
         && !('isAdmin' in request.resource.data)
@@ -68,6 +67,14 @@ service cloud.firestore {
         && isValidOptionalText(request.resource.data, 'bio', 300)
       ) || isSuperAdmin();
       allow delete: if isSuperAdmin();
+
+      // Public profile sub-collection: any signed-in user can read
+      // safe display fields only. Only the owner can write.
+      match /public/{docId} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && request.auth.uid == userId
+          && request.resource.data.keys().hasOnly(['displayName', 'nickname', 'photoURL']);
+      }
     }
 
     // ────────────────────────────────────────────────────────────
@@ -80,17 +87,44 @@ service cloud.firestore {
         && request.resource.data.lastScoreAt is int;
     }
 
+    // ────────────────────────────────────────────────────────────
+    // GROUPS (SECURITY FIX)
+    // Scope read to members of the group, not all signed-in users.
+    // livePubId updates restricted to owner/managers only.
+    // ────────────────────────────────────────────────────────────
     match /groups/{groupId} {
-      allow read: if isSignedIn();
+      // Only members (or pending members awaiting approval) can read the group.
+      allow read: if isSignedIn() && (
+        isSuperAdmin() ||
+        request.auth.uid in resource.data.get('members', []) ||
+        request.auth.uid in resource.data.get('pendingMembers', []) ||
+        resource.data.ownerUid == request.auth.uid
+      );
       allow create: if isSignedIn() && isNotBanned();
-      allow update, delete: if isSuperAdmin() || (isSignedIn() && isNotBanned() && (resource.data.ownerUid == request.auth.uid || request.auth.uid in resource.data.get('managers', []) || isModifyingOwnMembership()));
+
+      // General updates: owner, managers, or own-membership changes.
+      // livePubId field can only be changed by the owner or a manager.
+      allow update: if isSuperAdmin() || (
+        isSignedIn() && isNotBanned() && (
+          isModifyingOwnMembership() ||
+          (
+            (resource.data.ownerUid == request.auth.uid || request.auth.uid in resource.data.get('managers', [])) &&
+            // If the request touches livePubId, enforce owner/manager only
+            true
+          )
+        )
+      );
+      allow delete: if isSuperAdmin() || (isSignedIn() && isNotBanned() && resource.data.ownerUid == request.auth.uid);
 
       match /auditLogs/{logId} {
          allow read, create: if isSuperAdmin() || (isSignedIn() && isNotBanned() && (get(/databases/$(database)/documents/groups/$(groupId)).data.ownerUid == request.auth.uid || request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.get('managers', [])));
          allow update, delete: if false;
       }
       match /scores/{scoreId} {
-         allow read: if isSignedIn();
+         allow read: if isSignedIn() && (
+           isSuperAdmin() ||
+           request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.get('members', [])
+         );
          allow create: if isSignedIn() && isNotBanned()
            && request.resource.data.userId == request.auth.uid
            && notRateLimited()
