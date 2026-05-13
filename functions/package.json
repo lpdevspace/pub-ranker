@@ -3,7 +3,7 @@
   "description": "Firebase Cloud Functions for Pub Ranker",
   "version": "1.0.0",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "main": "index.js",
   "scripts": {
