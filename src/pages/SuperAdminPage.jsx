@@ -1243,4 +1243,92 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                     <div key={pub.id} className="relative group rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
                                         <img src={pub.photoURL} alt={pub.name} className="w-full h-48 object-cover group-hover:scale-105 transition duration-300" />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-4 flex flex-col justify-end">
-                                            <p className="text-
+                                                                                    <p className="text-white font-bold truncate">{pub.name}</p>
+                                            <p className="text-gray-300 text-xs truncate">{pub.location || 'Unknown'}</p>
+                                        </div>
+                                        <button onClick={() => handleDeletePhoto(pub.id)} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-lg font-bold shadow-lg hover:bg-red-700 transition opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0" title="Delete Photo">🗑️ Scrub</button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {isAdmin && (
+                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-orange-200 dark:border-orange-900/50 overflow-hidden">
+                            <div className="p-5 bg-orange-50 dark:bg-orange-900/20 border-b border-orange-100 dark:border-orange-900/30">
+                                <h3 className="text-xl font-black text-orange-800 dark:text-orange-300 flex items-center gap-2">👯‍♂️ Merge Duplicate Pubs</h3>
+                                <p className="text-sm text-orange-600 dark:text-orange-400 mt-1">Combine duplicated pubs into a single master record. All ratings, comments, and hit-list votes will be seamlessly transferred across all groups.</p>
+                            </div>
+                            <div className="p-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">1. The Master Pub (Keep)</label>
+                                        <select value={mergePrimary} onChange={(e) => setMergePrimary(e.target.value)} className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-orange-500 cursor-pointer outline-none">
+                                            <option value="">-- Select Primary Pub --</option>
+                                            {sortedPubsForDropdown.map(p => (
+                                                <option key={`p-${p.id}`} value={p.id}>{p.name} ({p.location || 'Unknown'})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">2. The Duplicate (Merge & Delete)</label>
+                                        <select value={mergeDuplicate} onChange={(e) => setMergeDuplicate(e.target.value)} className="w-full px-4 py-3 border border-red-200 dark:border-red-900/50 rounded-xl bg-red-50 dark:bg-red-900/20 dark:text-white focus:ring-2 focus:ring-red-500 cursor-pointer outline-none">
+                                            <option value="">-- Select Duplicate Pub --</option>
+                                            {sortedPubsForDropdown.map(p => (
+                                                <option key={`d-${p.id}`} value={p.id}>{p.name} ({p.location || 'Unknown'})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="mt-6 flex justify-end">
+                                    <button onClick={handleMergePubs} disabled={isMerging || !mergePrimary || !mergeDuplicate} className="px-8 py-3 bg-orange-600 text-white font-black rounded-xl hover:bg-orange-700 transition disabled:opacity-50 flex items-center gap-2 shadow-md">
+                                        {isMerging ? "🔄 Merging Databases..." : "🛠️ Execute Merge"}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* --- FEEDBACK TAB --- */}
+            {activeTab === 'feedback' && (
+                <div className="space-y-4 animate-fadeIn">
+                    <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-white">Feedback Inbox</h3>
+                        <span className="text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-3 py-1 rounded-full font-bold">{feedbackList.length} Messages</span>
+                    </div>
+                    
+                    {feedbackList.length === 0 ? (
+                        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow text-center text-gray-500 dark:text-gray-400">No feedback submitted yet!</div>
+                    ) : (
+                        <div className="grid grid-cols-1 gap-4">
+                            {feedbackList.map(item => (
+                                <div key={item.id} className={`p-4 rounded-lg shadow-sm border-l-4 transition-colors ${item.resolved ? 'bg-gray-50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600 opacity-70' : 'bg-white dark:bg-gray-800 border-blue-500'}`}>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <span className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded ${item.type === 'bug' ? 'bg-red-100 text-red-800' : item.type === 'feature' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                                                {item.type}
+                                            </span>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                                                From: {item.userName} ({item.userEmail})
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => handleResolveFeedback(item.id, item.resolved)} className={`text-xs font-semibold px-2 py-1 rounded ${item.resolved ? 'text-gray-600 bg-gray-200 hover:bg-gray-300' : 'text-green-800 bg-green-100 hover:bg-green-200'}`}>
+                                                {item.resolved ? 'Mark Unresolved' : '✔️ Resolve'}
+                                            </button>
+                                            <button onClick={() => handleDeleteFeedback(item.id)} className="text-xs text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1 rounded font-semibold">Delete</button>
+                                        </div>
+                                    </div>
+                                    <p className="text-gray-800 dark:text-gray-200 font-medium whitespace-pre-wrap">{item.message}</p>
+                                    <p className="text-xs text-gray-400 mt-2">{item.createdAt && typeof item.createdAt.toDate === 'function' ? new Date(item.createdAt.toDate()).toLocaleString() : 'Recent'}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
