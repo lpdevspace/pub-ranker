@@ -155,7 +155,7 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                 return (
                     <ProtectedRoute allowed={canManageGroup} fallback={<RedirectToDashboard setPage={setPage} />}>
                         <Suspense fallback={<LoadingScreen text="Loading Admin Panel..." />}>
-                            <AdminPageLoader {...sharedProps} groupData={groupData} groupRef={groupRef} auth={auth} />
+                            <AdminPageLoader {...sharedProps} currentGroup={groupData} groupRef={groupRef} auth={auth} />
                         </Suspense>
                     </ProtectedRoute>
                 );
