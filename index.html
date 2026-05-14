@@ -8,17 +8,8 @@
 
     <!--
       Content Security Policy
-      font-src:
-        - *.gstatic.com (wildcard)       — Google Fonts served from various subdomains
-        - api.fontshare.com              — Fontshare
-      img-src additions vs previous:
-        - dynamic-media-cdn.tripadvisor.com  — TripAdvisor pub photos
-        - *.tripadvisor.com                  — other TripAdvisor CDN subdomains
-        - www.sugarvine.com                  — Sugarvine pub images
-        - *.sugarvine.com                    — Sugarvine CDN subdomains
-        - *.cloudinary.com                   — Cloudinary CDN (common pub photo host)
-        - *.cloudfront.net                   — AWS CloudFront CDN
-        - *.googleusercontent.com            — Google user content (covers lh3, lh4, etc.)
+      Fonts from Fontshare are served via cdn.fontshare.com (actual font files)
+      as well as api.fontshare.com (the CSS loader). Both must be in font-src.
     -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
@@ -28,11 +19,13 @@
         https://maps.googleapis.com;
       style-src 'self' 'unsafe-inline'
         https://api.fontshare.com
+        https://cdn.fontshare.com
         https://fonts.googleapis.com
         https://*.gstatic.com
         https://unpkg.com;
       font-src 'self'
         https://api.fontshare.com
+        https://cdn.fontshare.com
         https://*.gstatic.com
         https://fonts.gstatic.com;
       connect-src 'self'
@@ -67,6 +60,7 @@
 
     <!-- Font preconnects — must come before the stylesheet links -->
     <link rel="preconnect" href="https://api.fontshare.com" />
+    <link rel="preconnect" href="https://cdn.fontshare.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
