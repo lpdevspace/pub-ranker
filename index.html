@@ -10,10 +10,12 @@
       Content Security Policy
       Fonts from Fontshare are served via cdn.fontshare.com (actual font files)
       as well as api.fontshare.com (the CSS loader). Both must be in font-src.
+      apis.google.com is required for Google Sign-In popup flow.
     -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
       script-src 'self' 'unsafe-inline' 'unsafe-eval'
+        https://apis.google.com
         https://*.googleapis.com
         https://*.gstatic.com
         https://maps.googleapis.com;
@@ -32,9 +34,11 @@
         https://*.firebaseio.com
         wss://*.firebaseio.com
         https://*.googleapis.com
+        https://apis.google.com
         https://*.firebasestorage.app
         https://firebasestorage.googleapis.com
         https://identitytoolkit.googleapis.com
+        https://securetoken.googleapis.com
         https://api.openweathermap.org
         https://nominatim.openstreetmap.org
         https://router.project-osrm.org
@@ -54,7 +58,9 @@
         https://*.sugarvine.com
         https://*.cloudinary.com
         https://*.cloudfront.net;
-      frame-src 'none';
+      frame-src
+        https://accounts.google.com
+        https://*.firebaseapp.com;
       object-src 'none';
     " />
 

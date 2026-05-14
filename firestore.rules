@@ -6,8 +6,6 @@ service cloud.firestore {
 
     // ────────────────────────────────────────────────────────────
     // PRIVILEGE CHECKS — read from Firebase Auth Custom Claims only.
-    // Custom Claims are set server-side (Cloud Function / Admin SDK)
-    // and cannot be tampered with from the client.
     // ────────────────────────────────────────────────────────────
     function isSuperAdmin() {
       return isSignedIn() && request.auth.token.get('isSuperAdmin', false) == true;
@@ -26,7 +24,6 @@ service cloud.firestore {
       );
     }
 
-    // Keep getUserData() only for non-privilege fields (isBanned, permissions).
     function getUserData() {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid))
         ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
@@ -46,9 +43,6 @@ service cloud.firestore {
 
     // ────────────────────────────────────────────────────────────
     // RATE LIMITING HELPER
-    // NOTE: /rateLimits/{userId} is now READ-ONLY from the client.
-    // The lastScoreAt timestamp is written exclusively by the
-    // onScoreCreate Cloud Function so it cannot be reset by the user.
     // ────────────────────────────────────────────────────────────
     function notRateLimited() {
       let rateDoc = /databases/$(database)/documents/rateLimits/$(request.auth.uid);
@@ -103,10 +97,6 @@ service cloud.firestore {
 
     // ────────────────────────────────────────────────────────────
     // RATE LIMITS — CLIENT READ-ONLY.
-    // Writes come exclusively from the onScoreCreate Cloud Function
-    // via the Firebase Admin SDK (bypasses these rules entirely).
-    // Removing the client write rule prevents users from resetting
-    // lastScoreAt to 0 to bypass the 30-second cooldown.
     // ────────────────────────────────────────────────────────────
     match /rateLimits/{userId} {
       allow read: if isSignedIn() && request.auth.uid == userId;
@@ -115,14 +105,21 @@ service cloud.firestore {
 
     // ────────────────────────────────────────────────────────────
     // GROUPS
+    // Public read allowed for groups marked isPublic == true so the
+    // landing page can display them to unauthenticated visitors.
+    // All writes and private group reads still require auth.
     // ────────────────────────────────────────────────────────────
     match /groups/{groupId} {
-      allow read: if isSignedIn() && (
-        isSuperAdmin() ||
-        request.auth.uid in resource.data.get('members', []) ||
-        request.auth.uid in resource.data.get('pendingMembers', []) ||
-        resource.data.ownerUid == request.auth.uid
-      );
+      allow read: if
+        // unauthenticated visitors can read publicly listed groups
+        resource.data.get('isPublic', false) == true
+        // signed-in members / pending members / owners can always read
+        || (isSignedIn() && (
+          isSuperAdmin() ||
+          request.auth.uid in resource.data.get('members', []) ||
+          request.auth.uid in resource.data.get('pendingMembers', []) ||
+          resource.data.ownerUid == request.auth.uid
+        ));
       allow create: if isSignedIn() && isNotBanned();
       allow update: if isSuperAdmin() || (
         isSignedIn() && isNotBanned() && (
@@ -221,8 +218,10 @@ service cloud.firestore {
       allow read, update, delete: if canModerate();
     }
 
+    // global/settings is read by App.jsx before auth resolves (for maintenance
+    // mode and announcements), so allow unauthenticated reads of this one doc.
     match /global/{docId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if canEditConfig();
     }
 
