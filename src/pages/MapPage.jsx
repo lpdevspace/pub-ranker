@@ -141,23 +141,23 @@ const buildTooltipHTML = (pub, score, hasScore, color) => {
         : `<div style="width:100%;height:5rem;background:${color};opacity:0.35;border-radius:0.6rem 0.6rem 0 0;"></div>`;
     const scoreBadge = hasScore
         ? `<span style="background:${color};color:#fff;padding:2px 9px;border-radius:9999px;font-size:0.78rem;font-weight:800;">${score.toFixed(1)}/10</span>
-           <span style="color:#888;font-size:0.72rem;font-weight:700;">${tierLabel(score, hasScore)}</span>`
-        : `<span style="color:#aaa;font-size:0.78rem;font-style:italic;">Not yet rated</span>`;
+           <span style="color:#555;font-size:0.72rem;font-weight:700;">${tierLabel(score, hasScore)}</span>`
+        : `<span style="color:#999;font-size:0.78rem;font-style:italic;">Not yet rated</span>`;
     const listType = pub._listType === 'visited'
-        ? `<span style="background:#dcfce7;color:#166534;border-radius:9999px;padding:1px 7px;font-size:0.65rem;font-weight:700;">✓ Visited</span>`
-        : `<span style="background:#fef9c3;color:#854d0e;border-radius:9999px;padding:1px 7px;font-size:0.65rem;font-weight:700;">📋 To Visit</span>`;
+        ? `<span style="background:#dcfce7;color:#166534;border-radius:9999px;padding:1px 7px;font-size:0.65rem;font-weight:700;">&#10003; Visited</span>`
+        : `<span style="background:#fef9c3;color:#854d0e;border-radius:9999px;padding:1px 7px;font-size:0.65rem;font-weight:700;">&#128203; To Visit</span>`;
     const tagsBlock = (pub.tags || []).length
-        ? `<p style="font-size:0.68rem;color:#999;margin-top:5px;line-height:1.5;">${pub.tags.slice(0, 4).join(' · ')}</p>`
+        ? `<p style="font-size:0.68rem;color:#777;margin-top:5px;line-height:1.5;">${pub.tags.slice(0, 4).join(' · ')}</p>`
         : '';
     return `
-      <div style="width:220px;font-family:Satoshi,Inter,system-ui,sans-serif;pointer-events:none;">
+      <div style="width:220px;font-family:Satoshi,Inter,system-ui,sans-serif;pointer-events:none;background:#fff;border-radius:0.6rem;overflow:hidden;">
         ${photoBlock}
-        <div style="padding:10px 12px 12px;">
+        <div style="padding:10px 12px 12px;background:#fff;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:4px;">
             <p style="font-weight:800;font-size:0.95rem;color:#1a1a1a;line-height:1.2;flex:1;">${pub.name}</p>
             ${listType}
           </div>
-          <p style="font-size:0.72rem;color:#888;margin-bottom:7px;">📍 ${pub.location || ''}</p>
+          <p style="font-size:0.72rem;color:#777;margin-bottom:7px;">&#128205; ${pub.location || ''}</p>
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${scoreBadge}</div>
           ${tagsBlock}
         </div>
@@ -179,7 +179,7 @@ const buildPopupHTML = (pub, score, hasScore, color) => {
     const googleHTML = pub.googleLink
         ? `<a href="${pub.googleLink}" target="_blank" rel="noopener noreferrer"
              style="display:block;text-align:center;margin-top:9px;background:#f3f0ec;border:1px solid #ddd;border-radius:0.5rem;padding:6px;font-size:0.75rem;font-weight:700;color:#555;text-decoration:none;">
-             📍 Open in Google Maps
+             &#128205; Open in Google Maps
            </a>`
         : '';
     return `
@@ -187,7 +187,7 @@ const buildPopupHTML = (pub, score, hasScore, color) => {
         ${photoBlock}
         <div style="padding:11px 12px 8px;">
           <p style="font-weight:800;font-size:1rem;margin-bottom:3px;color:#1a1a1a;">${pub.name}</p>
-          <p style="font-size:0.75rem;color:#666;margin-bottom:7px;">📍 ${pub.location || ''}</p>
+          <p style="font-size:0.75rem;color:#666;margin-bottom:7px;">&#128205; ${pub.location || ''}</p>
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${scoreHTML}</div>
           ${tagsHTML}
           ${googleHTML}
@@ -441,25 +441,26 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
             {/* ── tooltip styles ── */}
             <style>{`
                 .pub-hover-tooltip {
-                    background: transparent !important;
-                    border: none !important;
-                    box-shadow: none !important;
                     padding: 0 !important;
+                    border: none !important;
+                    background: transparent !important;
+                    box-shadow: none !important;
                 }
-                .pub-hover-tooltip .leaflet-tooltip-content { padding: 0 !important; }
-                .pub-hover-tooltip::before { display: none !important; }
-                .leaflet-tooltip.pub-hover-tooltip {
-                    background: #fff;
-                    border-radius: 0.6rem;
-                    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-                    border: 1px solid rgba(0,0,0,0.08);
-                    overflow: hidden;
-                    padding: 0;
-                    font-family: Satoshi, Inter, sans-serif;
+                .pub-hover-tooltip .leaflet-tooltip-content {
+                    padding: 0 !important;
+                    background: transparent !important;
                 }
-                .leaflet-tooltip.pub-hover-tooltip::before {
-                    display: block !important;
-                    border-top-color: #fff;
+                .pub-hover-tooltip::before {
+                    display: none !important;
+                }
+                /* The actual visible card sits inside the HTML content */
+                .pub-hover-tooltip > div,
+                .pub-hover-tooltip .leaflet-tooltip-content > div {
+                    background: #fff !important;
+                    border-radius: 0.6rem !important;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.2) !important;
+                    border: 1px solid rgba(0,0,0,0.08) !important;
+                    overflow: hidden !important;
                 }
                 @keyframes spin { to { transform: rotate(360deg); } }
                 @keyframes routePulse { 0%,100%{opacity:0.9} 50%{opacity:0.55} }
