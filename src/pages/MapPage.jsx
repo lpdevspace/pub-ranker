@@ -261,10 +261,17 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
 
     useEffect(() => { setLocalPubs(allPubs); }, [allPubs]);
 
-    /* ── geocode missing coords on mount ── */
+    /* ── geocode missing coords ──
+       Depends on allPubs and pubsRef so it only runs once pubsRef is ready
+       (i.e. once db and groupId are both available). A ref tracks whether
+       geocoding has already been kicked off so we never run it twice.
+    ── */
+    const geocodedRef = useRef(false);
     useEffect(() => {
+        if (!pubsRef || geocodedRef.current) return;
         const missing = allPubs.filter(p => !p.lat || !p.lng);
-        if (!missing.length || !pubsRef) return;
+        if (!missing.length) return;
+        geocodedRef.current = true;
         setGeocoding(true);
         geocodeMissingPubs(allPubs, (done, total) => setGeocodeProgress({ done, total }))
             .then(results => {
@@ -286,8 +293,7 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
                     return found ? { ...p, lat: found.lat, lng: found.lng } : p;
                 }));
             });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [allPubs, pubsRef]); // eslint-disable-line react-hooks/exhaustive-deps
 
     /* ── load crawls ── */
     useEffect(() => {
