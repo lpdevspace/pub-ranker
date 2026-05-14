@@ -203,6 +203,12 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
     const criteriaArray = Array.isArray(criteria) ? criteria : Object.values(criteria || {});
     const scoresObj     = scores || {};
 
+    // The correct Firestore ref for this group's pubs subcollection
+    const pubsRef = useMemo(
+        () => db && groupId ? db.collection('groups').doc(groupId).collection('pubs') : null,
+        [db, groupId]
+    );
+
     const mapRef       = useRef(null);
     const leafletRef   = useRef(null);
     const markersRef   = useRef({});
@@ -258,17 +264,18 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
     /* ── geocode missing coords on mount ── */
     useEffect(() => {
         const missing = allPubs.filter(p => !p.lat || !p.lng);
-        if (!missing.length || !db || !groupId) return;
+        if (!missing.length || !pubsRef) return;
         setGeocoding(true);
         geocodeMissingPubs(allPubs, (done, total) => setGeocodeProgress({ done, total }))
             .then(results => {
                 setGeocoding(false);
                 if (!results.length) return;
-                // Use set+merge instead of update so docs are created if they don't exist yet
+                // Write geocoded lat/lng back to the correct subcollection path:
+                // groups/{groupId}/pubs/{pubId}
                 const batch = db.batch();
                 results.forEach(({ id, lat, lng }) =>
                     batch.set(
-                        db.collection('pubs').doc(id),
+                        pubsRef.doc(id),
                         { lat, lng },
                         { merge: true }
                     )
