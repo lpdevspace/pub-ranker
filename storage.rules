@@ -1,0 +1,70 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ─── helpers ───────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.get('isSuperAdmin', false) == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.get('isSuperAdmin', false) == true ||
+        request.auth.token.get('isAdmin', false) == true
+      );
+    }
+
+    // Max file sizes
+    function isValidImage() {
+      return request.resource.contentType.matches('image/.*')
+          && request.resource.size <= 5 * 1024 * 1024; // 5 MB
+    }
+
+    function isValidAvatar() {
+      return request.resource.contentType.matches('image/.*')
+          && request.resource.size <= 2 * 1024 * 1024; // 2 MB
+    }
+
+    // ─── User avatars ───────────────────────────────────────────
+    // Path: avatars/{userId}/{filename}
+    match /avatars/{userId}/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId) && isValidAvatar();
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    // ─── Pub photos ─────────────────────────────────────────────
+    // Path: pubs/{pubId}/{filename}
+    match /pubs/{pubId}/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isValidImage();
+      allow delete: if isSignedIn();
+    }
+
+    // ─── Group cover photos ──────────────────────────────────────
+    // Path: groups/{groupId}/{filename}
+    match /groups/{groupId}/{allPaths=**} {
+      allow read: if true; // public groups show covers on the landing page
+      allow write: if isSignedIn() && isValidImage();
+      allow delete: if isSignedIn();
+    }
+
+    // ─── Admin / super-admin uploads ────────────────────────────
+    match /admin/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // ─── Deny everything else ────────────────────────────────────
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
