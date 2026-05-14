@@ -8,18 +8,17 @@
 
     <!--
       Content Security Policy
-      connect-src:
-        - *.firebaseio.com / *.googleapis.com / *.firebasestorage.app  — Firebase
-        - api.openweathermap.org                                        — Weather widget
-        - nominatim.openstreetmap.org                                   — Geocoding
-        - router.project-osrm.org                                       — Routing
-        - *.tile.openstreetmap.org                                      — Map tiles (XHR fallback)
-      img-src:
-        - *.googleapis.com / *.gstatic.com / *.ggpht.com               — Google (Street View, user photos)
-        - *.googleusercontent.com                                       — Firebase Storage profile pics
-        - firebasestorage.googleapis.com                                — pub photos
-        - *.openstreetmap.org                                           — tile images
-        - blob: data:                                                   — generated / canvas images
+      font-src:
+        - *.gstatic.com (wildcard)       — Google Fonts served from various subdomains
+        - api.fontshare.com              — Fontshare
+      img-src additions vs previous:
+        - dynamic-media-cdn.tripadvisor.com  — TripAdvisor pub photos
+        - *.tripadvisor.com                  — other TripAdvisor CDN subdomains
+        - www.sugarvine.com                  — Sugarvine pub images
+        - *.sugarvine.com                    — Sugarvine CDN subdomains
+        - *.cloudinary.com                   — Cloudinary CDN (common pub photo host)
+        - *.cloudfront.net                   — AWS CloudFront CDN
+        - *.googleusercontent.com            — Google user content (covers lh3, lh4, etc.)
     -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
@@ -30,10 +29,11 @@
       style-src 'self' 'unsafe-inline'
         https://api.fontshare.com
         https://fonts.googleapis.com
-        https://fonts.gstatic.com
+        https://*.gstatic.com
         https://unpkg.com;
       font-src 'self'
         https://api.fontshare.com
+        https://*.gstatic.com
         https://fonts.gstatic.com;
       connect-src 'self'
         https://*.firebaseio.com
@@ -54,7 +54,13 @@
         https://firebasestorage.googleapis.com
         https://*.openstreetmap.org
         https://*.tile.openstreetmap.org
-        https://unpkg.com;
+        https://unpkg.com
+        https://dynamic-media-cdn.tripadvisor.com
+        https://*.tripadvisor.com
+        https://www.sugarvine.com
+        https://*.sugarvine.com
+        https://*.cloudinary.com
+        https://*.cloudfront.net;
       frame-src 'none';
       object-src 'none';
     " />
