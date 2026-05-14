@@ -6,6 +6,59 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Group Pub Ranker</title>
 
+    <!--
+      Content Security Policy
+      connect-src:
+        - *.firebaseio.com / *.googleapis.com / *.firebasestorage.app  — Firebase
+        - api.openweathermap.org                                        — Weather widget
+        - nominatim.openstreetmap.org                                   — Geocoding
+        - router.project-osrm.org                                       — Routing
+        - *.tile.openstreetmap.org                                      — Map tiles (XHR fallback)
+      img-src:
+        - *.googleapis.com / *.gstatic.com / *.ggpht.com               — Google (Street View, user photos)
+        - *.googleusercontent.com                                       — Firebase Storage profile pics
+        - firebasestorage.googleapis.com                                — pub photos
+        - *.openstreetmap.org                                           — tile images
+        - blob: data:                                                   — generated / canvas images
+    -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval'
+        https://*.googleapis.com
+        https://*.gstatic.com
+        https://maps.googleapis.com;
+      style-src 'self' 'unsafe-inline'
+        https://api.fontshare.com
+        https://fonts.googleapis.com
+        https://fonts.gstatic.com
+        https://unpkg.com;
+      font-src 'self'
+        https://api.fontshare.com
+        https://fonts.gstatic.com;
+      connect-src 'self'
+        https://*.firebaseio.com
+        wss://*.firebaseio.com
+        https://*.googleapis.com
+        https://*.firebasestorage.app
+        https://firebasestorage.googleapis.com
+        https://identitytoolkit.googleapis.com
+        https://api.openweathermap.org
+        https://nominatim.openstreetmap.org
+        https://router.project-osrm.org
+        https://*.tile.openstreetmap.org;
+      img-src 'self' data: blob:
+        https://*.googleapis.com
+        https://*.gstatic.com
+        https://*.ggpht.com
+        https://*.googleusercontent.com
+        https://firebasestorage.googleapis.com
+        https://*.openstreetmap.org
+        https://*.tile.openstreetmap.org
+        https://unpkg.com;
+      frame-src 'none';
+      object-src 'none';
+    " />
+
     <!-- Font preconnects — must come before the stylesheet links -->
     <link rel="preconnect" href="https://api.fontshare.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
