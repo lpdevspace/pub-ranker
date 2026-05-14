@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import Header from './components/header.jsx';
 import useGroupData from './hooks/useGroupData';
 import useScoreCalculations from './hooks/useScoreCalculations';
@@ -17,6 +17,7 @@ import SpinPage from './pages/SpinTheWheelPage.jsx';
 import FeedbackPage from './pages/FeedbackPage.jsx';
 import TaproomPage from './pages/TaproomPage.jsx';
 import VenuePortalPage from './pages/VenuePortalPage.jsx';
+import LoadingScreen from './components/LoadingScreen';
 
 // ── URL <-> page key mapping ────────────────────────────────────────────────
 const PATH_TO_PAGE = {
@@ -153,13 +154,17 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
             case 'admin':
                 return (
                     <ProtectedRoute allowed={canManageGroup} fallback={<RedirectToDashboard setPage={setPage} />}>
-                        <AdminPageLoader {...sharedProps} groupData={groupData} groupRef={groupRef} auth={auth} />
+                        <Suspense fallback={<LoadingScreen text="Loading Admin Panel..." />}>
+                            <AdminPageLoader {...sharedProps} groupData={groupData} groupRef={groupRef} auth={auth} />
+                        </Suspense>
                     </ProtectedRoute>
                 );
             case 'superadmin':
                 return (
                     <ProtectedRoute allowed={isStaff} fallback={<RedirectToDashboard setPage={setPage} />}>
-                        <SuperAdminPageLoader {...sharedProps} auth={auth} db={db} />
+                        <Suspense fallback={<LoadingScreen text="Loading Super Admin Panel..." />}>
+                            <SuperAdminPageLoader {...sharedProps} auth={auth} db={db} />
+                        </Suspense>
                     </ProtectedRoute>
                 );
             case 'dashboard':
