@@ -264,8 +264,15 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
             .then(results => {
                 setGeocoding(false);
                 if (!results.length) return;
+                // Use set+merge instead of update so docs are created if they don't exist yet
                 const batch = db.batch();
-                results.forEach(({ id, lat, lng }) => batch.update(db.collection('pubs').doc(id), { lat, lng }));
+                results.forEach(({ id, lat, lng }) =>
+                    batch.set(
+                        db.collection('pubs').doc(id),
+                        { lat, lng },
+                        { merge: true }
+                    )
+                );
                 batch.commit().catch(console.error);
                 setLocalPubs(prev => prev.map(p => {
                     const found = results.find(r => r.id === p.id);
