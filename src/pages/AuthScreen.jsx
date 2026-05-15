@@ -8,7 +8,7 @@ export default function AuthScreen({ auth, onBack }) {
     const [password, setPassword] = useState('');
     const [isSignUp, setIsSignUp] = useState(false);
     const [error, setError] = useState('');
-    const [redirectLoading, setRedirectLoading] = useState(false);
+    const [popupLoading, setPopupLoading] = useState(false);
 
     const handleAuthAction = async () => {
         setError('');
@@ -26,34 +26,43 @@ export default function AuthScreen({ auth, onBack }) {
 
     const handleGoogleSignIn = async () => {
         setError('');
-        setRedirectLoading(true);
+        setPopupLoading(true);
         try {
-            await auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
+            await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
         } catch (e) {
-            setError(getFriendlyError(e.code));
-            setRedirectLoading(false);
+            if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+                setError(getFriendlyError(e.code));
+            }
+        } finally {
+            setPopupLoading(false);
         }
     };
 
     const handleAppleSignIn = async () => {
         setError('');
-        setRedirectLoading(true);
+        setPopupLoading(true);
         try {
-            await auth.signInWithRedirect(new firebase.auth.OAuthProvider('apple.com'));
+            await auth.signInWithPopup(new firebase.auth.OAuthProvider('apple.com'));
         } catch (e) {
-            setError(getFriendlyError(e.code));
-            setRedirectLoading(false);
+            if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+                setError(getFriendlyError(e.code));
+            }
+        } finally {
+            setPopupLoading(false);
         }
     };
 
     const handleFacebookSignIn = async () => {
         setError('');
-        setRedirectLoading(true);
+        setPopupLoading(true);
         try {
-            await auth.signInWithRedirect(new firebase.auth.FacebookAuthProvider());
+            await auth.signInWithPopup(new firebase.auth.FacebookAuthProvider());
         } catch (e) {
-            setError(getFriendlyError(e.code));
-            setRedirectLoading(false);
+            if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+                setError(getFriendlyError(e.code));
+            }
+        } finally {
+            setPopupLoading(false);
         }
     };
 
@@ -130,8 +139,8 @@ export default function AuthScreen({ auth, onBack }) {
                     </p>
                 </div>
 
-                {/* Redirect loading indicator */}
-                {redirectLoading && (
+                {/* Popup loading indicator */}
+                {popupLoading && (
                     <div style={{
                         textAlign: 'center',
                         padding: 'var(--space-4)',
@@ -143,7 +152,7 @@ export default function AuthScreen({ auth, onBack }) {
                 )}
 
                 {/* Social sign-in buttons */}
-                {!redirectLoading && (
+                {!popupLoading && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
                     {/* Google */}
                     <button
