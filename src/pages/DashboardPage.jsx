@@ -19,6 +19,231 @@ const scoreTierLabel = (score) => {
 
 const MEDAL = ['\uD83E\uDD47', '\uD83E\uDD48', '\uD83E\uDD49']; // 🥇🥈🥉
 
+/* ─── badge definitions ──────────────────────────────────────────────────────── */
+
+// Each badge: { id, emoji, label, desc, check(stats) => bool }
+const BADGE_DEFS = [
+    {
+        id: 'first_pint',
+        emoji: '\uD83C\uDF7A', // 🍺
+        label: 'First Pint',
+        desc: 'Someone in the group submitted their very first rating.',
+        check: ({ totalRatings }) => totalRatings >= 1,
+    },
+    {
+        id: 'the_regulars',
+        emoji: '\uD83D\uDC65', // 👥
+        label: 'The Regulars',
+        desc: 'Group has 5 or more members.',
+        check: ({ memberCount }) => memberCount >= 5,
+    },
+    {
+        id: 'pub_scholar',
+        emoji: '\uD83C\uDF93', // 🎓
+        label: 'Pub Scholar',
+        desc: 'Group has rated 10 pubs.',
+        check: ({ visitedCount }) => visitedCount >= 10,
+    },
+    {
+        id: 'centurion',
+        emoji: '\uD83D\uDEE1\uFE0F', // 🛡️
+        label: 'Centurion',
+        desc: '100 pubs visited. Absolute legends.',
+        check: ({ visitedCount }) => visitedCount >= 100,
+    },
+    {
+        id: 'crawl_commander',
+        emoji: '\uD83D\uDDFA\uFE0F', // 🗺️
+        label: 'Crawl Commander',
+        desc: 'Group has 5 visited pubs — a true pub crawl veteran.',
+        check: ({ visitedCount }) => visitedCount >= 5,
+    },
+    {
+        id: 'critic_crew',
+        emoji: '\u2B50', // ⭐
+        label: 'Critic Crew',
+        desc: 'Group has rated at least 3 different criteria.',
+        check: ({ criteriaCount }) => criteriaCount >= 3,
+    },
+    {
+        id: 'pint_economist',
+        emoji: '\uD83D\uDCB0', // 💰
+        label: 'Pint Economist',
+        desc: 'Group has tracked pint prices in at least one pub.',
+        check: ({ hasPrices }) => hasPrices,
+    },
+    {
+        id: 'high_standards',
+        emoji: '\uD83C\uDFC6', // 🏆
+        label: 'High Standards',
+        desc: 'Group average score is 8.0 or above.',
+        check: ({ overallAvg }) => overallAvg >= 8.0,
+    },
+    {
+        id: 'tough_crowd',
+        emoji: '\uD83D\uDE44', // 🙄
+        label: 'Tough Crowd',
+        desc: 'Group average score is below 5.0 — very picky.',
+        check: ({ overallAvg, visitedCount }) => visitedCount >= 3 && overallAvg < 5.0,
+    },
+    {
+        id: 'pub_explorer',
+        emoji: '\uD83E\uDDED', // 🧭compass
+        label: 'Pub Explorer',
+        desc: '20 pubs on the to-visit list.',
+        check: ({ toVisitCount }) => toVisitCount >= 20,
+    },
+    {
+        id: 'local_hero',
+        emoji: '\uD83C\uDFD8\uFE0F', // 🏘️
+        label: 'Local Hero',
+        desc: 'Group has 3+ pubs in the same area.',
+        check: ({ topAreaCount }) => topAreaCount >= 3,
+    },
+    {
+        id: 'live_and_kicking',
+        emoji: '\uD83D\uDCCD', // 📍
+        label: 'Live & Kicking',
+        desc: 'Someone set a live pub location.',
+        check: ({ hasLiveLocation }) => hasLiveLocation,
+    },
+];
+
+/* ─── BadgesStrip sub-component ────────────────────────────────────────────── */
+
+function BadgesStrip({ badges }) {
+    const [tooltip, setTooltip] = useState(null);
+    const unlocked = badges.filter(b => b.unlocked);
+    const locked   = badges.filter(b => !b.unlocked);
+    const ordered  = [...unlocked, ...locked];
+
+    return (
+        <div style={{
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-xl)',
+            boxShadow: 'var(--shadow-sm)',
+            padding: 'var(--space-4) var(--space-5)',
+        }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)' }}>
+                <p className="text-label">&#x1F3C5; Group Badges</p>
+                <span style={{
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-body)',
+                    color: 'var(--color-brand)',
+                    background: 'var(--color-brand-highlight, rgba(1,105,111,0.1))',
+                    padding: '2px var(--space-3)',
+                    borderRadius: 'var(--radius-full)',
+                }}>
+                    {unlocked.length} / {badges.length} unlocked
+                </span>
+            </div>
+
+            {/* Horizontally scrollable badge row */}
+            <div style={{
+                display: 'flex',
+                gap: 'var(--space-3)',
+                overflowX: 'auto',
+                paddingBottom: 'var(--space-2)',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'var(--color-border) transparent',
+            }}>
+                {ordered.map(badge => (
+                    <div
+                        key={badge.id}
+                        onMouseEnter={() => setTooltip(badge.id)}
+                        onMouseLeave={() => setTooltip(null)}
+                        style={{
+                            position: 'relative',
+                            flexShrink: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 'var(--space-1)',
+                            width: '5.5rem',
+                            cursor: 'default',
+                        }}
+                    >
+                        {/* Badge circle */}
+                        <div style={{
+                            width: '3.5rem',
+                            height: '3.5rem',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.5rem',
+                            transition: 'all 0.2s ease',
+                            background: badge.unlocked
+                                ? 'linear-gradient(135deg, var(--color-brand), var(--color-brand-dark))'
+                                : 'var(--color-surface-offset)',
+                            border: badge.unlocked
+                                ? '2px solid var(--color-brand-light, rgba(1,105,111,0.3))'
+                                : '2px solid var(--color-border)',
+                            boxShadow: badge.unlocked ? 'var(--shadow-md)' : 'none',
+                            filter: badge.unlocked ? 'none' : 'grayscale(1) opacity(0.35)',
+                        }}>
+                            {badge.emoji}
+                        </div>
+
+                        {/* Badge label */}
+                        <p style={{
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            fontFamily: 'var(--font-body)',
+                            textAlign: 'center',
+                            lineHeight: 1.2,
+                            color: badge.unlocked ? 'var(--color-text)' : 'var(--color-text-faint)',
+                            maxWidth: '5rem',
+                        }}>
+                            {badge.label}
+                        </p>
+
+                        {/* Tooltip on hover */}
+                        {tooltip === badge.id && (
+                            <div style={{
+                                position: 'absolute',
+                                bottom: 'calc(100% + var(--space-2))',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                background: 'var(--color-text)',
+                                color: 'var(--color-surface)',
+                                fontSize: '0.65rem',
+                                fontFamily: 'var(--font-body)',
+                                fontWeight: 500,
+                                padding: 'var(--space-2) var(--space-3)',
+                                borderRadius: 'var(--radius-md)',
+                                whiteSpace: 'nowrap',
+                                maxWidth: '14rem',
+                                whiteSpace: 'normal',
+                                textAlign: 'center',
+                                zIndex: 50,
+                                boxShadow: 'var(--shadow-lg)',
+                                pointerEvents: 'none',
+                                lineHeight: 1.4,
+                            }}>
+                                {badge.unlocked ? badge.desc : `\uD83D\uDD12 ${badge.desc}`}
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    left: '50%',
+                                    transform: 'translateX(-50%)',
+                                    width: 0,
+                                    height: 0,
+                                    borderLeft: '5px solid transparent',
+                                    borderRight: '5px solid transparent',
+                                    borderTop: '5px solid var(--color-text)',
+                                }} />
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 /* ─── sub-components ──────────────────────────────────────────────────────── */
 
 export function StatCard({ title, value, subValue, onClick, icon }) {
@@ -234,6 +459,44 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
         return unvisited[seed];
     }, [newPubsArray]);
 
+    /* ── overall average (for badges) ── */
+    const overallAvgNum = weightedRankedPubs.length > 0
+        ? weightedRankedPubs.reduce((sum, p) => sum + p.avgScore, 0) / weightedRankedPubs.length
+        : 0;
+
+    /* ── badge stats ── */
+    const badges = useMemo(() => {
+        const totalRatings = Object.values(scoresObj).reduce((sum, pubScores) =>
+            sum + Object.values(pubScores).reduce((s2, cs) => s2 + (Array.isArray(cs) ? cs.length : 0), 0)
+        , 0);
+
+        const hasPrices = criteriaArray
+            .filter(c => c.type === 'currency')
+            .some(c => pubsArray.some(p => (scoresObj[p.id]?.[c.id] || []).length > 0));
+
+        // area count: find location string that appears most
+        const areaCounts = {};
+        pubsArray.forEach(p => {
+            const loc = (p.location || '').trim().toLowerCase();
+            if (loc) areaCounts[loc] = (areaCounts[loc] || 0) + 1;
+        });
+        const topAreaCount = Math.max(0, ...Object.values(areaCounts));
+
+        const stats = {
+            totalRatings,
+            memberCount:    usersSize,
+            visitedCount:   pubsArray.filter(p => p.status === 'visited').length,
+            toVisitCount:   newPubsArray.length,
+            criteriaCount:  criteriaArray.length,
+            hasPrices,
+            overallAvg:     overallAvgNum,
+            topAreaCount,
+            hasLiveLocation: !!livePubId,
+        };
+
+        return BADGE_DEFS.map(def => ({ ...def, unlocked: def.check(stats) }));
+    }, [pubsArray, newPubsArray, scoresObj, criteriaArray, usersSize, overallAvgNum, livePubId]);
+
     /* ── activity feed grouped by date ── */
     const groupedTimeline = useMemo(() => {
         const items = [];
@@ -269,10 +532,7 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pubsArray, recentCrawls, criteriaArray, upcomingEvents, allUsers]);
 
-    const overallAvg = weightedRankedPubs.length > 0
-        ? (weightedRankedPubs.reduce((sum, p) => sum + p.avgScore, 0) / weightedRankedPubs.length).toFixed(1)
-        : 0;
-
+    const overallAvg = overallAvgNum.toFixed(1);
     const livePub = pubsArray.find(p => p.id === livePubId);
 
     /* ── card style helpers ── */
@@ -355,6 +615,9 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                     </div>
                 )}
             </div>
+
+            {/* ── Badges Strip ── */}
+            <BadgesStrip badges={badges} />
 
             {/* ══ HERO ROW: Pub of Month (left) + KPI cards (right) ══ */}
             <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 'var(--space-4)', alignItems: 'stretch' }}>
