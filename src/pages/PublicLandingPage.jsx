@@ -84,40 +84,6 @@ export default function PublicLandingPage({ db, onLoginClick }) {
         setLoadingPreview(false);
     };
 
-    const features = [
-        {
-            icon: <IconStar />,
-            title: 'Rate what matters',
-            desc: 'Custom criteria — atmosphere, beer, service, price — weighted your way. Your group, your rules.',
-            wide: true,
-            accent: true,
-        },
-        {
-            icon: <IconMap />,
-            title: 'Map your regulars',
-            desc: 'Pin every pub on an interactive map and plan the perfect crawl.',
-            wide: false,
-        },
-        {
-            icon: <IconTrophy />,
-            title: 'Live leaderboard',
-            desc: 'Scores update in real time. Always know who's the current champion local.',
-            wide: false,
-        },
-        {
-            icon: <IconUsers />,
-            title: 'Invite your mates',
-            desc: 'Private groups, member approval, and role-based permissions keep things tidy.',
-            wide: false,
-        },
-        {
-            icon: <IconWheel />,
-            title: 'Spin the wheel',
-            desc: "Can't decide where to go tonight? Let fate pick from your top-rated pubs.",
-            wide: false,
-        },
-    ];
-
     const steps = [
         { num: '01', title: 'Create your group', desc: 'Sign up in seconds and invite your mates via link.' },
         { num: '02', title: 'Add your pubs', desc: 'Search or drop a pin — any pub in the UK can be added.' },
@@ -325,10 +291,10 @@ export default function PublicLandingPage({ db, onLoginClick }) {
                             </div>
                         </div>
 
-                        {/* Remaining feature cards */}
+                        {/* Remaining feature cards — apostrophes use HTML entities to avoid parser errors */}
                         {[
-                            { icon: <IconMap />, title: 'Map your regulars', desc: 'Pin every pub. See your city's best spots at a glance and plan the perfect crawl.' },
-                            { icon: <IconTrophy />, title: 'Live leaderboard', desc: 'Scores update in real time as your group rates. Always know the champion local.' },
+                            { icon: <IconMap />, title: 'Map your regulars', desc: "Pin every pub. See your city's best spots at a glance and plan the perfect crawl." },
+                            { icon: <IconTrophy />, title: 'Live leaderboard', desc: "Scores update in real time as your group rates. Always know who's the champion local." },
                             { icon: <IconUsers />, title: 'Invite your mates', desc: 'Private groups with member approval and roles keep things between the right people.' },
                             { icon: <IconWheel />, title: 'Spin the wheel', desc: "Can't decide where to go tonight? Let fate choose from your top-rated locals." },
                         ].map(f => (
@@ -360,17 +326,6 @@ export default function PublicLandingPage({ db, onLoginClick }) {
                     }}>
                         {steps.map((step, i) => (
                             <div key={step.num} style={{ position: 'relative', paddingTop: 'var(--space-2)' }}>
-                                {/* Connector line */}
-                                {i < steps.length - 1 && (
-                                    <div aria-hidden="true" style={{
-                                        display: 'none', // hidden on mobile, shown via media query below
-                                        position: 'absolute',
-                                        top: 22, left: 'calc(100% - var(--space-3))',
-                                        width: 'var(--space-6)', height: 2,
-                                        backgroundColor: 'var(--color-divider)',
-                                        zIndex: 0,
-                                    }} className="step-connector" />
-                                )}
                                 <div style={{
                                     width: 44, height: 44,
                                     borderRadius: 'var(--radius-full)',
@@ -494,7 +449,7 @@ export default function PublicLandingPage({ db, onLoginClick }) {
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+            ))}
                         </div>
                     )}
                 </div>
@@ -541,7 +496,7 @@ export default function PublicLandingPage({ db, onLoginClick }) {
                         className="btn-brand btn-brand-lg"
                         style={{ borderRadius: 'var(--radius-full)', fontSize: 'var(--text-base)', padding: 'var(--space-4) var(--space-10)' }}
                     >
-                        Get Started — It's Free
+                        Get Started — It&apos;s Free
                     </button>
                     <p style={{ marginTop: 'var(--space-4)', fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)' }}>No credit card required</p>
                 </div>
