@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { auth, db } from './firebase';
 import { firebase } from './firebase';
 import MainApp from './MainApp';
@@ -18,31 +18,37 @@ export default function App() {
     const [showAuth, setShowAuth] = useState(false);
     const [featureFlags, setFeatureFlags] = useState({});
 
+    // Track whether getRedirectResult() has finished so we never mark auth as
+    // resolved while a social-login redirect might still be in flight.
+    const redirectChecked = useRef(false);
+
     useEffect(() => {
         document.documentElement.classList.toggle('dark', isDarkMode);
         localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
     }, [isDarkMode]);
 
-    // Handle redirect-based social sign-in result (Google, Apple, Facebook).
-    // This MUST live in App.jsx so it runs on every page load, not just when
-    // AuthScreen is mounted. Without this, returning from a social redirect
-    // lands back on PublicLandingPage and the result is silently discarded.
-    useEffect(() => {
-        auth.getRedirectResult().catch((e) => {
-            // auth/no-auth-event is the normal "no redirect in progress" signal — ignore it.
-            if (e.code && e.code !== 'auth/no-auth-event') {
-                console.error('Redirect sign-in error:', e);
-            }
-        });
-    }, []);
-
     useEffect(() => {
         let profileUnsubscribe = null;
+
+        // 1. Check for an in-flight social redirect FIRST, before hooking up the
+        //    auth state listener. This prevents the brief signed-out flash that
+        //    happens when onAuthStateChanged fires (user=null) before Firebase
+        //    has had a chance to process the returning redirect credential.
+        auth.getRedirectResult()
+            .catch((e) => {
+                if (e.code && e.code !== 'auth/no-auth-event') {
+                    console.error('Redirect sign-in error:', e);
+                }
+            })
+            .finally(() => {
+                redirectChecked.current = true;
+            });
+
         const authUnsubscribe = auth.onAuthStateChanged(async (currentUser) => {
             if (profileUnsubscribe) { profileUnsubscribe(); profileUnsubscribe = null; }
+
             if (currentUser) {
                 setUser(currentUser);
-                // Clear showAuth so email/password login navigates away immediately
                 setShowAuth(false);
                 const userRef = db.collection('users').doc(currentUser.uid);
                 profileUnsubscribe = userRef.onSnapshot(async (doc) => {
@@ -72,12 +78,30 @@ export default function App() {
                     setAuthLoading(false);
                 });
             } else {
-                setUser(null);
-                setUserProfile(null);
-                setAuthLoading(false);
-                setShowAuth(false);
+                // Only mark auth as fully resolved once we know there is no
+                // pending redirect. If redirectChecked is still false the
+                // redirect result promise is still in flight — keep showing the
+                // loading screen so we don't flash the landing page.
+                if (redirectChecked.current) {
+                    setUser(null);
+                    setUserProfile(null);
+                    setAuthLoading(false);
+                    setShowAuth(false);
+                } else {
+                    // Poll until the redirect check resolves, then update state.
+                    const waitForRedirect = setInterval(() => {
+                        if (redirectChecked.current) {
+                            clearInterval(waitForRedirect);
+                            setUser(null);
+                            setUserProfile(null);
+                            setAuthLoading(false);
+                            setShowAuth(false);
+                        }
+                    }, 50);
+                }
             }
         });
+
         return () => { authUnsubscribe(); if (profileUnsubscribe) profileUnsubscribe(); };
     }, []);
 
@@ -103,7 +127,7 @@ export default function App() {
     let currentScreen;
 
     if (authLoading) {
-        currentScreen = <LoadingScreen text="Loading Authentication..." />;
+        currentScreen = <LoadingScreen text="Loading..." />;
 
     } else if (!user) {
         currentScreen = showAuth
@@ -167,7 +191,6 @@ export default function App() {
         );
 
     } else if (!userProfile.activeGroupId || !userProfile.groups?.includes(userProfile.activeGroupId)) {
-        // Group selection screen — centred narrow layout
         currentScreen = (
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4">
                 <GroupPortal user={user} userProfile={userProfile} auth={auth} db={db} />
@@ -175,7 +198,6 @@ export default function App() {
         );
 
     } else {
-        // Main app — no extra wrapper, MainApp handles its own layout
         currentScreen = (
             <MainApp
                 user={user}
