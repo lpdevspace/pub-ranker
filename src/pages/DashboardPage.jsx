@@ -244,6 +244,192 @@ function BadgesStrip({ badges }) {
     );
 }
 
+/* ─── ScoreTrendSparkline sub-component ──────────────────────────────────── */
+
+function ScoreTrendSparkline({ points }) {
+    const [hovered, setHovered] = useState(null);
+
+    if (!points || points.length < 2) {
+        return (
+            <div style={{ textAlign: 'center', padding: 'var(--space-8) 0', opacity: 0.4 }}>
+                <span style={{ fontSize: '2rem', display: 'block', marginBottom: 'var(--space-2)' }}>&#x1F4C8;</span>
+                <p className="text-muted" style={{ fontStyle: 'italic', fontSize: 'var(--text-xs)' }}>Rate at least 2 pubs to see your group's trend.</p>
+            </div>
+        );
+    }
+
+    const W = 480, H = 100, PAD_X = 8, PAD_Y = 10;
+    const minScore = Math.max(0,  Math.min(...points.map(p => p.score)) - 1);
+    const maxScore = Math.min(10, Math.max(...points.map(p => p.score)) + 1);
+    const range    = maxScore - minScore || 1;
+
+    const toX = (i) => PAD_X + (i / (points.length - 1)) * (W - PAD_X * 2);
+    const toY = (s) => PAD_Y + (1 - (s - minScore) / range) * (H - PAD_Y * 2);
+
+    // Build smooth polyline path
+    const linePts = points.map((p, i) => `${toX(i)},${toY(p.score)}`).join(' ');
+
+    // Build filled area path
+    const areaPath = [
+        `M ${toX(0)},${toY(points[0].score)}`,
+        ...points.slice(1).map((p, i) => `L ${toX(i + 1)},${toY(p.score)}`),
+        `L ${toX(points.length - 1)},${H - PAD_Y}`,
+        `L ${toX(0)},${H - PAD_Y}`,
+        'Z',
+    ].join(' ');
+
+    // Trend direction
+    const first = points[0].score;
+    const last  = points[points.length - 1].score;
+    const diff  = last - first;
+    const trendEmoji  = diff > 0.5 ? '\uD83D\uDCC8' : diff < -0.5 ? '\uD83D\uDCC9' : '\u27A1\uFE0F';
+    const trendLabel  = diff > 0.5 ? 'Trending up'  : diff < -0.5 ? 'Trending down' : 'Holding steady';
+    const trendColor  = diff > 0.5 ? 'var(--color-success)' : diff < -0.5 ? 'var(--color-error)' : 'var(--color-text-muted)';
+
+    return (
+        <div>
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+                <p className="text-label">&#x1F4C8; Group Score Trend</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                    <span style={{ fontSize: '1rem' }}>{trendEmoji}</span>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', color: trendColor }}>{trendLabel}</span>
+                    <span style={{
+                        fontSize: 'var(--text-xs)',
+                        fontWeight: 700,
+                        fontFamily: 'var(--font-body)',
+                        color: 'var(--color-text-faint)',
+                        background: 'var(--color-surface-offset)',
+                        padding: '2px var(--space-3)',
+                        borderRadius: 'var(--radius-full)',
+                    }}>Last {points.length} pubs</span>
+                </div>
+            </div>
+
+            {/* SVG sparkline */}
+            <div style={{ position: 'relative' }}>
+                <svg
+                    viewBox={`0 0 ${W} ${H}`}
+                    style={{ width: '100%', height: '6rem', overflow: 'visible' }}
+                    aria-label="Group score trend chart"
+                >
+                    <defs>
+                        <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%"  stopColor="var(--color-brand)" stopOpacity="0.18" />
+                            <stop offset="100%" stopColor="var(--color-brand)" stopOpacity="0" />
+                        </linearGradient>
+                    </defs>
+
+                    {/* Horizontal guide lines at score 5 and score 7.5 */}
+                    {[5, 7.5].map(s => (
+                        s >= minScore && s <= maxScore ? (
+                            <line
+                                key={s}
+                                x1={PAD_X} y1={toY(s)}
+                                x2={W - PAD_X} y2={toY(s)}
+                                stroke="var(--color-border)"
+                                strokeWidth="1"
+                                strokeDasharray="4 4"
+                            />
+                        ) : null
+                    ))}
+
+                    {/* Filled area under the line */}
+                    <path d={areaPath} fill="url(#spark-fill)" />
+
+                    {/* The line itself */}
+                    <polyline
+                        points={linePts}
+                        fill="none"
+                        stroke="var(--color-brand)"
+                        strokeWidth="2.5"
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                    />
+
+                    {/* Data point dots + hover hit areas */}
+                    {points.map((p, i) => (
+                        <g key={i}>
+                            {/* invisible wider hit area */}
+                            <circle
+                                cx={toX(i)} cy={toY(p.score)}
+                                r="12"
+                                fill="transparent"
+                                style={{ cursor: 'pointer' }}
+                                onMouseEnter={() => setHovered(i)}
+                                onMouseLeave={() => setHovered(null)}
+                            />
+                            {/* visible dot */}
+                            <circle
+                                cx={toX(i)} cy={toY(p.score)}
+                                r={hovered === i ? 5 : 3.5}
+                                fill={hovered === i ? 'var(--color-brand)' : 'var(--color-surface)'}
+                                stroke="var(--color-brand)"
+                                strokeWidth="2"
+                                style={{ transition: 'r 0.15s ease' }}
+                            />
+                        </g>
+                    ))}
+                </svg>
+
+                {/* Floating tooltip on hover */}
+                {hovered !== null && (() => {
+                    const p   = points[hovered];
+                    const pct = hovered / (points.length - 1);
+                    return (
+                        <div style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: `clamp(0px, calc(${(pct * 100).toFixed(1)}% - 4rem), calc(100% - 8rem))`,
+                            background: 'var(--color-text)',
+                            color: 'var(--color-surface)',
+                            fontSize: '0.7rem',
+                            fontFamily: 'var(--font-body)',
+                            fontWeight: 600,
+                            padding: 'var(--space-2) var(--space-3)',
+                            borderRadius: 'var(--radius-md)',
+                            pointerEvents: 'none',
+                            whiteSpace: 'nowrap',
+                            zIndex: 10,
+                            boxShadow: 'var(--shadow-lg)',
+                            lineHeight: 1.5,
+                        }}>
+                            <div style={{ fontWeight: 800 }}>{p.name}</div>
+                            <div style={{ opacity: 0.8 }}>{p.score.toFixed(1)} / 10</div>
+                        </div>
+                    );
+                })()}
+            </div>
+
+            {/* Pub name labels on the x-axis */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--space-2)', paddingInline: `${PAD_X}px` }}>
+                {points.map((p, i) => (
+                    <span
+                        key={i}
+                        style={{
+                            fontSize: '0.6rem',
+                            fontFamily: 'var(--font-body)',
+                            fontWeight: 600,
+                            color: hovered === i ? 'var(--color-brand)' : 'var(--color-text-faint)',
+                            maxWidth: `${Math.floor(100 / points.length) - 2}%`,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            textAlign: 'center',
+                            transition: 'color 0.15s ease',
+                            cursor: 'default',
+                        }}
+                        onMouseEnter={() => setHovered(i)}
+                        onMouseLeave={() => setHovered(null)}
+                    >
+                        {p.name}
+                    </span>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 /* ─── sub-components ──────────────────────────────────────────────────────── */
 
 export function StatCard({ title, value, subValue, onClick, icon }) {
@@ -496,6 +682,16 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
 
         return BADGE_DEFS.map(def => ({ ...def, unlocked: def.check(stats) }));
     }, [pubsArray, newPubsArray, scoresObj, criteriaArray, usersSize, overallAvgNum, livePubId]);
+
+    /* ── Group Score Trend: last 10 visited pubs sorted by createdAt ── */
+    const scoreTrendPoints = useMemo(() => {
+        // Use weighted ranked pubs but re-sort by visit date (oldest → newest)
+        const withDate = weightedRankedPubs
+            .filter(p => p.createdAt?.toMillis && p.avgScore > 0)
+            .sort((a, b) => a.createdAt.toMillis() - b.createdAt.toMillis())
+            .slice(-10); // last 10 visits
+        return withDate.map(p => ({ name: p.name, score: p.avgScore }));
+    }, [weightedRankedPubs]);
 
     /* ── activity feed grouped by date ── */
     const groupedTimeline = useMemo(() => {
@@ -945,6 +1141,11 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                         )}
                     </div>
                 </div>
+            </div>
+
+            {/* ══ ROW 5: Group Score Trend Sparkline ══ */}
+            <div style={{ ...padded }}>
+                <ScoreTrendSparkline points={scoreTrendPoints} />
             </div>
 
             {/* ══ ROW 4: Events + Activity Feed ══ */}
