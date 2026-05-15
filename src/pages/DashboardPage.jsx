@@ -214,6 +214,26 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
         return rated.size;
     }, [pubsArray, scoresObj, user?.uid]);
 
+    /* ── Last Pub Night: days since most recently visited pub was added ── */
+    const daysSinceLastVisit = useMemo(() => {
+        const visitedPubs = pubsArray.filter(p => p.status === 'visited' && p.createdAt?.toMillis);
+        if (!visitedPubs.length) return null;
+        const latest = Math.max(...visitedPubs.map(p => p.createdAt.toMillis()));
+        const diffMs = Date.now() - latest;
+        return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    }, [pubsArray]);
+
+    /* ── This Week's Mission: a pseudo-random unvisited pub, stable per week ── */
+    const missionPub = useMemo(() => {
+        const unvisited = newPubsArray.filter(p => p.status !== 'visited');
+        if (!unvisited.length) return null;
+        // Seed based on ISO week number so it changes weekly but is stable within a week
+        const now = new Date();
+        const weekNum = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000));
+        const seed = (now.getFullYear() * 100 + weekNum) % unvisited.length;
+        return unvisited[seed];
+    }, [newPubsArray]);
+
     /* ── activity feed grouped by date ── */
     const groupedTimeline = useMemo(() => {
         const items = [];
@@ -520,6 +540,117 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                     )}
                 </div>
             )}
+
+            {/* ══ ROW 3.5: Last Pub Night Ticker + This Week's Mission ══ */}
+            <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 'var(--space-4)' }}>
+
+                {/* Last Pub Night Ticker */}
+                <div style={{
+                    ...cardBase,
+                    padding: 'var(--space-6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--space-5)',
+                    overflow: 'hidden',
+                    position: 'relative',
+                }}>
+                    {/* subtle background watermark */}
+                    <div style={{ position: 'absolute', right: '-1rem', top: '-1rem', fontSize: '8rem', opacity: 0.04, pointerEvents: 'none', lineHeight: 1 }}>&#x1F37B;</div>
+                    <div style={{
+                        flexShrink: 0,
+                        width: '5rem',
+                        height: '5rem',
+                        borderRadius: 'var(--radius-xl)',
+                        background: daysSinceLastVisit === null
+                            ? 'var(--color-surface-offset)'
+                            : daysSinceLastVisit <= 7
+                                ? 'linear-gradient(135deg, var(--color-brand), var(--color-brand-dark))'
+                                : daysSinceLastVisit <= 14
+                                    ? 'linear-gradient(135deg, #b07a00, #ca8a04)'
+                                    : 'linear-gradient(135deg, var(--color-error), #7a1a5e)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: 'var(--shadow-md)',
+                    }}>
+                        <span style={{ fontFamily: 'var(--font-body)', fontWeight: 900, fontSize: daysSinceLastVisit !== null && daysSinceLastVisit >= 100 ? 'var(--text-lg)' : 'var(--text-xl)', color: '#fff', lineHeight: 1 }}>
+                            {daysSinceLastVisit !== null ? daysSinceLastVisit : '?'}
+                        </span>
+                    </div>
+                    <div>
+                        <p className="text-label" style={{ marginBottom: 'var(--space-1)' }}>&#x1F4C5; Last Pub Night</p>
+                        <p className="text-section-heading" style={{ lineHeight: 1.15 }}>
+                            {daysSinceLastVisit === null
+                                ? 'No visits yet!'
+                                : daysSinceLastVisit === 0
+                                    ? 'Today — you\'re out! \uD83C\uDF7A'
+                                    : daysSinceLastVisit === 1
+                                        ? 'Yesterday'
+                                        : `${daysSinceLastVisit} days ago`}
+                        </p>
+                        <p className="text-muted" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--space-1)' }}>
+                            {daysSinceLastVisit === null
+                                ? 'Add your first pub visit to start tracking.'
+                                : daysSinceLastVisit <= 7
+                                    ? 'Still fresh — the crew is active! \uD83C\uDF89'
+                                    : daysSinceLastVisit <= 14
+                                        ? 'Been a while... time to plan a crawl?'
+                                        : 'The pubs miss you. \uD83E\uDD7A Get one in!'}
+                        </p>
+                    </div>
+                </div>
+
+                {/* This Week's Mission */}
+                <div
+                    onClick={() => missionPub && setPage('toVisit')}
+                    style={{
+                        position: 'relative',
+                        overflow: 'hidden',
+                        borderRadius: 'var(--radius-xl)',
+                        boxShadow: 'var(--shadow-sm)',
+                        cursor: missionPub ? 'pointer' : 'default',
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-surface)',
+                        transition: 'all var(--transition-interactive)',
+                    }}
+                    onMouseEnter={e => { if (missionPub) { e.currentTarget.style.borderColor = 'var(--color-brand)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; } }}
+                    onMouseLeave={e => { if (missionPub) { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; } }}
+                >
+                    {/* photo bg if available, else gradient */}
+                    {missionPub?.photoURL ? (
+                        <img src={missionPub.photoURL} alt={missionPub.name} loading="lazy" width="600" height="300"
+                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.18 }} />
+                    ) : (
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(1,105,111,0.08), rgba(1,105,111,0.02))' }} />
+                    )}
+                    <div style={{ position: 'relative', zIndex: 1, padding: 'var(--space-6)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+                            <span style={{ fontSize: '1.5rem' }}>&#x1F3AF;</span>
+                            <p className="text-label" style={{ color: 'var(--color-brand)' }}>This Week's Mission</p>
+                            <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', background: 'var(--color-brand)', color: '#fff', padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-full)' }}>Weekly</span>
+                        </div>
+                        {missionPub ? (
+                            <>
+                                <p className="text-section-heading" style={{ marginBottom: 'var(--space-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {missionPub.name}
+                                </p>
+                                {missionPub.location && (
+                                    <p className="text-muted" style={{ fontSize: 'var(--text-xs)', marginBottom: 'var(--space-3)' }}>&#x1F4CD; {missionPub.location}</p>
+                                )}
+                                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontStyle: 'italic', lineHeight: 1.5 }}>
+                                    This week the crew should visit <strong style={{ color: 'var(--color-text)' }}>{missionPub.name}</strong>. It's on the list — go explore and drop your ratings!
+                                </p>
+                                <p style={{ marginTop: 'var(--space-4)', fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-brand)' }}>View on To-Visit List &rarr;</p>
+                            </>
+                        ) : (
+                            <div style={{ textAlign: 'center', padding: 'var(--space-6) 0' }}>
+                                <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: 'var(--space-2)', opacity: 0.4 }}>&#x2705;</span>
+                                <p className="text-muted" style={{ fontStyle: 'italic' }}>No unvisited pubs on the list — you've conquered them all!</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
 
             {/* ══ ROW 4: Events + Activity Feed ══ */}
             <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 'var(--space-4)' }}>
