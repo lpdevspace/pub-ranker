@@ -1,5 +1,67 @@
 import React, { useState, useMemo, useEffect } from 'react';
 
+/* ── Pub Podium ─────────────────────────────────────────────────── */
+function PubPodium({ pubs }) {
+    if (pubs.length === 0) return null;
+
+    // Arrange as: 2nd | 1st | 3rd
+    const order = [pubs[1], pubs[0], pubs[2]].filter(Boolean);
+    const podiumConfig = {
+        0: { height: 'h-20', bg: 'bg-gray-100 dark:bg-gray-600/50', border: 'border-gray-300 dark:border-gray-500', text: 'text-gray-500 dark:text-gray-300', label: '2nd', emoji: '🥈', ringColor: 'ring-gray-300 dark:ring-gray-500', labelBg: 'bg-gray-200 dark:bg-gray-600' },
+        1: { height: 'h-28', bg: 'bg-yellow-50 dark:bg-yellow-900/20', border: 'border-yellow-300 dark:border-yellow-700', text: 'text-yellow-700 dark:text-yellow-400', label: '1st', emoji: '🥇', ringColor: 'ring-yellow-400 dark:ring-yellow-600', labelBg: 'bg-yellow-100 dark:bg-yellow-900/40' },
+        2: { height: 'h-14', bg: 'bg-orange-50 dark:bg-orange-900/10', border: 'border-orange-200 dark:border-orange-800/50', text: 'text-orange-600 dark:text-orange-400', label: '3rd', emoji: '🥉', ringColor: 'ring-orange-300 dark:ring-orange-700', labelBg: 'bg-orange-100 dark:bg-orange-900/30' },
+    };
+
+    // Map order index back to podium slot
+    const slotForOrderIndex = [
+        pubs[1] ? 0 : null,
+        1,
+        pubs[2] ? 2 : null,
+    ];
+
+    return (
+        <div className="flex items-end justify-center gap-3 sm:gap-6 px-4 pt-6 pb-2">
+            {order.map((pub, orderIdx) => {
+                const slot = slotForOrderIndex[orderIdx];
+                if (slot === null || !pub) return null;
+                const cfg = podiumConfig[slot];
+                return (
+                    <div key={pub.id} className="flex flex-col items-center flex-1 max-w-[140px]">
+                        {/* Photo / avatar */}
+                        <div className={`mb-2 ring-4 ${cfg.ringColor} rounded-full`}>
+                            {pub.photoURL ? (
+                                <img
+                                    src={pub.photoURL}
+                                    alt={pub.name}
+                                    className="w-16 h-16 rounded-full object-cover"
+                                    loading="lazy"
+                                    width="64"
+                                    height="64"
+                                />
+                            ) : (
+                                <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-3xl">
+                                    🍺
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Name + score */}
+                        <p className="text-center text-xs font-black text-gray-800 dark:text-white leading-tight mb-1 line-clamp-2 px-1">{pub.name}</p>
+                        <span className={`text-lg font-black ${cfg.text} mb-2`}>{pub.avgScore.toFixed(1)}</span>
+
+                        {/* Podium block */}
+                        <div className={`w-full ${cfg.height} ${cfg.bg} border-t-4 ${cfg.border} rounded-t-lg flex flex-col items-center justify-start pt-2 gap-1`}>
+                            <span className="text-xl">{cfg.emoji}</span>
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${cfg.text}`}>{cfg.label}</span>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+/* ── Public Profile Modal ───────────────────────────────────────── */
 function PublicProfileModal({ member, onClose, customBadges }) {
     if (!member) return null;
 
@@ -115,7 +177,6 @@ export default function LeaderboardPage({ scores, users, pubs, criteria, db, gro
     const [gamification, setGamification] = useState({ pointsPerPub: 5, pointsPerReview: 2, pointsPerAdd: 3, pointsPerCrawl: 5, badges: [] });
     const [crawlsList, setCrawlsList] = useState([]);
 
-    // Null-safe versions of all props
     const safePubs     = pubs     || [];
     const safeScores   = scores   || {};
     const safeUsers    = users    || {};
@@ -204,7 +265,7 @@ export default function LeaderboardPage({ scores, users, pubs, criteria, db, gro
             </div>
 
             <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-xl max-w-md mx-auto shadow-inner">
-                {[['pubs', 'Top Pubs'], ['members', 'Top Members']].map(([key, label]) => (
+                {[['pubs', '🍺 Top Pubs'], ['members', '🏆 Top Members']].map(([key, label]) => (
                     <button
                         key={key}
                         onClick={() => setActiveTab(key)}
@@ -222,43 +283,51 @@ export default function LeaderboardPage({ scores, users, pubs, criteria, db, gro
             {activeTab === 'pubs' && (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fadeIn">
                     <div className="bg-gradient-to-r from-amber-600 to-amber-500 p-6 text-white text-center">
-                        <h3 className="text-2xl font-black">Hall of Fame</h3>
+                        <h3 className="text-2xl font-black">🏆 Hall of Fame</h3>
                         <p className="text-sm font-medium opacity-90">The absolute best pubs, ranked by average score.</p>
                     </div>
-                    <div className="p-2 sm:p-4">
-                        {rankedPubs.length === 0 ? (
-                            <div className="text-center py-12 text-gray-500 font-medium">No pubs have been rated yet. Start drinking!</div>
-                        ) : (
-                            <div className="space-y-3">
-                                {rankedPubs.map((pub, index) => {
-                                    let medal = '', bgColor = 'bg-gray-50 dark:bg-gray-700/50', borderColor = 'border-gray-100 dark:border-gray-600';
-                                    if (index === 0) { medal = '1st'; bgColor = 'bg-yellow-50 dark:bg-yellow-900/10'; borderColor = 'border-yellow-200 dark:border-yellow-800/50'; }
-                                    else if (index === 1) { medal = '2nd'; bgColor = 'bg-gray-100 dark:bg-gray-600/30'; borderColor = 'border-gray-300 dark:border-gray-500'; }
-                                    else if (index === 2) { medal = '3rd'; bgColor = 'bg-orange-50 dark:bg-orange-900/10'; borderColor = 'border-orange-200 dark:border-orange-800/50'; }
-                                    return (
-                                        <div key={pub.id} className={`flex items-center p-4 rounded-xl border ${bgColor} ${borderColor} shadow-sm transition-transform hover:-translate-y-0.5`}>
-                                            <div className="w-12 flex-shrink-0 text-center font-black text-lg text-gray-400 dark:text-gray-500">
-                                                {medal || `#${index + 1}`}
-                                            </div>
-                                            {pub.photoURL ? (
-                                                <img src={pub.photoURL} alt={pub.name} className="w-12 h-12 rounded-full object-cover ml-2 mr-4 shadow-sm border-2 border-white dark:border-gray-700" loading="lazy" width="48" height="48" />
-                                            ) : (
-                                                <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-xl ml-2 mr-4 shadow-sm">🍺</div>
-                                            )}
-                                            <div className="flex-1 min-w-0 pr-4">
-                                                <h4 className="text-lg font-bold text-gray-800 dark:text-white truncate leading-tight mb-0.5">{pub.name}</h4>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{pub.location || 'Unknown'}</p>
-                                            </div>
-                                            <div className="text-right flex-shrink-0">
-                                                <span className="block text-2xl font-black text-amber-700 dark:text-amber-400">{pub.avgScore.toFixed(1)}</span>
-                                                <span className="block text-[10px] text-gray-500 font-bold uppercase tracking-wider">{pub.ratingCount} Ratings</span>
-                                            </div>
+
+                    {rankedPubs.length === 0 ? (
+                        <div className="text-center py-12 text-gray-500 font-medium">No pubs have been rated yet. Start drinking!</div>
+                    ) : (
+                        <>
+                            {/* Podium for top 3 */}
+                            <PubPodium pubs={rankedPubs.slice(0, 3)} />
+
+                            {/* Divider */}
+                            {rankedPubs.length > 3 && (
+                                <div className="flex items-center gap-3 px-4 sm:px-6 py-3">
+                                    <div className="flex-1 h-px bg-gray-100 dark:bg-gray-700" />
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">The Rest</span>
+                                    <div className="flex-1 h-px bg-gray-100 dark:bg-gray-700" />
+                                </div>
+                            )}
+
+                            {/* Ranked list from 4th onwards */}
+                            <div className="p-2 sm:p-4 space-y-3 pt-0">
+                                {rankedPubs.slice(3).map((pub, index) => (
+                                    <div key={pub.id} className="flex items-center p-4 rounded-xl border border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 shadow-sm transition-transform hover:-translate-y-0.5">
+                                        <div className="w-10 flex-shrink-0 text-center font-black text-base text-gray-400 dark:text-gray-500">
+                                            #{index + 4}
                                         </div>
-                                    );
-                                })}
+                                        {pub.photoURL ? (
+                                            <img src={pub.photoURL} alt={pub.name} className="w-10 h-10 rounded-full object-cover ml-2 mr-3 shadow-sm border-2 border-white dark:border-gray-700" loading="lazy" width="40" height="40" />
+                                        ) : (
+                                            <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-lg ml-2 mr-3 shadow-sm">🍺</div>
+                                        )}
+                                        <div className="flex-1 min-w-0 pr-4">
+                                            <h4 className="text-base font-bold text-gray-800 dark:text-white truncate leading-tight mb-0.5">{pub.name}</h4>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{pub.location || 'Unknown'}</p>
+                                        </div>
+                                        <div className="text-right flex-shrink-0">
+                                            <span className="block text-xl font-black text-amber-700 dark:text-amber-400">{pub.avgScore.toFixed(1)}</span>
+                                            <span className="block text-[10px] text-gray-500 font-bold uppercase tracking-wider">{pub.ratingCount} Ratings</span>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        )}
-                    </div>
+                        </>
+                    )}
                 </div>
             )}
 
@@ -300,7 +369,7 @@ export default function LeaderboardPage({ scores, users, pubs, criteria, db, gro
                                                 <div className="flex-1 min-w-0">
                                                     <h4 className="text-lg font-bold text-gray-800 dark:text-white truncate leading-tight mb-0.5">{displayName}</h4>
                                                     <p className="text-[11px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">
-                                                        {ratedCount} Visited - {writtenReviews} Reviews - {crawlsCreated} Crawls
+                                                        {ratedCount} Visited · {writtenReviews} Reviews · {crawlsCreated} Crawls
                                                     </p>
                                                 </div>
                                             </div>
