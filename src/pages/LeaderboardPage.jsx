@@ -1,5 +1,177 @@
 import React, { useState, useMemo, useEffect } from 'react';
 
+/* ── Category Champions ─────────────────────────────────────────── */
+function CategoryChampions({ rankedPubs, safeScores, safeCriteria }) {
+    if (rankedPubs.length === 0) return null;
+
+    // Most visited = highest ratingCount
+    const mostVisited = [...rankedPubs].sort((a, b) => b.ratingCount - a.ratingCount)[0];
+
+    // Perfect scores = how many 10s each pub has received
+    const perfectScores = {};
+    rankedPubs.forEach(pub => {
+        let tens = 0;
+        safeCriteria.filter(c => c.type === 'scale').forEach(c => {
+            (safeScores[pub.id]?.[c.id] || []).forEach(s => {
+                if (s.value === 10) tens++;
+            });
+        });
+        perfectScores[pub.id] = tens;
+    });
+    const mostPerfect = [...rankedPubs].sort((a, b) => (perfectScores[b.id] || 0) - (perfectScores[a.id] || 0))[0];
+
+    // Most consistent = lowest std deviation (min 3 ratings)
+    const consistency = {};
+    rankedPubs.forEach(pub => {
+        const allVals = [];
+        safeCriteria.filter(c => c.type === 'scale').forEach(c => {
+            (safeScores[pub.id]?.[c.id] || []).forEach(s => {
+                if (s.value != null && !isNaN(s.value)) allVals.push(s.value);
+            });
+        });
+        if (allVals.length >= 3) {
+            const mean = allVals.reduce((a, b) => a + b, 0) / allVals.length;
+            const std = Math.sqrt(allVals.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / allVals.length);
+            consistency[pub.id] = std;
+        }
+    });
+    const consistentPubs = rankedPubs.filter(p => consistency[p.id] !== undefined);
+    const mostConsistent = consistentPubs.length > 0
+        ? consistentPubs.sort((a, b) => consistency[a.id] - consistency[b.id])[0]
+        : null;
+
+    // Hidden gem = high avg score but low ratingCount (score ≥ 7, fewest ratings)
+    const hiddenGem = rankedPubs.filter(p => p.avgScore >= 7 && p.ratingCount <= 3).length > 0
+        ? rankedPubs.filter(p => p.avgScore >= 7).sort((a, b) => a.ratingCount - b.ratingCount)[0]
+        : null;
+
+    const champions = [
+        {
+            key: 'top',
+            emoji: '🏆',
+            title: 'Top Rated',
+            desc: 'Highest average score',
+            pub: rankedPubs[0],
+            stat: rankedPubs[0]?.avgScore.toFixed(1),
+            statLabel: 'avg',
+            gradient: 'from-yellow-400 to-amber-500',
+            border: 'border-yellow-300 dark:border-yellow-700',
+            bg: 'bg-yellow-50 dark:bg-yellow-900/20',
+            textAccent: 'text-yellow-700 dark:text-yellow-400',
+        },
+        {
+            key: 'visited',
+            emoji: '👣',
+            title: 'Most Visited',
+            desc: 'Most individual ratings',
+            pub: mostVisited,
+            stat: mostVisited?.ratingCount,
+            statLabel: 'ratings',
+            gradient: 'from-blue-400 to-blue-600',
+            border: 'border-blue-200 dark:border-blue-700',
+            bg: 'bg-blue-50 dark:bg-blue-900/20',
+            textAccent: 'text-blue-700 dark:text-blue-400',
+        },
+        {
+            key: 'perfect',
+            emoji: '💯',
+            title: 'Perfection',
+            desc: 'Most 10/10 scores',
+            pub: mostPerfect,
+            stat: perfectScores[mostPerfect?.id] || 0,
+            statLabel: 'tens',
+            gradient: 'from-green-400 to-emerald-600',
+            border: 'border-green-200 dark:border-green-700',
+            bg: 'bg-green-50 dark:bg-green-900/20',
+            textAccent: 'text-green-700 dark:text-green-400',
+        },
+        mostConsistent && {
+            key: 'consistent',
+            emoji: '🎯',
+            title: 'Most Consistent',
+            desc: 'Lowest score variance',
+            pub: mostConsistent,
+            stat: consistency[mostConsistent?.id]?.toFixed(1),
+            statLabel: 'σ deviation',
+            gradient: 'from-purple-400 to-purple-600',
+            border: 'border-purple-200 dark:border-purple-700',
+            bg: 'bg-purple-50 dark:bg-purple-900/20',
+            textAccent: 'text-purple-700 dark:text-purple-400',
+        },
+        hiddenGem && {
+            key: 'gem',
+            emoji: '💎',
+            title: 'Hidden Gem',
+            desc: 'High score, few ratings',
+            pub: hiddenGem,
+            stat: hiddenGem?.avgScore.toFixed(1),
+            statLabel: 'avg',
+            gradient: 'from-pink-400 to-rose-500',
+            border: 'border-pink-200 dark:border-pink-700',
+            bg: 'bg-pink-50 dark:bg-pink-900/20',
+            textAccent: 'text-pink-700 dark:text-pink-400',
+        },
+    ].filter(Boolean);
+
+    return (
+        <div className="px-4 sm:px-6 pt-4 pb-2">
+            <div className="flex items-center gap-3 mb-4">
+                <div className="flex-1 h-px bg-gray-100 dark:bg-gray-700" />
+                <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Category Champions</span>
+                <div className="flex-1 h-px bg-gray-100 dark:bg-gray-700" />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {champions.map(champ => (
+                    <div
+                        key={champ.key}
+                        className={`relative flex flex-col items-center text-center p-3 rounded-2xl border ${champ.border} ${champ.bg} shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 overflow-hidden`}
+                    >
+                        {/* Gradient top stripe */}
+                        <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${champ.gradient} rounded-t-2xl`} />
+
+                        {/* Pub image or emoji fallback */}
+                        <div className="mt-2 mb-2 relative">
+                            {champ.pub?.photoURL ? (
+                                <img
+                                    src={champ.pub.photoURL}
+                                    alt={champ.pub.name}
+                                    className="w-12 h-12 rounded-full object-cover ring-2 ring-white dark:ring-gray-700 shadow-sm"
+                                    loading="lazy"
+                                    width="48"
+                                    height="48"
+                                />
+                            ) : (
+                                <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-2xl ring-2 ring-white dark:ring-gray-700">
+                                    🍺
+                                </div>
+                            )}
+                            {/* Trophy badge overlay */}
+                            <span className="absolute -bottom-1 -right-1 text-base leading-none">{champ.emoji}</span>
+                        </div>
+
+                        {/* Category label */}
+                        <p className={`text-[9px] font-black uppercase tracking-widest mb-0.5 ${champ.textAccent}`}>{champ.title}</p>
+
+                        {/* Pub name */}
+                        <p className="text-xs font-black text-gray-800 dark:text-white leading-tight line-clamp-2 mb-1 px-1">
+                            {champ.pub?.name || '—'}
+                        </p>
+
+                        {/* Stat */}
+                        <div className={`text-sm font-black ${champ.textAccent}`}>
+                            {champ.stat}
+                            <span className="text-[9px] font-bold text-gray-400 ml-0.5">{champ.statLabel}</span>
+                        </div>
+
+                        {/* Desc */}
+                        <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5 leading-tight">{champ.desc}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 /* ── Pub Podium ─────────────────────────────────────────────────── */
 function PubPodium({ pubs }) {
     if (pubs.length === 0) return null;
@@ -65,11 +237,9 @@ function MemberPodium({ members, onSelect }) {
                         onClick={() => onSelect(member)}
                         className="flex flex-col items-center flex-1 max-w-[140px] group cursor-pointer bg-transparent border-0 p-0"
                     >
-                        {/* Crown for 1st */}
                         {slot === 1 && (
                             <span className="text-2xl mb-1 animate-bounce" style={{ animationDuration: '2s' }}>👑</span>
                         )}
-                        {/* Avatar */}
                         <div className={`mb-2 ring-4 ${cfg.ringColor} rounded-full transition-transform group-hover:scale-105`}>
                             {member.user?.avatarUrl ? (
                                 <img src={member.user.avatarUrl} alt={displayName} className="w-16 h-16 rounded-full object-cover" loading="lazy" width="64" height="64" />
@@ -83,7 +253,6 @@ function MemberPodium({ members, onSelect }) {
                         <span className={`text-base font-black ${cfg.text} mb-2`}>
                             {member.totalPoints} <span className="text-[10px] font-bold">pts</span>
                         </span>
-                        {/* Podium block */}
                         <div className={`w-full ${cfg.height} ${cfg.bg} border-t-4 ${cfg.border} rounded-t-lg flex flex-col items-center justify-start pt-2 gap-1`}>
                             <span className="text-xl">{slot !== 1 ? cfg.emoji : '🏆'}</span>
                             <span className={`text-[10px] font-black uppercase tracking-widest ${cfg.text}`}>{cfg.label}</span>
@@ -114,7 +283,6 @@ function PointsBreakdown({ ratedCount, writtenReviews, pubsAdded, crawlsCreated,
 
     return (
         <div className="mt-2">
-            {/* Stacked bar */}
             <div className="flex h-2 rounded-full overflow-hidden gap-px">
                 {segments.map(seg => (
                     <div
@@ -125,7 +293,6 @@ function PointsBreakdown({ ratedCount, writtenReviews, pubsAdded, crawlsCreated,
                     />
                 ))}
             </div>
-            {/* Legend */}
             <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
                 {segments.map(seg => (
                     <span key={seg.label} className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400">
@@ -342,6 +509,14 @@ export default function LeaderboardPage({ scores, users, pubs, criteria, db, gro
                     ) : (
                         <>
                             <PubPodium pubs={rankedPubs.slice(0, 3)} />
+
+                            {/* Category Champions */}
+                            <CategoryChampions
+                                rankedPubs={rankedPubs}
+                                safeScores={safeScores}
+                                safeCriteria={safeCriteria}
+                            />
+
                             {rankedPubs.length > 3 && (
                                 <div className="flex items-center gap-3 px-4 sm:px-6 py-3">
                                     <div className="flex-1 h-px bg-gray-100 dark:bg-gray-700" />
@@ -386,10 +561,8 @@ export default function LeaderboardPage({ scores, users, pubs, criteria, db, gro
                         <div className="text-center py-12 text-gray-500 font-medium">No active members yet. Invite some friends!</div>
                     ) : (
                         <>
-                            {/* Podium top 3 */}
                             <MemberPodium members={rankedMembers.slice(0, 3)} onSelect={setSelectedUserForProfile} />
 
-                            {/* Divider */}
                             {rankedMembers.length > 3 && (
                                 <div className="flex items-center gap-3 px-4 sm:px-6 py-3">
                                     <div className="flex-1 h-px bg-gray-100 dark:bg-gray-700" />
@@ -398,7 +571,6 @@ export default function LeaderboardPage({ scores, users, pubs, criteria, db, gro
                                 </div>
                             )}
 
-                            {/* Ranked list from 4th */}
                             <div className="p-2 sm:p-4 space-y-3 pt-0">
                                 {rankedMembers.slice(3).map((member, index) => {
                                     const { user, totalPoints, ratedCount, writtenReviews, pubsAdded, crawlsCreated } = member;
