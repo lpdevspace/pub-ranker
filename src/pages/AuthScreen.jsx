@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { firebase } from '../firebase';
 import { getFriendlyError } from '../constants/authErrors';
 import PintGlassLogo from '../components/PintGlassLogo';
@@ -8,6 +8,23 @@ export default function AuthScreen({ auth, onBack }) {
     const [password, setPassword] = useState('');
     const [isSignUp, setIsSignUp] = useState(false);
     const [error, setError] = useState('');
+    const [redirectLoading, setRedirectLoading] = useState(false);
+
+    // Pick up the result when the page reloads after a redirect-based sign-in
+    useEffect(() => {
+        setRedirectLoading(true);
+        auth.getRedirectResult()
+            .then(result => {
+                // result.user is non-null only when returning from a redirect
+                // onAuthStateChanged in App.jsx handles the actual navigation
+            })
+            .catch(e => {
+                if (e.code && e.code !== 'auth/no-auth-event') {
+                    setError(getFriendlyError(e.code));
+                }
+            })
+            .finally(() => setRedirectLoading(false));
+    }, [auth]);
 
     const handleAuthAction = async () => {
         setError('');
@@ -25,20 +42,29 @@ export default function AuthScreen({ auth, onBack }) {
 
     const handleGoogleSignIn = async () => {
         setError('');
-        try { await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
-        catch (e) { setError(getFriendlyError(e.code)); }
+        try {
+            await auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
+        } catch (e) {
+            setError(getFriendlyError(e.code));
+        }
     };
 
     const handleAppleSignIn = async () => {
         setError('');
-        try { await auth.signInWithPopup(new firebase.auth.OAuthProvider('apple.com')); }
-        catch (e) { setError(getFriendlyError(e.code)); }
+        try {
+            await auth.signInWithRedirect(new firebase.auth.OAuthProvider('apple.com'));
+        } catch (e) {
+            setError(getFriendlyError(e.code));
+        }
     };
 
     const handleFacebookSignIn = async () => {
         setError('');
-        try { await auth.signInWithPopup(new firebase.auth.FacebookAuthProvider()); }
-        catch (e) { setError(getFriendlyError(e.code)); }
+        try {
+            await auth.signInWithRedirect(new firebase.auth.FacebookAuthProvider());
+        } catch (e) {
+            setError(getFriendlyError(e.code));
+        }
     };
 
     const inputStyle = {
@@ -114,7 +140,20 @@ export default function AuthScreen({ auth, onBack }) {
                     </p>
                 </div>
 
+                {/* Redirect loading indicator */}
+                {redirectLoading && (
+                    <div style={{
+                        textAlign: 'center',
+                        padding: 'var(--space-4)',
+                        color: 'var(--color-text-muted)',
+                        fontSize: 'var(--text-sm)',
+                    }}>
+                        Signing you in…
+                    </div>
+                )}
+
                 {/* Social sign-in buttons */}
+                {!redirectLoading && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
                     {/* Google — official white button */}
                     <button
@@ -171,6 +210,7 @@ export default function AuthScreen({ auth, onBack }) {
                         Continue with Facebook
                     </button>
                 </div>
+                )}
 
                 {/* Divider */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
