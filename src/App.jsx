@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { auth, db } from './firebase';
-import { firebase } from './firebase';
 import MainApp from './MainApp';
 import LoadingScreen from './components/LoadingScreen';
 import PublicLandingPage from './pages/PublicLandingPage';
@@ -18,10 +17,6 @@ export default function App() {
     const [showAuth, setShowAuth] = useState(false);
     const [featureFlags, setFeatureFlags] = useState({});
 
-    // Track whether getRedirectResult() has finished so we never mark auth as
-    // resolved while a social-login redirect might still be in flight.
-    const redirectChecked = useRef(false);
-
     useEffect(() => {
         document.documentElement.classList.toggle('dark', isDarkMode);
         localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
@@ -30,93 +25,92 @@ export default function App() {
     useEffect(() => {
         let profileUnsubscribe = null;
 
-        // 1. Check for an in-flight social redirect FIRST, before hooking up the
-        //    auth state listener. This prevents the brief signed-out flash that
-        //    happens when onAuthStateChanged fires (user=null) before Firebase
-        //    has had a chance to process the returning redirect credential.
-        auth.getRedirectResult()
-            .catch((e) => {
-                if (e.code && e.code !== 'auth/no-auth-event') {
-                    console.error('Redirect sign-in error:', e);
-                }
-            })
-            .finally(() => {
-                redirectChecked.current = true;
-            });
+        // Safety-valve: if Firebase hasn't resolved auth within 8 seconds
+        // (e.g. no network, no redirect pending) stop showing the loading screen.
+        const timeout = setTimeout(() => {
+            setAuthLoading(false);
+        }, 8000);
 
         const authUnsubscribe = auth.onAuthStateChanged(async (currentUser) => {
-            if (profileUnsubscribe) { profileUnsubscribe(); profileUnsubscribe = null; }
+            // Auth state is now known — cancel the safety timeout.
+            clearTimeout(timeout);
+
+            // Clean up any previous profile listener.
+            if (profileUnsubscribe) {
+                profileUnsubscribe();
+                profileUnsubscribe = null;
+            }
 
             if (currentUser) {
                 setUser(currentUser);
                 setShowAuth(false);
+
                 const userRef = db.collection('users').doc(currentUser.uid);
-                profileUnsubscribe = userRef.onSnapshot(async (doc) => {
-                    if (doc.exists) {
-                        setUserProfile(doc.data());
+
+                profileUnsubscribe = userRef.onSnapshot(
+                    async (doc) => {
+                        if (doc.exists) {
+                            setUserProfile(doc.data());
+                        } else {
+                            // First sign-in — create the profile document.
+                            const newProfile = {
+                                uid: currentUser.uid,
+                                email: currentUser.email,
+                                displayName:
+                                    currentUser.displayName ||
+                                    currentUser.email.split('@')[0],
+                                groups: [],
+                                activeGroupId: null,
+                                hasCompletedOnboarding: false,
+                            };
+                            try {
+                                await userRef.set(newProfile);
+                                setUserProfile(newProfile);
+                            } catch (e) {
+                                console.error('Error creating user profile:', e);
+                            }
+                        }
+                        // Profile is loaded (or just created) — auth is resolved.
                         setAuthLoading(false);
-                    } else {
-                        const newProfile = {
-                            uid: currentUser.uid,
-                            email: currentUser.email,
-                            displayName: currentUser.displayName || currentUser.email.split('@')[0],
-                            groups: [],
-                            activeGroupId: null,
-                            hasCompletedOnboarding: false,
-                        };
-                        try {
-                            await userRef.set(newProfile);
-                            setUserProfile(newProfile);
-                        } catch (e) {
-                            console.error(e);
-                        } finally {
-                            setAuthLoading(false);
-                        }
+                    },
+                    (err) => {
+                        // Firestore rules denied the read — still show the app,
+                        // just without a profile snapshot. setUser stays set.
+                        console.error('Profile snapshot error:', err);
+                        setAuthLoading(false);
                     }
-                }, (err) => {
-                    console.error('Error listening to user profile:', err);
-                    setAuthLoading(false);
-                });
+                );
             } else {
-                // Only mark auth as fully resolved once we know there is no
-                // pending redirect. If redirectChecked is still false the
-                // redirect result promise is still in flight — keep showing the
-                // loading screen so we don't flash the landing page.
-                if (redirectChecked.current) {
-                    setUser(null);
-                    setUserProfile(null);
-                    setAuthLoading(false);
-                    setShowAuth(false);
-                } else {
-                    // Poll until the redirect check resolves, then update state.
-                    const waitForRedirect = setInterval(() => {
-                        if (redirectChecked.current) {
-                            clearInterval(waitForRedirect);
-                            setUser(null);
-                            setUserProfile(null);
-                            setAuthLoading(false);
-                            setShowAuth(false);
-                        }
-                    }, 50);
-                }
+                // Genuinely signed out.
+                setUser(null);
+                setUserProfile(null);
+                setAuthLoading(false);
+                setShowAuth(false);
             }
         });
 
-        return () => { authUnsubscribe(); if (profileUnsubscribe) profileUnsubscribe(); };
+        return () => {
+            clearTimeout(timeout);
+            authUnsubscribe();
+            if (profileUnsubscribe) profileUnsubscribe();
+        };
     }, []);
 
     useEffect(() => {
-        const unsub = db.collection('global').doc('settings').onSnapshot((doc) => {
-            if (doc.exists) {
-                const data = doc.data();
-                setGlobalAnnouncement(data.announcement || '');
-                setIsMaintenanceMode(data.maintenanceMode || false);
-                setFeatureFlags(data.featureFlags || {});
-            } else {
-                setGlobalAnnouncement('');
-                setIsMaintenanceMode(false);
-            }
-        });
+        const unsub = db.collection('global').doc('settings').onSnapshot(
+            (doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    setGlobalAnnouncement(data.announcement || '');
+                    setIsMaintenanceMode(data.maintenanceMode || false);
+                    setFeatureFlags(data.featureFlags || {});
+                } else {
+                    setGlobalAnnouncement('');
+                    setIsMaintenanceMode(false);
+                }
+            },
+            (err) => console.error('Global settings error:', err)
+        );
         return () => unsub();
     }, []);
 
@@ -135,7 +129,7 @@ export default function App() {
             : <PublicLandingPage db={db} onLoginClick={() => setShowAuth(true)} />;
 
     } else if (!userProfile) {
-        currentScreen = <LoadingScreen text="Loading User Profile..." />;
+        currentScreen = <LoadingScreen text="Loading profile..." />;
 
     } else if (isMaintenanceMode && !userProfile?.isSuperAdmin) {
         currentScreen = (
@@ -144,7 +138,7 @@ export default function App() {
                     <span className="text-6xl mb-4 block">🚧</span>
                     <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Under Maintenance</h1>
                     <p className="text-gray-600 dark:text-gray-400 mb-6">
-                        Pub Ranker is currently undergoing scheduled maintenance. We'll be back shortly!
+                        Pub Ranker is currently undergoing scheduled maintenance. We&apos;ll be back shortly!
                     </p>
                     <button
                         onClick={() => auth.signOut()}
