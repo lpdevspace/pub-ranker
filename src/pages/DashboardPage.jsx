@@ -17,6 +17,8 @@ const scoreTierLabel = (score) => {
     return             { label: 'Avoid',            color: 'var(--color-error)' };
 };
 
+const MEDAL = ['\uD83E\uDD47', '\uD83E\uDD48', '\uD83E\uDD49']; // 🥇🥈🥉
+
 /* ─── sub-components ──────────────────────────────────────────────────────── */
 
 export function StatCard({ title, value, subValue, onClick, icon }) {
@@ -49,7 +51,6 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
     const scoresObj     = scores || {};
     const usersSize     = users && typeof users.size === 'number' ? users.size : 0;
 
-    // Derive whether the current user is owner or manager of this group.
     const isOwnerOrManager = useMemo(() => {
         if (!user?.uid || !groupData) return false;
         return (
@@ -184,8 +185,8 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
         return eligible[0];
     }, [weightedRankedPubs]);
 
-    /* ── top rater (most pubs scored) ── */
-    const topRater = useMemo(() => {
+    /* ── member leaderboard: top 3 by total ratings submitted ── */
+    const memberLeaderboard = useMemo(() => {
         const counts = {};
         pubsArray.forEach(pub => {
             Object.values(scoresObj[pub.id] ?? {}).forEach(criterionScores => {
@@ -194,12 +195,12 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                 });
             });
         });
-        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-        if (!sorted.length) return null;
-        const [uid, count] = sorted[0];
-        return { name: getUserName(uid), count };
+        return Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([uid, count]) => ({ name: getUserName(uid), count, isMe: uid === user?.uid }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pubsArray, scoresObj, allUsers]);
+    }, [pubsArray, scoresObj, allUsers, user?.uid]);
 
     /* ── my rating progress ── */
     const myRatedCount = useMemo(() => {
@@ -227,7 +228,6 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
     const missionPub = useMemo(() => {
         const unvisited = newPubsArray.filter(p => p.status !== 'visited');
         if (!unvisited.length) return null;
-        // Seed based on ISO week number so it changes weekly but is stable within a week
         const now = new Date();
         const weekNum = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000));
         const seed = (now.getFullYear() * 100 + weekNum) % unvisited.length;
@@ -253,7 +253,6 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
             if (e.createdAt?.toMillis) items.push({ id: `event_${e.id}`, emoji: '\uD83D\uDCC5', title: 'Event Scheduled', text: `${e.title} was added to the calendar.`, time: e.createdAt.toMillis(), dateLabel: new Date(e.createdAt.toMillis()).toLocaleDateString() });
         });
         const sorted = items.sort((a, b) => b.time - a.time).slice(0, 20);
-
         const today     = new Date(); today.setHours(0,0,0,0);
         const weekAgo   = new Date(today); weekAgo.setDate(weekAgo.getDate() - 7);
         const groups    = {};
@@ -310,13 +309,49 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                     <h2 className="text-page-title">Group Dashboard</h2>
                     <p className="text-muted" style={{ marginTop: 'var(--space-1)' }}>Your city's drinking analytics.</p>
                 </div>
-                {topRater && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: 'var(--space-2) var(--space-4)', boxShadow: 'var(--shadow-sm)' }}>
-                        <span style={{ fontSize: '1rem' }}>&#x1F3C5;</span>
-                        <p style={{ fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-text-muted)' }}>
-                            Top Rater: <span style={{ color: 'var(--color-brand)' }}>{topRater.name}</span>
-                            <span style={{ color: 'var(--color-text-faint)', marginLeft: 'var(--space-1)' }}>({topRater.count} ratings)</span>
-                        </p>
+
+                {/* ── Member Leaderboard Mini ── */}
+                {memberLeaderboard.length > 0 && (
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-1)',
+                        background: 'var(--color-surface)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 'var(--radius-xl)',
+                        padding: 'var(--space-2) var(--space-4)',
+                        boxShadow: 'var(--shadow-sm)',
+                    }}>
+                        <span style={{ fontSize: '0.85rem', marginRight: 'var(--space-2)', opacity: 0.5 }}>&#x1F3C6;</span>
+                        {memberLeaderboard.map((member, i) => (
+                            <div key={i} style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 'var(--space-1)',
+                                padding: 'var(--space-1) var(--space-3)',
+                                borderRadius: 'var(--radius-full)',
+                                background: member.isMe ? 'var(--color-brand)' : 'var(--color-surface-offset)',
+                                border: member.isMe ? 'none' : '1px solid var(--color-border)',
+                            }}>
+                                <span style={{ fontSize: '0.85rem', lineHeight: 1 }}>{MEDAL[i]}</span>
+                                <span style={{
+                                    fontSize: 'var(--text-xs)',
+                                    fontWeight: 700,
+                                    fontFamily: 'var(--font-body)',
+                                    color: member.isMe ? '#fff' : 'var(--color-text)',
+                                    maxWidth: '7rem',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                }}>{member.name}</span>
+                                <span style={{
+                                    fontSize: 'var(--text-xs)',
+                                    fontFamily: 'var(--font-body)',
+                                    color: member.isMe ? 'rgba(255,255,255,0.75)' : 'var(--color-text-faint)',
+                                    fontWeight: 600,
+                                }}>{member.count}</span>
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
@@ -424,7 +459,6 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                         ) : (
                             <p className="text-section-heading" style={{ marginBottom: 'var(--space-4)', opacity: 0.6 }}>Not currently at a pub.</p>
                         )}
-
                         {isOwnerOrManager ? (
                             <>
                                 <select
@@ -554,7 +588,6 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                     overflow: 'hidden',
                     position: 'relative',
                 }}>
-                    {/* subtle background watermark */}
                     <div style={{ position: 'absolute', right: '-1rem', top: '-1rem', fontSize: '8rem', opacity: 0.04, pointerEvents: 'none', lineHeight: 1 }}>&#x1F37B;</div>
                     <div style={{
                         flexShrink: 0,
@@ -583,7 +616,7 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                             {daysSinceLastVisit === null
                                 ? 'No visits yet!'
                                 : daysSinceLastVisit === 0
-                                    ? 'Today — you\'re out! \uD83C\uDF7A'
+                                    ? 'Today \u2014 you\'re out! \uD83C\uDF7A'
                                     : daysSinceLastVisit === 1
                                         ? 'Yesterday'
                                         : `${daysSinceLastVisit} days ago`}
@@ -592,7 +625,7 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                             {daysSinceLastVisit === null
                                 ? 'Add your first pub visit to start tracking.'
                                 : daysSinceLastVisit <= 7
-                                    ? 'Still fresh — the crew is active! \uD83C\uDF89'
+                                    ? 'Still fresh \u2014 the crew is active! \uD83C\uDF89'
                                     : daysSinceLastVisit <= 14
                                         ? 'Been a while... time to plan a crawl?'
                                         : 'The pubs miss you. \uD83E\uDD7A Get one in!'}
@@ -616,7 +649,6 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                     onMouseEnter={e => { if (missionPub) { e.currentTarget.style.borderColor = 'var(--color-brand)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; } }}
                     onMouseLeave={e => { if (missionPub) { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; } }}
                 >
-                    {/* photo bg if available, else gradient */}
                     {missionPub?.photoURL ? (
                         <img src={missionPub.photoURL} alt={missionPub.name} loading="lazy" width="600" height="300"
                             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.18 }} />
