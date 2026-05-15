@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import Chart from 'chart.js/auto';
 import 'leaflet/dist/leaflet.css';
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
@@ -18,90 +17,420 @@ const scoreTierLabel = (score) => {
     return             { label: 'Avoid',            color: 'var(--color-error)' };
 };
 
+const MEDAL = ['\uD83E\uDD47', '\uD83E\uDD48', '\uD83E\uDD49']; // 🥇🥈🥉
+
+/* ─── badge definitions ──────────────────────────────────────────────────────── */
+
+// Each badge: { id, emoji, label, desc, check(stats) => bool }
+const BADGE_DEFS = [
+    {
+        id: 'first_pint',
+        emoji: '\uD83C\uDF7A', // 🍺
+        label: 'First Pint',
+        desc: 'Someone in the group submitted their very first rating.',
+        check: ({ totalRatings }) => totalRatings >= 1,
+    },
+    {
+        id: 'the_regulars',
+        emoji: '\uD83D\uDC65', // 👥
+        label: 'The Regulars',
+        desc: 'Group has 5 or more members.',
+        check: ({ memberCount }) => memberCount >= 5,
+    },
+    {
+        id: 'pub_scholar',
+        emoji: '\uD83C\uDF93', // 🎓
+        label: 'Pub Scholar',
+        desc: 'Group has rated 10 pubs.',
+        check: ({ visitedCount }) => visitedCount >= 10,
+    },
+    {
+        id: 'centurion',
+        emoji: '\uD83D\uDEE1\uFE0F', // 🛡️
+        label: 'Centurion',
+        desc: '100 pubs visited. Absolute legends.',
+        check: ({ visitedCount }) => visitedCount >= 100,
+    },
+    {
+        id: 'crawl_commander',
+        emoji: '\uD83D\uDDFA\uFE0F', // 🗺️
+        label: 'Crawl Commander',
+        desc: 'Group has 5 visited pubs — a true pub crawl veteran.',
+        check: ({ visitedCount }) => visitedCount >= 5,
+    },
+    {
+        id: 'critic_crew',
+        emoji: '\u2B50', // ⭐
+        label: 'Critic Crew',
+        desc: 'Group has rated at least 3 different criteria.',
+        check: ({ criteriaCount }) => criteriaCount >= 3,
+    },
+    {
+        id: 'pint_economist',
+        emoji: '\uD83D\uDCB0', // 💰
+        label: 'Pint Economist',
+        desc: 'Group has tracked pint prices in at least one pub.',
+        check: ({ hasPrices }) => hasPrices,
+    },
+    {
+        id: 'high_standards',
+        emoji: '\uD83C\uDFC6', // 🏆
+        label: 'High Standards',
+        desc: 'Group average score is 8.0 or above.',
+        check: ({ overallAvg }) => overallAvg >= 8.0,
+    },
+    {
+        id: 'tough_crowd',
+        emoji: '\uD83D\uDE44', // 🙄
+        label: 'Tough Crowd',
+        desc: 'Group average score is below 5.0 — very picky.',
+        check: ({ overallAvg, visitedCount }) => visitedCount >= 3 && overallAvg < 5.0,
+    },
+    {
+        id: 'pub_explorer',
+        emoji: '\uD83E\uDDED', // 🧭compass
+        label: 'Pub Explorer',
+        desc: '20 pubs on the to-visit list.',
+        check: ({ toVisitCount }) => toVisitCount >= 20,
+    },
+    {
+        id: 'local_hero',
+        emoji: '\uD83C\uDFD8\uFE0F', // 🏘️
+        label: 'Local Hero',
+        desc: 'Group has 3+ pubs in the same area.',
+        check: ({ topAreaCount }) => topAreaCount >= 3,
+    },
+    {
+        id: 'live_and_kicking',
+        emoji: '\uD83D\uDCCD', // 📍
+        label: 'Live & Kicking',
+        desc: 'Someone set a live pub location.',
+        check: ({ hasLiveLocation }) => hasLiveLocation,
+    },
+];
+
+/* ─── BadgesStrip sub-component ────────────────────────────────────────────── */
+
+function BadgesStrip({ badges }) {
+    const [tooltip, setTooltip] = useState(null);
+    const unlocked = badges.filter(b => b.unlocked);
+    const locked   = badges.filter(b => !b.unlocked);
+    const ordered  = [...unlocked, ...locked];
+
+    return (
+        <div style={{
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-xl)',
+            boxShadow: 'var(--shadow-sm)',
+            padding: 'var(--space-4) var(--space-5)',
+        }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)' }}>
+                <p className="text-label">&#x1F3C5; Group Badges</p>
+                <span style={{
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-body)',
+                    color: 'var(--color-brand)',
+                    background: 'var(--color-brand-highlight, rgba(1,105,111,0.1))',
+                    padding: '2px var(--space-3)',
+                    borderRadius: 'var(--radius-full)',
+                }}>
+                    {unlocked.length} / {badges.length} unlocked
+                </span>
+            </div>
+
+            {/* Horizontally scrollable badge row */}
+            <div style={{
+                display: 'flex',
+                gap: 'var(--space-3)',
+                overflowX: 'auto',
+                paddingBottom: 'var(--space-2)',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'var(--color-border) transparent',
+            }}>
+                {ordered.map(badge => (
+                    <div
+                        key={badge.id}
+                        onMouseEnter={() => setTooltip(badge.id)}
+                        onMouseLeave={() => setTooltip(null)}
+                        style={{
+                            position: 'relative',
+                            flexShrink: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 'var(--space-1)',
+                            width: '5.5rem',
+                            cursor: 'default',
+                        }}
+                    >
+                        {/* Badge circle */}
+                        <div style={{
+                            width: '3.5rem',
+                            height: '3.5rem',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.5rem',
+                            transition: 'all 0.2s ease',
+                            background: badge.unlocked
+                                ? 'linear-gradient(135deg, var(--color-brand), var(--color-brand-dark))'
+                                : 'var(--color-surface-offset)',
+                            border: badge.unlocked
+                                ? '2px solid var(--color-brand-light, rgba(1,105,111,0.3))'
+                                : '2px solid var(--color-border)',
+                            boxShadow: badge.unlocked ? 'var(--shadow-md)' : 'none',
+                            filter: badge.unlocked ? 'none' : 'grayscale(1) opacity(0.35)',
+                        }}>
+                            {badge.emoji}
+                        </div>
+
+                        {/* Badge label */}
+                        <p style={{
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            fontFamily: 'var(--font-body)',
+                            textAlign: 'center',
+                            lineHeight: 1.2,
+                            color: badge.unlocked ? 'var(--color-text)' : 'var(--color-text-faint)',
+                            maxWidth: '5rem',
+                        }}>
+                            {badge.label}
+                        </p>
+
+                        {/* Tooltip on hover */}
+                        {tooltip === badge.id && (
+                            <div style={{
+                                position: 'absolute',
+                                bottom: 'calc(100% + var(--space-2))',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                background: 'var(--color-text)',
+                                color: 'var(--color-surface)',
+                                fontSize: '0.65rem',
+                                fontFamily: 'var(--font-body)',
+                                fontWeight: 500,
+                                padding: 'var(--space-2) var(--space-3)',
+                                borderRadius: 'var(--radius-md)',
+                                whiteSpace: 'nowrap',
+                                maxWidth: '14rem',
+                                whiteSpace: 'normal',
+                                textAlign: 'center',
+                                zIndex: 50,
+                                boxShadow: 'var(--shadow-lg)',
+                                pointerEvents: 'none',
+                                lineHeight: 1.4,
+                            }}>
+                                {badge.unlocked ? badge.desc : `\uD83D\uDD12 ${badge.desc}`}
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    left: '50%',
+                                    transform: 'translateX(-50%)',
+                                    width: 0,
+                                    height: 0,
+                                    borderLeft: '5px solid transparent',
+                                    borderRight: '5px solid transparent',
+                                    borderTop: '5px solid var(--color-text)',
+                                }} />
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+/* ─── ScoreTrendSparkline sub-component ──────────────────────────────────── */
+
+function ScoreTrendSparkline({ points }) {
+    const [hovered, setHovered] = useState(null);
+
+    if (!points || points.length < 2) {
+        return (
+            <div style={{ textAlign: 'center', padding: 'var(--space-8) 0', opacity: 0.4 }}>
+                <span style={{ fontSize: '2rem', display: 'block', marginBottom: 'var(--space-2)' }}>&#x1F4C8;</span>
+                <p className="text-muted" style={{ fontStyle: 'italic', fontSize: 'var(--text-xs)' }}>Rate at least 2 pubs to see your group's trend.</p>
+            </div>
+        );
+    }
+
+    const W = 480, H = 100, PAD_X = 8, PAD_Y = 10;
+    const minScore = Math.max(0,  Math.min(...points.map(p => p.score)) - 1);
+    const maxScore = Math.min(10, Math.max(...points.map(p => p.score)) + 1);
+    const range    = maxScore - minScore || 1;
+
+    const toX = (i) => PAD_X + (i / (points.length - 1)) * (W - PAD_X * 2);
+    const toY = (s) => PAD_Y + (1 - (s - minScore) / range) * (H - PAD_Y * 2);
+
+    // Build smooth polyline path
+    const linePts = points.map((p, i) => `${toX(i)},${toY(p.score)}`).join(' ');
+
+    // Build filled area path
+    const areaPath = [
+        `M ${toX(0)},${toY(points[0].score)}`,
+        ...points.slice(1).map((p, i) => `L ${toX(i + 1)},${toY(p.score)}`),
+        `L ${toX(points.length - 1)},${H - PAD_Y}`,
+        `L ${toX(0)},${H - PAD_Y}`,
+        'Z',
+    ].join(' ');
+
+    // Trend direction
+    const first = points[0].score;
+    const last  = points[points.length - 1].score;
+    const diff  = last - first;
+    const trendEmoji  = diff > 0.5 ? '\uD83D\uDCC8' : diff < -0.5 ? '\uD83D\uDCC9' : '\u27A1\uFE0F';
+    const trendLabel  = diff > 0.5 ? 'Trending up'  : diff < -0.5 ? 'Trending down' : 'Holding steady';
+    const trendColor  = diff > 0.5 ? 'var(--color-success)' : diff < -0.5 ? 'var(--color-error)' : 'var(--color-text-muted)';
+
+    return (
+        <div>
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+                <p className="text-label">&#x1F4C8; Group Score Trend</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                    <span style={{ fontSize: '1rem' }}>{trendEmoji}</span>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', color: trendColor }}>{trendLabel}</span>
+                    <span style={{
+                        fontSize: 'var(--text-xs)',
+                        fontWeight: 700,
+                        fontFamily: 'var(--font-body)',
+                        color: 'var(--color-text-faint)',
+                        background: 'var(--color-surface-offset)',
+                        padding: '2px var(--space-3)',
+                        borderRadius: 'var(--radius-full)',
+                    }}>Last {points.length} pubs</span>
+                </div>
+            </div>
+
+            {/* SVG sparkline */}
+            <div style={{ position: 'relative' }}>
+                <svg
+                    viewBox={`0 0 ${W} ${H}`}
+                    style={{ width: '100%', height: '6rem', overflow: 'visible' }}
+                    aria-label="Group score trend chart"
+                >
+                    <defs>
+                        <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%"  stopColor="var(--color-brand)" stopOpacity="0.18" />
+                            <stop offset="100%" stopColor="var(--color-brand)" stopOpacity="0" />
+                        </linearGradient>
+                    </defs>
+
+                    {/* Horizontal guide lines at score 5 and score 7.5 */}
+                    {[5, 7.5].map(s => (
+                        s >= minScore && s <= maxScore ? (
+                            <line
+                                key={s}
+                                x1={PAD_X} y1={toY(s)}
+                                x2={W - PAD_X} y2={toY(s)}
+                                stroke="var(--color-border)"
+                                strokeWidth="1"
+                                strokeDasharray="4 4"
+                            />
+                        ) : null
+                    ))}
+
+                    {/* Filled area under the line */}
+                    <path d={areaPath} fill="url(#spark-fill)" />
+
+                    {/* The line itself */}
+                    <polyline
+                        points={linePts}
+                        fill="none"
+                        stroke="var(--color-brand)"
+                        strokeWidth="2.5"
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                    />
+
+                    {/* Data point dots + hover hit areas */}
+                    {points.map((p, i) => (
+                        <g key={i}>
+                            {/* invisible wider hit area */}
+                            <circle
+                                cx={toX(i)} cy={toY(p.score)}
+                                r="12"
+                                fill="transparent"
+                                style={{ cursor: 'pointer' }}
+                                onMouseEnter={() => setHovered(i)}
+                                onMouseLeave={() => setHovered(null)}
+                            />
+                            {/* visible dot */}
+                            <circle
+                                cx={toX(i)} cy={toY(p.score)}
+                                r={hovered === i ? 5 : 3.5}
+                                fill={hovered === i ? 'var(--color-brand)' : 'var(--color-surface)'}
+                                stroke="var(--color-brand)"
+                                strokeWidth="2"
+                                style={{ transition: 'r 0.15s ease' }}
+                            />
+                        </g>
+                    ))}
+                </svg>
+
+                {/* Floating tooltip on hover */}
+                {hovered !== null && (() => {
+                    const p   = points[hovered];
+                    const pct = hovered / (points.length - 1);
+                    return (
+                        <div style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: `clamp(0px, calc(${(pct * 100).toFixed(1)}% - 4rem), calc(100% - 8rem))`,
+                            background: 'var(--color-text)',
+                            color: 'var(--color-surface)',
+                            fontSize: '0.7rem',
+                            fontFamily: 'var(--font-body)',
+                            fontWeight: 600,
+                            padding: 'var(--space-2) var(--space-3)',
+                            borderRadius: 'var(--radius-md)',
+                            pointerEvents: 'none',
+                            whiteSpace: 'nowrap',
+                            zIndex: 10,
+                            boxShadow: 'var(--shadow-lg)',
+                            lineHeight: 1.5,
+                        }}>
+                            <div style={{ fontWeight: 800 }}>{p.name}</div>
+                            <div style={{ opacity: 0.8 }}>{p.score.toFixed(1)} / 10</div>
+                        </div>
+                    );
+                })()}
+            </div>
+
+            {/* Pub name labels on the x-axis */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--space-2)', paddingInline: `${PAD_X}px` }}>
+                {points.map((p, i) => (
+                    <span
+                        key={i}
+                        style={{
+                            fontSize: '0.6rem',
+                            fontFamily: 'var(--font-body)',
+                            fontWeight: 600,
+                            color: hovered === i ? 'var(--color-brand)' : 'var(--color-text-faint)',
+                            maxWidth: `${Math.floor(100 / points.length) - 2}%`,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            textAlign: 'center',
+                            transition: 'color 0.15s ease',
+                            cursor: 'default',
+                        }}
+                        onMouseEnter={() => setHovered(i)}
+                        onMouseLeave={() => setHovered(null)}
+                    >
+                        {p.name}
+                    </span>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 /* ─── sub-components ──────────────────────────────────────────────────────── */
-
-export function HorizontalBarChart({ data }) {
-    const chartRef          = useRef(null);
-    const chartInstanceRef  = useRef(null);
-
-    useEffect(() => {
-        if (!chartRef.current) return;
-        if (chartInstanceRef.current) chartInstanceRef.current.destroy();
-        const ctx = chartRef.current.getContext('2d');
-        chartInstanceRef.current = new Chart(ctx, {
-            type: 'bar',
-            data,
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: ctx => ` ${ctx.parsed.x.toFixed(2)} / 10`,
-                        },
-                    },
-                },
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        max: 10,
-                        grid: { color: 'rgba(0,0,0,0.05)' },
-                        ticks: { font: { family: 'Satoshi, Inter, sans-serif', size: 11 } },
-                    },
-                    y: {
-                        ticks: {
-                            font: { family: 'Satoshi, Inter, sans-serif', weight: '600', size: 12 },
-                            callback: (val, idx) => {
-                                const label = data.labels[idx];
-                                return label && label.length > 22 ? label.slice(0, 20) + '\u2026' : label;
-                            },
-                        },
-                    },
-                },
-            },
-        });
-        return () => { if (chartInstanceRef.current) chartInstanceRef.current.destroy(); };
-    }, [data]);
-
-    return <canvas ref={chartRef} />;
-}
-
-export function DonutChart({ data }) {
-    const chartRef         = useRef(null);
-    const chartInstanceRef = useRef(null);
-
-    useEffect(() => {
-        if (!chartRef.current) return;
-        if (chartInstanceRef.current) chartInstanceRef.current.destroy();
-        const ctx = chartRef.current.getContext('2d');
-        chartInstanceRef.current = new Chart(ctx, {
-            type: 'doughnut',
-            data,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '68%',
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            font: { family: 'Satoshi, Inter, sans-serif', weight: '600', size: 12 },
-                            padding: 12,
-                            usePointStyle: true,
-                            pointStyleWidth: 8,
-                        },
-                    },
-                    tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} pubs` } },
-                },
-            },
-        });
-        return () => { if (chartInstanceRef.current) chartInstanceRef.current.destroy(); };
-    }, [data]);
-
-    return <canvas ref={chartRef} />;
-}
 
 export function StatCard({ title, value, subValue, onClick, icon }) {
     return (
@@ -133,8 +462,6 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
     const scoresObj     = scores || {};
     const usersSize     = users && typeof users.size === 'number' ? users.size : 0;
 
-    // Derive whether the current user is owner or manager of this group.
-    // Used to gate the Live Location control so only privileged users can move the pin.
     const isOwnerOrManager = useMemo(() => {
         if (!user?.uid || !groupData) return false;
         return (
@@ -183,9 +510,6 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
         return () => { unsubSettings(); unsubCrawls(); unsubEvents(); };
     }, [db, groupId]);
 
-    // SECURITY FIX: Only group owners/managers may update the live location.
-    // The Firestore rule also enforces this server-side; this guard provides
-    // an early client-side check to avoid unnecessary failed writes.
     const handleSetLiveLocation = async (e) => {
         if (!isOwnerOrManager) {
             setLocationError('Only the group owner or a manager can change the live location.');
@@ -272,8 +596,8 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
         return eligible[0];
     }, [weightedRankedPubs]);
 
-    /* ── top rater (most pubs scored) ── */
-    const topRater = useMemo(() => {
+    /* ── member leaderboard: top 3 by total ratings submitted ── */
+    const memberLeaderboard = useMemo(() => {
         const counts = {};
         pubsArray.forEach(pub => {
             Object.values(scoresObj[pub.id] ?? {}).forEach(criterionScores => {
@@ -282,12 +606,12 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                 });
             });
         });
-        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-        if (!sorted.length) return null;
-        const [uid, count] = sorted[0];
-        return { name: getUserName(uid), count };
+        return Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([uid, count]) => ({ name: getUserName(uid), count, isMe: uid === user?.uid }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pubsArray, scoresObj, allUsers]);
+    }, [pubsArray, scoresObj, allUsers, user?.uid]);
 
     /* ── my rating progress ── */
     const myRatedCount = useMemo(() => {
@@ -302,37 +626,71 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
         return rated.size;
     }, [pubsArray, scoresObj, user?.uid]);
 
-    /* ── chart data ── */
-    const pubChartData = useMemo(() => {
-        const top = weightedRankedPubs.slice(0, 10);
-        return {
-            labels: top.map(p => p.name || ''),
-            datasets: [{
-                label: 'Average Score',
-                data: top.map(p => parseFloat(p.avgScore.toFixed(2))),
-                backgroundColor: top.map(p => scoreTierBg(p.avgScore)),
-                borderRadius: 5,
-            }],
-        };
-    }, [weightedRankedPubs]);
+    /* ── Last Pub Night: days since most recently visited pub was added ── */
+    const daysSinceLastVisit = useMemo(() => {
+        const visitedPubs = pubsArray.filter(p => p.status === 'visited' && p.createdAt?.toMillis);
+        if (!visitedPubs.length) return null;
+        const latest = Math.max(...visitedPubs.map(p => p.createdAt.toMillis()));
+        const diffMs = Date.now() - latest;
+        return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    }, [pubsArray]);
 
-    const donutData = useMemo(() => {
-        const tiers = { Legendary: 0, Great: 0, Decent: 0, Avoid: 0 };
-        weightedRankedPubs.forEach(p => { tiers[scoreTierLabel(p.avgScore).label]++; });
-        return {
-            labels: Object.keys(tiers),
-            datasets: [{
-                data: Object.values(tiers),
-                backgroundColor: [
-                    'rgba(180,100,20,0.85)',
-                    'rgba(210,155,30,0.85)',
-                    'rgba(234,179,8,0.75)',
-                    'rgba(180,40,40,0.75)',
-                ],
-                borderWidth: 2,
-                borderColor: 'var(--color-surface)',
-            }],
+    /* ── This Week's Mission: a pseudo-random unvisited pub, stable per week ── */
+    const missionPub = useMemo(() => {
+        const unvisited = newPubsArray.filter(p => p.status !== 'visited');
+        if (!unvisited.length) return null;
+        const now = new Date();
+        const weekNum = Math.floor((now - new Date(now.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000));
+        const seed = (now.getFullYear() * 100 + weekNum) % unvisited.length;
+        return unvisited[seed];
+    }, [newPubsArray]);
+
+    /* ── overall average (for badges) ── */
+    const overallAvgNum = weightedRankedPubs.length > 0
+        ? weightedRankedPubs.reduce((sum, p) => sum + p.avgScore, 0) / weightedRankedPubs.length
+        : 0;
+
+    /* ── badge stats ── */
+    const badges = useMemo(() => {
+        const totalRatings = Object.values(scoresObj).reduce((sum, pubScores) =>
+            sum + Object.values(pubScores).reduce((s2, cs) => s2 + (Array.isArray(cs) ? cs.length : 0), 0)
+        , 0);
+
+        const hasPrices = criteriaArray
+            .filter(c => c.type === 'currency')
+            .some(c => pubsArray.some(p => (scoresObj[p.id]?.[c.id] || []).length > 0));
+
+        // area count: find location string that appears most
+        const areaCounts = {};
+        pubsArray.forEach(p => {
+            const loc = (p.location || '').trim().toLowerCase();
+            if (loc) areaCounts[loc] = (areaCounts[loc] || 0) + 1;
+        });
+        const topAreaCount = Math.max(0, ...Object.values(areaCounts));
+
+        const stats = {
+            totalRatings,
+            memberCount:    usersSize,
+            visitedCount:   pubsArray.filter(p => p.status === 'visited').length,
+            toVisitCount:   newPubsArray.length,
+            criteriaCount:  criteriaArray.length,
+            hasPrices,
+            overallAvg:     overallAvgNum,
+            topAreaCount,
+            hasLiveLocation: !!livePubId,
         };
+
+        return BADGE_DEFS.map(def => ({ ...def, unlocked: def.check(stats) }));
+    }, [pubsArray, newPubsArray, scoresObj, criteriaArray, usersSize, overallAvgNum, livePubId]);
+
+    /* ── Group Score Trend: last 10 visited pubs sorted by createdAt ── */
+    const scoreTrendPoints = useMemo(() => {
+        // Use weighted ranked pubs but re-sort by visit date (oldest → newest)
+        const withDate = weightedRankedPubs
+            .filter(p => p.createdAt?.toMillis && p.avgScore > 0)
+            .sort((a, b) => a.createdAt.toMillis() - b.createdAt.toMillis())
+            .slice(-10); // last 10 visits
+        return withDate.map(p => ({ name: p.name, score: p.avgScore }));
     }, [weightedRankedPubs]);
 
     /* ── activity feed grouped by date ── */
@@ -354,7 +712,6 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
             if (e.createdAt?.toMillis) items.push({ id: `event_${e.id}`, emoji: '\uD83D\uDCC5', title: 'Event Scheduled', text: `${e.title} was added to the calendar.`, time: e.createdAt.toMillis(), dateLabel: new Date(e.createdAt.toMillis()).toLocaleDateString() });
         });
         const sorted = items.sort((a, b) => b.time - a.time).slice(0, 20);
-
         const today     = new Date(); today.setHours(0,0,0,0);
         const weekAgo   = new Date(today); weekAgo.setDate(weekAgo.getDate() - 7);
         const groups    = {};
@@ -371,10 +728,7 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pubsArray, recentCrawls, criteriaArray, upcomingEvents, allUsers]);
 
-    const overallAvg = weightedRankedPubs.length > 0
-        ? (weightedRankedPubs.reduce((sum, p) => sum + p.avgScore, 0) / weightedRankedPubs.length).toFixed(1)
-        : 0;
-
+    const overallAvg = overallAvgNum.toFixed(1);
     const livePub = pubsArray.find(p => p.id === livePubId);
 
     /* ── card style helpers ── */
@@ -411,16 +765,55 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                     <h2 className="text-page-title">Group Dashboard</h2>
                     <p className="text-muted" style={{ marginTop: 'var(--space-1)' }}>Your city's drinking analytics.</p>
                 </div>
-                {topRater && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: 'var(--space-2) var(--space-4)', boxShadow: 'var(--shadow-sm)' }}>
-                        <span style={{ fontSize: '1rem' }}>&#x1F3C5;</span>
-                        <p style={{ fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-text-muted)' }}>
-                            Top Rater: <span style={{ color: 'var(--color-brand)' }}>{topRater.name}</span>
-                            <span style={{ color: 'var(--color-text-faint)', marginLeft: 'var(--space-1)' }}>({topRater.count} ratings)</span>
-                        </p>
+
+                {/* ── Member Leaderboard Mini ── */}
+                {memberLeaderboard.length > 0 && (
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-1)',
+                        background: 'var(--color-surface)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 'var(--radius-xl)',
+                        padding: 'var(--space-2) var(--space-4)',
+                        boxShadow: 'var(--shadow-sm)',
+                    }}>
+                        <span style={{ fontSize: '0.85rem', marginRight: 'var(--space-2)', opacity: 0.5 }}>&#x1F3C6;</span>
+                        {memberLeaderboard.map((member, i) => (
+                            <div key={i} style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 'var(--space-1)',
+                                padding: 'var(--space-1) var(--space-3)',
+                                borderRadius: 'var(--radius-full)',
+                                background: member.isMe ? 'var(--color-brand)' : 'var(--color-surface-offset)',
+                                border: member.isMe ? 'none' : '1px solid var(--color-border)',
+                            }}>
+                                <span style={{ fontSize: '0.85rem', lineHeight: 1 }}>{MEDAL[i]}</span>
+                                <span style={{
+                                    fontSize: 'var(--text-xs)',
+                                    fontWeight: 700,
+                                    fontFamily: 'var(--font-body)',
+                                    color: member.isMe ? '#fff' : 'var(--color-text)',
+                                    maxWidth: '7rem',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                }}>{member.name}</span>
+                                <span style={{
+                                    fontSize: 'var(--text-xs)',
+                                    fontFamily: 'var(--font-body)',
+                                    color: member.isMe ? 'rgba(255,255,255,0.75)' : 'var(--color-text-faint)',
+                                    fontWeight: 600,
+                                }}>{member.count}</span>
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
+
+            {/* ── Badges Strip ── */}
+            <BadgesStrip badges={badges} />
 
             {/* ══ HERO ROW: Pub of Month (left) + KPI cards (right) ══ */}
             <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 'var(--space-4)', alignItems: 'stretch' }}>
@@ -525,8 +918,6 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                         ) : (
                             <p className="text-section-heading" style={{ marginBottom: 'var(--space-4)', opacity: 0.6 }}>Not currently at a pub.</p>
                         )}
-
-                        {/* Only show the control to owners/managers */}
                         {isOwnerOrManager ? (
                             <>
                                 <select
@@ -643,26 +1034,121 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                 </div>
             )}
 
-            {/* ══ ROW 4: Top 10 Chart + Score Distribution ══ */}
-            <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 'var(--space-4)' }}>
-                <div style={{ ...padded }} className="lg:col-span-2">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'var(--space-4)' }}>
-                        <div>
-                            <h3 className="text-section-heading">The Top 10 Leaderboard</h3>
-                            <p className="text-muted" style={{ marginTop: 'var(--space-1)', fontSize: 'var(--text-xs)' }}>Colour-coded by quality tier.</p>
-                        </div>
-                        <button onClick={() => setPage('leaderboard')} style={{ fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-brand)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Full Leaderboard &#x2197;</button>
+            {/* ══ ROW 3.5: Last Pub Night Ticker + This Week's Mission ══ */}
+            <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 'var(--space-4)' }}>
+
+                {/* Last Pub Night Ticker */}
+                <div style={{
+                    ...cardBase,
+                    padding: 'var(--space-6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--space-5)',
+                    overflow: 'hidden',
+                    position: 'relative',
+                }}>
+                    <div style={{ position: 'absolute', right: '-1rem', top: '-1rem', fontSize: '8rem', opacity: 0.04, pointerEvents: 'none', lineHeight: 1 }}>&#x1F37B;</div>
+                    <div style={{
+                        flexShrink: 0,
+                        width: '5rem',
+                        height: '5rem',
+                        borderRadius: 'var(--radius-xl)',
+                        background: daysSinceLastVisit === null
+                            ? 'var(--color-surface-offset)'
+                            : daysSinceLastVisit <= 7
+                                ? 'linear-gradient(135deg, var(--color-brand), var(--color-brand-dark))'
+                                : daysSinceLastVisit <= 14
+                                    ? 'linear-gradient(135deg, #b07a00, #ca8a04)'
+                                    : 'linear-gradient(135deg, var(--color-error), #7a1a5e)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: 'var(--shadow-md)',
+                    }}>
+                        <span style={{ fontFamily: 'var(--font-body)', fontWeight: 900, fontSize: daysSinceLastVisit !== null && daysSinceLastVisit >= 100 ? 'var(--text-lg)' : 'var(--text-xl)', color: '#fff', lineHeight: 1 }}>
+                            {daysSinceLastVisit !== null ? daysSinceLastVisit : '?'}
+                        </span>
                     </div>
-                    <div style={{ height: '20rem' }}><HorizontalBarChart data={pubChartData} /></div>
+                    <div>
+                        <p className="text-label" style={{ marginBottom: 'var(--space-1)' }}>&#x1F4C5; Last Pub Night</p>
+                        <p className="text-section-heading" style={{ lineHeight: 1.15 }}>
+                            {daysSinceLastVisit === null
+                                ? 'No visits yet!'
+                                : daysSinceLastVisit === 0
+                                    ? 'Today \u2014 you\'re out! \uD83C\uDF7A'
+                                    : daysSinceLastVisit === 1
+                                        ? 'Yesterday'
+                                        : `${daysSinceLastVisit} days ago`}
+                        </p>
+                        <p className="text-muted" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--space-1)' }}>
+                            {daysSinceLastVisit === null
+                                ? 'Add your first pub visit to start tracking.'
+                                : daysSinceLastVisit <= 7
+                                    ? 'Still fresh \u2014 the crew is active! \uD83C\uDF89'
+                                    : daysSinceLastVisit <= 14
+                                        ? 'Been a while... time to plan a crawl?'
+                                        : 'The pubs miss you. \uD83E\uDD7A Get one in!'}
+                        </p>
+                    </div>
                 </div>
-                <div style={{ ...padded }}>
-                    <h3 className="text-section-heading" style={{ marginBottom: 'var(--space-1)' }}>Score Distribution</h3>
-                    <p className="text-muted" style={{ marginBottom: 'var(--space-4)', fontSize: 'var(--text-xs)' }}>How your pubs stack up overall.</p>
-                    <div style={{ height: '18rem' }}><DonutChart data={donutData} /></div>
+
+                {/* This Week's Mission */}
+                <div
+                    onClick={() => missionPub && setPage('toVisit')}
+                    style={{
+                        position: 'relative',
+                        overflow: 'hidden',
+                        borderRadius: 'var(--radius-xl)',
+                        boxShadow: 'var(--shadow-sm)',
+                        cursor: missionPub ? 'pointer' : 'default',
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-surface)',
+                        transition: 'all var(--transition-interactive)',
+                    }}
+                    onMouseEnter={e => { if (missionPub) { e.currentTarget.style.borderColor = 'var(--color-brand)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; } }}
+                    onMouseLeave={e => { if (missionPub) { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; } }}
+                >
+                    {missionPub?.photoURL ? (
+                        <img src={missionPub.photoURL} alt={missionPub.name} loading="lazy" width="600" height="300"
+                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.18 }} />
+                    ) : (
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(1,105,111,0.08), rgba(1,105,111,0.02))' }} />
+                    )}
+                    <div style={{ position: 'relative', zIndex: 1, padding: 'var(--space-6)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+                            <span style={{ fontSize: '1.5rem' }}>&#x1F3AF;</span>
+                            <p className="text-label" style={{ color: 'var(--color-brand)' }}>This Week's Mission</p>
+                            <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', background: 'var(--color-brand)', color: '#fff', padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-full)' }}>Weekly</span>
+                        </div>
+                        {missionPub ? (
+                            <>
+                                <p className="text-section-heading" style={{ marginBottom: 'var(--space-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {missionPub.name}
+                                </p>
+                                {missionPub.location && (
+                                    <p className="text-muted" style={{ fontSize: 'var(--text-xs)', marginBottom: 'var(--space-3)' }}>&#x1F4CD; {missionPub.location}</p>
+                                )}
+                                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontStyle: 'italic', lineHeight: 1.5 }}>
+                                    This week the crew should visit <strong style={{ color: 'var(--color-text)' }}>{missionPub.name}</strong>. It's on the list — go explore and drop your ratings!
+                                </p>
+                                <p style={{ marginTop: 'var(--space-4)', fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-brand)' }}>View on To-Visit List &rarr;</p>
+                            </>
+                        ) : (
+                            <div style={{ textAlign: 'center', padding: 'var(--space-6) 0' }}>
+                                <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: 'var(--space-2)', opacity: 0.4 }}>&#x2705;</span>
+                                <p className="text-muted" style={{ fontStyle: 'italic' }}>No unvisited pubs on the list — you've conquered them all!</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* ══ ROW 5: Events + Activity Feed ══ */}
+            {/* ══ ROW 5: Group Score Trend Sparkline ══ */}
+            <div style={{ ...padded }}>
+                <ScoreTrendSparkline points={scoreTrendPoints} />
+            </div>
+
+            {/* ══ ROW 4: Events + Activity Feed ══ */}
             <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 'var(--space-4)' }}>
 
                 {/* Upcoming Events */}
