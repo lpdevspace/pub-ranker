@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { firebase, storage } from '../firebase'; 
 import imageCompression from 'browser-image-compression'; 
+import ConfirmModal from '../components/ConfirmModal';
+import { useToast } from '../hooks/useToast';
 
 export default function AdminPage({
     criteria, pubs, user, currentGroup, pubsRef, criteriaRef, groupRef, allUsers, db, featureFlags, scores = {} 
 }) {
+    const { showToast } = useToast();
+    const [confirmState, setConfirmState] = useState(null);
     const [activeTab, setActiveTab] = useState('settings'); 
 
     // --- SETTINGS STATES ---
@@ -192,20 +196,31 @@ export default function AdminPage({
                 isPublic: isPublic
             });
             logAdminAction("Updated Group Settings", "Changed branding or privacy settings");
-            alert("Group settings updated successfully!");
-        } catch (e) { console.error("Error saving settings", e); alert("Failed to save settings."); }
+            showToast("Group settings saved!", "success");
+        } catch (e) { 
+            console.error("Error saving settings", e); 
+            showToast("Failed to save settings.", "error");
+        }
         setIsSavingSettings(false);
     };
 
-    const handleSyncLegacyPubs = async () => {
+    const handleSyncLegacyPubs = () => {
         const legacyPubs = pubs.filter(p => !p.placeId);
         if (legacyPubs.length === 0) {
-            alert("All your pubs are already synced with Google!");
+            showToast("All your pubs are already synced with Google!", "success");
             return;
         }
 
-        if (!window.confirm(`Found ${legacyPubs.length} pubs missing Google data. This will use your Google API quota. Do you want to proceed?`)) return;
+        setConfirmState({
+            title: 'Sync Legacy Pubs',
+            message: `Found ${legacyPubs.length} pub${legacyPubs.length !== 1 ? 's' : ''} missing Google data. This will use your Google API quota. Do you want to proceed?`,
+            confirmLabel: 'Sync Now',
+            danger: false,
+            onConfirm: () => runSyncLegacyPubs(legacyPubs),
+        });
+    };
 
+    const runSyncLegacyPubs = async (legacyPubs) => {
         setIsSyncing(true);
         let successCount = 0;
 
@@ -235,10 +250,10 @@ export default function AdminPage({
                 await new Promise(resolve => setTimeout(resolve, 800));
             }
             logAdminAction("Database Maintenance", `Synced ${successCount} legacy pubs with Google Places API`);
-            alert(`Sync complete! Successfully updated ${successCount} out of ${legacyPubs.length} legacy pubs.`);
+            showToast(`Sync complete! Updated ${successCount} of ${legacyPubs.length} legacy pubs.`, "success");
         } catch (error) {
             console.error("Critical error during sync:", error);
-            alert("Failed to initialize Google Places API.");
+            showToast("Failed to initialise Google Places API.", "error");
         } finally {
             setIsSyncing(false);
             setSyncProgress("");
@@ -254,9 +269,11 @@ export default function AdminPage({
             }).filter(Boolean);
             await Promise.all(promises);
             logAdminAction("Updated Global Weights", "Adjusted the multiplier weights for the leaderboard");
-            alert("Global weights updated successfully!");
-        } catch(e) { console.error("Error saving weights", e); } 
-        finally { setSavingWeights(false); }
+            showToast("Global weights updated!", "success");
+        } catch(e) { 
+            console.error("Error saving weights", e); 
+            showToast("Failed to save weights.", "error");
+        } finally { setSavingWeights(false); }
     };
 
     const handleApproveMember = async (uid) => {
@@ -264,16 +281,31 @@ export default function AdminPage({
             await groupRef.update({ pendingMembers: firebase.firestore.FieldValue.arrayRemove(uid), members: firebase.firestore.FieldValue.arrayUnion(uid) });
             await db.collection("users").doc(uid).update({ groups: firebase.firestore.FieldValue.arrayUnion(currentGroup.id) });
             logAdminAction("Approved Member", `Allowed ${getUserLabel(uid)} to join the group`);
-        } catch (e) { console.error("Error approving member", e); }
+            showToast(`${getUserLabel(uid)} approved!`, "success");
+        } catch (e) { 
+            console.error("Error approving member", e); 
+            showToast("Failed to approve member.", "error");
+        }
     };
 
-    const handleRejectMember = async (uid) => {
-        if (!window.confirm("Are you sure you want to reject this join request?")) return;
-        try { 
-            await groupRef.update({ pendingMembers: firebase.firestore.FieldValue.arrayRemove(uid) }); 
-            logAdminAction("Rejected Member", `Denied entry to ${getUserLabel(uid)}`);
-        } 
-        catch (e) { console.error("Error rejecting member", e); }
+    const handleRejectMember = (uid) => {
+        setConfirmState({
+            title: 'Reject Join Request',
+            message: `Are you sure you want to reject ${getUserLabel(uid)}'s request to join?`,
+            confirmLabel: 'Reject',
+            danger: true,
+            onConfirm: async () => {
+                try { 
+                    await groupRef.update({ pendingMembers: firebase.firestore.FieldValue.arrayRemove(uid) }); 
+                    logAdminAction("Rejected Member", `Denied entry to ${getUserLabel(uid)}`);
+                    showToast(`${getUserLabel(uid)}'s request rejected.`, "info");
+                } 
+                catch (e) { 
+                    console.error("Error rejecting member", e); 
+                    showToast("Failed to reject request.", "error");
+                }
+            },
+        });
     };
 
     const handleSaveTitle = async (uid) => {
@@ -281,8 +313,12 @@ export default function AdminPage({
             await groupRef.update({ [`memberTitles.${uid}`]: editingTitleText.trim() }); 
             setEditingTitleId(null); 
             logAdminAction("Changed Member Title", `Gave ${getUserLabel(uid)} the title "${editingTitleText.trim()}"`);
+            showToast("Title saved!", "success");
         } 
-        catch (e) { console.error("Error saving title", e); }
+        catch (e) { 
+            console.error("Error saving title", e); 
+            showToast("Failed to save title.", "error");
+        }
     };
 
     const handleRoleChange = async (memberId, role) => {
@@ -293,23 +329,41 @@ export default function AdminPage({
             else if (role === "member") await groupRef.update({ managers: firebase.firestore.FieldValue.arrayRemove(memberId) });
             
             logAdminAction("Changed Role", `Made ${getUserLabel(memberId)} a ${role}`);
-        } catch (e) { console.error(e); }
+            showToast(`Role updated to ${role}.`, "success");
+        } catch (e) { 
+            console.error(e); 
+            showToast("Failed to update role.", "error");
+        }
     };
     
-    const handleRemoveMember = async (memberId) => {
-        if (!isCurrentUserOwner || memberId === user.uid) return; 
-        if (!window.confirm("Are you sure you want to kick this member?")) return;
-        try {
-            await groupRef.update({ members: firebase.firestore.FieldValue.arrayRemove(memberId), managers: firebase.firestore.FieldValue.arrayRemove(memberId) });
-            await db.collection("users").doc(memberId).update({ groups: firebase.firestore.FieldValue.arrayRemove(currentGroup.id) });
-            logAdminAction("Kicked Member", `Removed ${getUserLabel(memberId)} from the group`);
-        } catch (e) { console.error(e); }
+    const handleRemoveMember = (memberId) => {
+        if (!isCurrentUserOwner || memberId === user.uid) return;
+        setConfirmState({
+            title: 'Kick Member',
+            message: `Are you sure you want to remove ${getUserLabel(memberId)} from the group? They can rejoin via the invite link.`,
+            confirmLabel: 'Kick',
+            danger: true,
+            onConfirm: async () => {
+                try {
+                    await groupRef.update({ members: firebase.firestore.FieldValue.arrayRemove(memberId), managers: firebase.firestore.FieldValue.arrayRemove(memberId) });
+                    await db.collection("users").doc(memberId).update({ groups: firebase.firestore.FieldValue.arrayRemove(currentGroup.id) });
+                    logAdminAction("Kicked Member", `Removed ${getUserLabel(memberId)} from the group`);
+                    showToast(`${getUserLabel(memberId)} removed.`, "info");
+                } catch (e) { 
+                    console.error(e); 
+                    showToast("Failed to remove member.", "error");
+                }
+            },
+        });
     };
 
     const handleImageUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        if (!file.type.startsWith('image/')) { alert("Please select an image file."); return; }
+        if (!file.type.startsWith('image/')) { 
+            showToast("Please select an image file.", "error");
+            return; 
+        }
         setUploading(true);
         try {
             const options = { maxSizeMB: 0.8, maxWidthOrHeight: 1200, useWebWorker: true };
@@ -318,13 +372,19 @@ export default function AdminPage({
             await fileRef.put(compressedFile);
             const url = await fileRef.getDownloadURL();
             setNewPubPhotoURL(url);
-        } catch (err) { console.error("Upload failed:", err); alert("Failed to upload image."); } 
+        } catch (err) { 
+            console.error("Upload failed:", err); 
+            showToast("Failed to upload image.", "error");
+        } 
         finally { setUploading(false); }
     };
 
     const handleAddCriterion = async (e) => {
         e.preventDefault();
-        if (!isCurrentUserOwner && !isCurrentUserManager) { alert("Security Error: You do not have permission to add criteria."); return; }
+        if (!isCurrentUserOwner && !isCurrentUserManager) { 
+            showToast("You do not have permission to add criteria.", "error");
+            return; 
+        }
         setCriterionError("");
         if (!newCriterionName.trim()) return setCriterionError("Please enter a name.");
         setSavingCriterion(true);
@@ -335,6 +395,7 @@ export default function AdminPage({
             });
             logAdminAction("Added Criterion", `Created new rating category: ${newCriterionName.trim()}`);
             setNewCriterionName(""); setNewCriterionType("scale"); setNewCriterionWeight(1);
+            showToast("Criterion added!", "success");
         } catch (e) { setCriterionError("Could not add criterion."); } 
         finally { setSavingCriterion(false); }
     };
@@ -343,7 +404,11 @@ export default function AdminPage({
         try { 
             await criteriaRef.doc(id).update({ archived }); 
             logAdminAction(archived ? "Archived Criterion" : "Restored Criterion", `Target: ${name}`);
-        } catch (e) { console.error(e); }
+            showToast(archived ? `"${name}" archived.` : `"${name}" restored.`, "success");
+        } catch (e) { 
+            console.error(e); 
+            showToast("Failed to update criterion.", "error");
+        }
     };
 
     const handleSaveCriterionEdit = async (id) => {
@@ -352,8 +417,12 @@ export default function AdminPage({
             await criteriaRef.doc(id).update({ name: editingCriterionName.trim() }); 
             setEditingCriterionId(null); 
             logAdminAction("Edited Criterion", `Changed name to: ${editingCriterionName.trim()}`);
+            showToast("Criterion updated!", "success");
         } 
-        catch(e) { console.error(e); }
+        catch(e) { 
+            console.error(e); 
+            showToast("Failed to update criterion.", "error");
+        }
     };
 
     const searchMasterList = async (e) => {
@@ -369,7 +438,7 @@ export default function AdminPage({
             setHasSearched(true);
         } catch (err) {
             console.error(err);
-            alert("Error searching master database.");
+            showToast("Error searching master database.", "error");
         } finally {
             setSavingPub(false);
         }
@@ -377,7 +446,10 @@ export default function AdminPage({
 
     const importPub = async (globalPub) => {
         const existing = pubs.find(p => p.globalId === globalPub.id || p.name.toLowerCase() === globalPub.name.toLowerCase());
-        if (existing) return alert("This pub is already in your group!");
+        if (existing) {
+            showToast("This pub is already in your group!", "error");
+            return;
+        }
 
         try {
             await pubsRef.add({
@@ -401,20 +473,23 @@ export default function AdminPage({
             }
 
             logAdminAction("Imported Pub", `Added ${globalPub.name} from the Global Database`);
-            alert(`${globalPub.name} imported successfully!`);
+            showToast(`${globalPub.name} imported successfully!`, "success");
             setMasterSearchTerm("");
             setMasterResults([]);
             setHasSearched(false);
             setShowManualForm(false);
         } catch (err) {
             console.error(err);
-            alert("Failed to import pub.");
+            showToast("Failed to import pub.", "error");
         }
     };
     
     const handleAddPub = async (e) => {
         e.preventDefault();
-        if (!isCurrentUserOwner && !isCurrentUserManager) { alert("Security Error: You do not have permission to add pubs."); return; }
+        if (!isCurrentUserOwner && !isCurrentUserManager) { 
+            showToast("You do not have permission to add pubs.", "error");
+            return; 
+        }
         setPubError("");
         if (!newPubName.trim()) return setPubError("Please enter a pub name.");
         
@@ -481,7 +556,7 @@ export default function AdminPage({
             setShowManualForm(false);
             setMasterSearchTerm("");
             setHasSearched(false);
-            alert("Pub created and added to your group successfully!");
+            showToast("Pub created and added to your group!", "success");
             
         } catch (e) { 
             console.error("Error saving pub to Firebase:", e);
@@ -491,20 +566,28 @@ export default function AdminPage({
         }
     };
 
-    const handleDeleteGroupPub = async (pubId, pubName) => {
-        if (!window.confirm(`Are you sure you want to completely remove "${pubName}" from your group? This will also remove any ratings associated with it.`)) return;
-        try {
-            await pubsRef.doc(pubId).delete();
-            
-            if (groupRef) {
-                await groupRef.update({ pubCount: firebase.firestore.FieldValue.increment(-1) });
-            }
+    const handleDeleteGroupPub = (pubId, pubName) => {
+        setConfirmState({
+            title: 'Remove Pub',
+            message: `Remove "${pubName}" from your group? This will also delete any ratings associated with it.`,
+            confirmLabel: 'Remove',
+            danger: true,
+            onConfirm: async () => {
+                try {
+                    await pubsRef.doc(pubId).delete();
+                    
+                    if (groupRef) {
+                        await groupRef.update({ pubCount: firebase.firestore.FieldValue.increment(-1) });
+                    }
 
-            logAdminAction("Deleted Pub", `Removed ${pubName} from the group directory`);
-        } catch (error) {
-            console.error("Error removing pub:", error);
-            alert("Failed to remove pub.");
-        }
+                    logAdminAction("Deleted Pub", `Removed ${pubName} from the group directory`);
+                    showToast(`"${pubName}" removed.`, "info");
+                } catch (error) {
+                    console.error("Error removing pub:", error);
+                    showToast("Failed to remove pub.", "error");
+                }
+            },
+        });
     };
 
     const handleCopyInvite = async () => {
@@ -514,6 +597,14 @@ export default function AdminPage({
 
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
+            {/* ConfirmModal */}
+            {confirmState && (
+                <ConfirmModal
+                    {...confirmState}
+                    onClose={() => setConfirmState(null)}
+                />
+            )}
+
             <div>
                 <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Group Admin</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Managing <span className="font-bold text-blue-600 dark:text-blue-400">{currentGroup?.groupName}</span></p>
@@ -1031,23 +1122,20 @@ export default function AdminPage({
                                                 <tr key={pub.id} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
                                                     <td className="p-3 flex items-center gap-3 font-bold text-gray-800 dark:text-white">
                                                         {pub.photoURL ? (
-                                                            <img src={pub.photoURL} alt={pub.name} className="w-8 h-8 rounded-full object-cover shadow-sm" />
+                                                            <img src={pub.photoURL} alt={pub.name} className="w-8 h-8 rounded-full object-cover" />
                                                         ) : (
-                                                            <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-xs">🍺</div>
+                                                            <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-sm">🍺</div>
                                                         )}
                                                         {pub.name}
                                                     </td>
-                                                    <td className="p-3 text-gray-500 dark:text-gray-400 truncate max-w-[150px]">{pub.location || 'Unknown'}</td>
+                                                    <td className="p-3 text-gray-500 dark:text-gray-400">{pub.location || '—'}</td>
                                                     <td className="p-3">
-                                                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${pub.status === 'visited' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'}`}>
-                                                            {pub.status === 'visited' ? 'Visited' : 'Hit List'}
+                                                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${pub.status === 'visited' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
+                                                            {pub.status === 'visited' ? '✅ Visited' : '📍 To Visit'}
                                                         </span>
                                                     </td>
                                                     <td className="p-3 text-right">
-                                                        <button 
-                                                            onClick={() => handleDeleteGroupPub(pub.id, pub.name)}
-                                                            className="px-3 py-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded text-xs font-bold transition border border-red-100 dark:border-red-800"
-                                                        >
+                                                        <button onClick={() => handleDeleteGroupPub(pub.id, pub.name)} className="px-3 py-1 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded text-xs font-bold transition border border-red-100 dark:border-red-800">
                                                             Remove
                                                         </button>
                                                     </td>
@@ -1063,60 +1151,34 @@ export default function AdminPage({
 
                 {/* --- TAB: AUDIT LOGS --- */}
                 {activeTab === 'audit' && (
-                    <div className="space-y-6 animate-fadeIn">
-                        <div className="flex justify-between items-center mb-2">
-                            <div>
-                                <h3 className="text-xl font-bold text-gray-800 dark:text-white">Audit Logs</h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">A security record of all administrative actions taken in the group.</p>
-                            </div>
+                    <div className="space-y-4 animate-fadeIn">
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-1">Audit Log</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">A record of the last 50 admin actions in this group.</p>
                         </div>
-
                         {loadingLogs ? (
-                            <p className="text-center text-gray-500 py-8">Loading secure logs...</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm italic py-8 text-center">Loading logs...</p>
                         ) : auditLogs.length === 0 ? (
-                            <p className="text-center text-gray-500 py-8 italic">No admin actions have been logged yet.</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm italic py-8 text-center">No audit logs yet.</p>
                         ) : (
-                            <div className="relative border-l-2 border-gray-200 dark:border-gray-700 ml-3 space-y-6 max-h-[500px] overflow-y-auto pr-4 pb-4">
-                                {auditLogs.map(log => {
-                                    const logTime = log.timestamp?.toDate ? log.timestamp.toDate() : new Date();
-                                    return (
-                                        <div key={log.id} className="relative pl-6">
-                                            <span className="absolute -left-[11px] top-1.5 bg-gray-300 dark:bg-gray-600 w-5 h-5 rounded-full border-4 border-white dark:border-gray-800"></span>
-                                            <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-600 shadow-sm">
-                                                <div className="flex justify-between items-start mb-1">
-                                                    <p className="text-sm font-black text-gray-800 dark:text-gray-200">{log.action}</p>
-                                                    <p className="text-[10px] text-gray-400 font-bold bg-white dark:bg-gray-800 px-2 py-0.5 rounded shadow-sm">
-                                                        {logTime.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                                    </p>
-                                                </div>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{log.details}</p>
-                                                <p className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 tracking-wider">
-                                                    👤 By {getUserLabel(log.adminId)}
-                                                </p>
-                                            </div>
+                            <div className="space-y-2">
+                                {auditLogs.map(log => (
+                                    <div key={log.id} className="flex gap-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
+                                        <div className="flex-1">
+                                            <p className="font-bold text-gray-800 dark:text-white text-sm">{log.action}</p>
+                                            {log.details && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{log.details}</p>}
+                                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">by {getUserLabel(log.adminId)}</p>
                                         </div>
-                                    );
-                                })}
+                                        <div className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap pt-0.5">
+                                            {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
                 )}
             </div>
-        
-            {/* QR Modal */}
-            {showQr && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-                    <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center relative border border-gray-200 dark:border-gray-700">
-                        <button onClick={() => setShowQr(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 rounded-full w-8 h-8 flex items-center justify-center">✕</button>
-                        <h3 className="text-2xl font-black text-gray-800 dark:text-white mb-2">Scan to Join</h3>
-                        <p className="text-gray-500 mb-6 text-sm">Have your friend point their phone camera at this code.</p>
-                        <div className="bg-white p-4 rounded-xl border-4 border-gray-100 inline-block mb-6 shadow-sm">
-                            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(inviteUrl)}`} alt="Group invite QR" className="mx-auto" />
-                        </div>
-                        <p className="text-xs text-gray-400 font-mono bg-gray-50 p-2 rounded truncate">{inviteUrl}</p>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
