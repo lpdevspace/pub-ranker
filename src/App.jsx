@@ -23,12 +23,27 @@ export default function App() {
         localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
     }, [isDarkMode]);
 
+    // Handle redirect-based social sign-in result (Google, Apple, Facebook).
+    // This MUST live in App.jsx so it runs on every page load, not just when
+    // AuthScreen is mounted. Without this, returning from a social redirect
+    // lands back on PublicLandingPage and the result is silently discarded.
+    useEffect(() => {
+        auth.getRedirectResult().catch((e) => {
+            // auth/no-auth-event is the normal "no redirect in progress" signal — ignore it.
+            if (e.code && e.code !== 'auth/no-auth-event') {
+                console.error('Redirect sign-in error:', e);
+            }
+        });
+    }, []);
+
     useEffect(() => {
         let profileUnsubscribe = null;
         const authUnsubscribe = auth.onAuthStateChanged(async (currentUser) => {
             if (profileUnsubscribe) { profileUnsubscribe(); profileUnsubscribe = null; }
             if (currentUser) {
                 setUser(currentUser);
+                // Clear showAuth so email/password login navigates away immediately
+                setShowAuth(false);
                 const userRef = db.collection('users').doc(currentUser.uid);
                 profileUnsubscribe = userRef.onSnapshot(async (doc) => {
                     if (doc.exists) {
