@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import Chart from 'chart.js/auto';
 import 'leaflet/dist/leaflet.css';
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
@@ -19,89 +18,6 @@ const scoreTierLabel = (score) => {
 };
 
 /* ─── sub-components ──────────────────────────────────────────────────────── */
-
-export function HorizontalBarChart({ data }) {
-    const chartRef          = useRef(null);
-    const chartInstanceRef  = useRef(null);
-
-    useEffect(() => {
-        if (!chartRef.current) return;
-        if (chartInstanceRef.current) chartInstanceRef.current.destroy();
-        const ctx = chartRef.current.getContext('2d');
-        chartInstanceRef.current = new Chart(ctx, {
-            type: 'bar',
-            data,
-            options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: ctx => ` ${ctx.parsed.x.toFixed(2)} / 10`,
-                        },
-                    },
-                },
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        max: 10,
-                        grid: { color: 'rgba(0,0,0,0.05)' },
-                        ticks: { font: { family: 'Satoshi, Inter, sans-serif', size: 11 } },
-                    },
-                    y: {
-                        ticks: {
-                            font: { family: 'Satoshi, Inter, sans-serif', weight: '600', size: 12 },
-                            callback: (val, idx) => {
-                                const label = data.labels[idx];
-                                return label && label.length > 22 ? label.slice(0, 20) + '\u2026' : label;
-                            },
-                        },
-                    },
-                },
-            },
-        });
-        return () => { if (chartInstanceRef.current) chartInstanceRef.current.destroy(); };
-    }, [data]);
-
-    return <canvas ref={chartRef} />;
-}
-
-export function DonutChart({ data }) {
-    const chartRef         = useRef(null);
-    const chartInstanceRef = useRef(null);
-
-    useEffect(() => {
-        if (!chartRef.current) return;
-        if (chartInstanceRef.current) chartInstanceRef.current.destroy();
-        const ctx = chartRef.current.getContext('2d');
-        chartInstanceRef.current = new Chart(ctx, {
-            type: 'doughnut',
-            data,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '68%',
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            font: { family: 'Satoshi, Inter, sans-serif', weight: '600', size: 12 },
-                            padding: 12,
-                            usePointStyle: true,
-                            pointStyleWidth: 8,
-                        },
-                    },
-                    tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} pubs` } },
-                },
-            },
-        });
-        return () => { if (chartInstanceRef.current) chartInstanceRef.current.destroy(); };
-    }, [data]);
-
-    return <canvas ref={chartRef} />;
-}
 
 export function StatCard({ title, value, subValue, onClick, icon }) {
     return (
@@ -134,7 +50,6 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
     const usersSize     = users && typeof users.size === 'number' ? users.size : 0;
 
     // Derive whether the current user is owner or manager of this group.
-    // Used to gate the Live Location control so only privileged users can move the pin.
     const isOwnerOrManager = useMemo(() => {
         if (!user?.uid || !groupData) return false;
         return (
@@ -183,9 +98,6 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
         return () => { unsubSettings(); unsubCrawls(); unsubEvents(); };
     }, [db, groupId]);
 
-    // SECURITY FIX: Only group owners/managers may update the live location.
-    // The Firestore rule also enforces this server-side; this guard provides
-    // an early client-side check to avoid unnecessary failed writes.
     const handleSetLiveLocation = async (e) => {
         if (!isOwnerOrManager) {
             setLocationError('Only the group owner or a manager can change the live location.');
@@ -301,39 +213,6 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
         });
         return rated.size;
     }, [pubsArray, scoresObj, user?.uid]);
-
-    /* ── chart data ── */
-    const pubChartData = useMemo(() => {
-        const top = weightedRankedPubs.slice(0, 10);
-        return {
-            labels: top.map(p => p.name || ''),
-            datasets: [{
-                label: 'Average Score',
-                data: top.map(p => parseFloat(p.avgScore.toFixed(2))),
-                backgroundColor: top.map(p => scoreTierBg(p.avgScore)),
-                borderRadius: 5,
-            }],
-        };
-    }, [weightedRankedPubs]);
-
-    const donutData = useMemo(() => {
-        const tiers = { Legendary: 0, Great: 0, Decent: 0, Avoid: 0 };
-        weightedRankedPubs.forEach(p => { tiers[scoreTierLabel(p.avgScore).label]++; });
-        return {
-            labels: Object.keys(tiers),
-            datasets: [{
-                data: Object.values(tiers),
-                backgroundColor: [
-                    'rgba(180,100,20,0.85)',
-                    'rgba(210,155,30,0.85)',
-                    'rgba(234,179,8,0.75)',
-                    'rgba(180,40,40,0.75)',
-                ],
-                borderWidth: 2,
-                borderColor: 'var(--color-surface)',
-            }],
-        };
-    }, [weightedRankedPubs]);
 
     /* ── activity feed grouped by date ── */
     const groupedTimeline = useMemo(() => {
@@ -526,7 +405,6 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                             <p className="text-section-heading" style={{ marginBottom: 'var(--space-4)', opacity: 0.6 }}>Not currently at a pub.</p>
                         )}
 
-                        {/* Only show the control to owners/managers */}
                         {isOwnerOrManager ? (
                             <>
                                 <select
@@ -643,26 +521,7 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                 </div>
             )}
 
-            {/* ══ ROW 4: Top 10 Chart + Score Distribution ══ */}
-            <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 'var(--space-4)' }}>
-                <div style={{ ...padded }} className="lg:col-span-2">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'var(--space-4)' }}>
-                        <div>
-                            <h3 className="text-section-heading">The Top 10 Leaderboard</h3>
-                            <p className="text-muted" style={{ marginTop: 'var(--space-1)', fontSize: 'var(--text-xs)' }}>Colour-coded by quality tier.</p>
-                        </div>
-                        <button onClick={() => setPage('leaderboard')} style={{ fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-brand)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Full Leaderboard &#x2197;</button>
-                    </div>
-                    <div style={{ height: '20rem' }}><HorizontalBarChart data={pubChartData} /></div>
-                </div>
-                <div style={{ ...padded }}>
-                    <h3 className="text-section-heading" style={{ marginBottom: 'var(--space-1)' }}>Score Distribution</h3>
-                    <p className="text-muted" style={{ marginBottom: 'var(--space-4)', fontSize: 'var(--text-xs)' }}>How your pubs stack up overall.</p>
-                    <div style={{ height: '18rem' }}><DonutChart data={donutData} /></div>
-                </div>
-            </div>
-
-            {/* ══ ROW 5: Events + Activity Feed ══ */}
+            {/* ══ ROW 4: Events + Activity Feed ══ */}
             <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 'var(--space-4)' }}>
 
                 {/* Upcoming Events */}
