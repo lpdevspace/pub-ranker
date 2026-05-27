@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { auth, db } from './firebase';
 import MainApp from './MainApp';
 import LoadingScreen from './components/LoadingScreen';
 import PublicLandingPage from './pages/PublicLandingPage';
 import AuthScreen from './pages/AuthScreen';
 import GroupPortal from './pages/GroupPortal';
-import VenuePortalPage from './pages/VenuePortalPage';
 import { ToastProvider } from './context/ToastContext';
 import ToastContainer from './components/ToastContainer';
+
+// Lazy-loaded — only used on the business.pubranker.uk subdomain
+const VenuePortalPage = React.lazy(() => import('./pages/VenuePortalPage'));
 
 export default function App() {
     const [user, setUser] = useState(null);
@@ -173,17 +175,19 @@ export default function App() {
 
     } else if (showVenuePortal) {
         currentScreen = (
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 animate-fadeIn">
-                <div className="p-4 flex justify-end">
-                    <button
-                        onClick={() => auth.signOut()}
-                        className="text-sm font-bold text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition"
-                    >
-                        Log Out
-                    </button>
+            <Suspense fallback={<LoadingScreen text="Loading Venue Portal..." />}>
+                <div className="min-h-screen bg-gray-50 dark:bg-gray-900 animate-fadeIn">
+                    <div className="p-4 flex justify-end">
+                        <button
+                            onClick={() => auth.signOut()}
+                            className="text-sm font-bold text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition"
+                        >
+                            Log Out
+                        </button>
+                    </div>
+                    <VenuePortalPage db={db} user={user} />
                 </div>
-                <VenuePortalPage db={db} user={user} />
-            </div>
+            </Suspense>
         );
 
     } else if (!userProfile.activeGroupId || !userProfile.groups?.includes(userProfile.activeGroupId)) {
