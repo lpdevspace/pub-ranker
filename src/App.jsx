@@ -6,6 +6,8 @@ import PublicLandingPage from './pages/PublicLandingPage';
 import AuthScreen from './pages/AuthScreen';
 import GroupPortal from './pages/GroupPortal';
 import VenuePortalPage from './pages/VenuePortalPage';
+import { ToastProvider } from './context/ToastContext';
+import ToastContainer from './components/ToastContainer';
 
 export default function App() {
     const [user, setUser] = useState(null);
@@ -207,7 +209,7 @@ export default function App() {
     }
 
     return (
-        <>
+        <ToastProvider>
             {isMaintenanceMode && userProfile?.isSuperAdmin && (
                 <div className="bg-red-600 text-white font-bold text-center p-3 shadow-md z-[60] relative animate-pulse">
                     🚧 MAINTENANCE MODE IS ACTIVE 🚧
@@ -219,6 +221,7 @@ export default function App() {
                 </div>
             )}
             {currentScreen}
-        </>
+            <ToastContainer />
+        </ToastProvider>
     );
 }
