@@ -323,17 +323,18 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
 
                     {/* Nav row */}
                     <div className="pb-2 flex overflow-x-auto gap-1 hide-scrollbar items-center border-t border-gray-100 dark:border-gray-800/50 pt-1.5">
-                        <NavButton name="Dashboard"   targetPage="dashboard"   icon="📊" />
-                        <NavButton name="Taproom"     targetPage="taproom"     icon="📱" />
-                        <NavButton name="Directory"   targetPage="pubs"        icon="🍻" />
-                        <NavButton name="Hit List"    targetPage="toVisit"     icon="🎯" />
-                        <NavButton name="Insights"    targetPage="insights"    icon="📈" />
-                        <NavButton name="Events"      targetPage="events"      icon="📅" />
-                        <NavButton name="Map"         targetPage="map"         icon="🗺️" />
-                        <NavButton name="Leaderboard" targetPage="leaderboard" icon="🏆" />
-                        <NavButton name="Versus"      targetPage="individual"  icon="🥊" />
-                        <NavButton name="Spin"        targetPage="spin"        icon="🎡" />
-                        <NavButton name="Feedback"    targetPage="feedback"    icon="💬" />
+                        <NavButton name="Dashboard"    targetPage="dashboard"    icon="📊" />
+                        <NavButton name="Taproom"      targetPage="taproom"      icon="📱" />
+                        <NavButton name="Directory"    targetPage="pubs"         icon="🍻" />
+                        <NavButton name="Hit List"     targetPage="toVisit"      icon="🎯" />
+                        <NavButton name="Insights"     targetPage="insights"     icon="📈" />
+                        <NavButton name="Events"       targetPage="events"       icon="📅" />
+                        <NavButton name="Map"          targetPage="map"          icon="🗺️" />
+                        <NavButton name="Leaderboard"  targetPage="leaderboard"  icon="🏆" />
+                        <NavButton name="Versus"       targetPage="individual"   icon="🥊" />
+                        <NavButton name="Achievements" targetPage="achievements" icon="🎖️" />
+                        <NavButton name="Spin"         targetPage="spin"         icon="🎡" />
+                        <NavButton name="Feedback"     targetPage="feedback"     icon="💬" />
                     </div>
                 </div>
             </header>
@@ -382,13 +383,14 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                     <div className="absolute bottom-16 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shadow-2xl animate-fadeIn">
                         <div className="grid grid-cols-3 gap-1 p-3">
                             {[
-                                { icon: '📱', label: 'Taproom',  page: 'taproom' },
-                                { icon: '🎯', label: 'Hit List', page: 'toVisit' },
-                                { icon: '📈', label: 'Insights', page: 'insights' },
-                                { icon: '📅', label: 'Events',   page: 'events' },
-                                { icon: '🥊', label: 'Versus',   page: 'individual' },
-                                { icon: '🎡', label: 'Spin',     page: 'spin' },
-                                { icon: '💬', label: 'Feedback', page: 'feedback' },
+                                { icon: '📱', label: 'Taproom',      page: 'taproom' },
+                                { icon: '🎯', label: 'Hit List',     page: 'toVisit' },
+                                { icon: '📈', label: 'Insights',     page: 'insights' },
+                                { icon: '📅', label: 'Events',       page: 'events' },
+                                { icon: '🥊', label: 'Versus',       page: 'individual' },
+                                { icon: '🎖️', label: 'Achievements', page: 'achievements' },
+                                { icon: '🎡', label: 'Spin',         page: 'spin' },
+                                { icon: '💬', label: 'Feedback',     page: 'feedback' },
                                 ...(canManageGroup ? [{ icon: '⚙️', label: 'Admin', page: 'admin' }] : []),
                                 ...(isStaff ? [{ icon: '🛡️', label: 'Staff', page: 'superadmin' }] : []),
                             ].map(item => (

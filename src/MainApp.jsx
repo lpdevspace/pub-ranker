@@ -17,25 +17,27 @@ import SpinPage from './pages/SpinTheWheelPage.jsx';
 import FeedbackPage from './pages/FeedbackPage.jsx';
 import TaproomPage from './pages/TaproomPage.jsx';
 import VenuePortalPage from './pages/VenuePortalPage.jsx';
+import AchievementsPage from './pages/AchievementsPage.jsx';
 import LoadingScreen from './components/LoadingScreen';
 
 // ── URL <-> page key mapping ────────────────────────────────────────────────
 const PATH_TO_PAGE = {
-    '/':             'dashboard',
-    '/dashboard':    'dashboard',
-    '/taproom':      'taproom',
-    '/pubs':         'pubs',
-    '/hitlist':      'toVisit',
-    '/insights':     'insights',
-    '/events':       'events',
-    '/map':          'map',
-    '/leaderboard':  'leaderboard',
-    '/versus':       'individual',
-    '/spin':         'spin',
-    '/feedback':     'feedback',
-    '/venues':       'business',
-    '/admin':        'admin',
-    '/superadmin':   'superadmin',
+    '/':               'dashboard',
+    '/dashboard':      'dashboard',
+    '/taproom':        'taproom',
+    '/pubs':           'pubs',
+    '/hitlist':        'toVisit',
+    '/insights':       'insights',
+    '/events':         'events',
+    '/map':            'map',
+    '/leaderboard':    'leaderboard',
+    '/versus':         'individual',
+    '/spin':           'spin',
+    '/feedback':       'feedback',
+    '/venues':         'business',
+    '/achievements':   'achievements',
+    '/admin':          'admin',
+    '/superadmin':     'superadmin',
 };
 
 const PAGE_TO_PATH = Object.fromEntries(
@@ -72,7 +74,6 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
     const scores = useScoreCalculations(rawScores);
 
     // Convert users array [ { uid, displayName, ... } ] to keyed object { [uid]: { ... } }
-    // Pages (PubsPage, DashboardPage, etc.) all expect allUsers[uid].displayName
     const allUsers = useMemo(() => {
         if (!Array.isArray(users)) return {};
         return users.reduce((acc, u) => {
@@ -140,17 +141,18 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
 
     const renderPage = () => {
         switch (page) {
-            case 'taproom':     return <TaproomPage {...sharedProps} onSelectPub={setSelectedPub} onViewDetail={setSelectedPubForDetail} />;
-            case 'pubs':        return <PubDirectoryPage {...sharedProps} onSelectPub={setSelectedPub} onViewDetail={setSelectedPubForDetail} currentUser={user} />;
-            case 'toVisit':     return <ToVisitPage {...sharedProps} onSelectPub={setSelectedPub} onViewDetail={setSelectedPubForDetail} />;
-            case 'insights':    return <InsightsPage {...sharedProps} />;
-            case 'events':      return <EventsPage {...sharedProps} />;
-            case 'map':         return <MapPage {...sharedProps} onViewDetail={setSelectedPubForDetail} />;
-            case 'leaderboard': return <LeaderboardPage {...sharedProps} onViewDetail={setSelectedPubForDetail} />;
-            case 'individual':  return <IndividualPage {...sharedProps} />;
-            case 'spin':        return <SpinPage {...sharedProps} onSelectPub={setSelectedPub} />;
-            case 'feedback':    return <FeedbackPage {...sharedProps} />;
-            case 'business':    return <VenuePortalPage db={db} user={user} />;
+            case 'taproom':      return <TaproomPage {...sharedProps} onSelectPub={setSelectedPub} onViewDetail={setSelectedPubForDetail} />;
+            case 'pubs':         return <PubDirectoryPage {...sharedProps} onSelectPub={setSelectedPub} onViewDetail={setSelectedPubForDetail} currentUser={user} />;
+            case 'toVisit':      return <ToVisitPage {...sharedProps} onSelectPub={setSelectedPub} onViewDetail={setSelectedPubForDetail} />;
+            case 'insights':     return <InsightsPage {...sharedProps} />;
+            case 'events':       return <EventsPage {...sharedProps} />;
+            case 'map':          return <MapPage {...sharedProps} onViewDetail={setSelectedPubForDetail} />;
+            case 'leaderboard':  return <LeaderboardPage {...sharedProps} onViewDetail={setSelectedPubForDetail} />;
+            case 'individual':   return <IndividualPage {...sharedProps} />;
+            case 'spin':         return <SpinPage {...sharedProps} onSelectPub={setSelectedPub} />;
+            case 'feedback':     return <FeedbackPage {...sharedProps} />;
+            case 'business':     return <VenuePortalPage db={db} user={user} />;
+            case 'achievements': return <AchievementsPage {...sharedProps} />;
             case 'admin':
                 return (
                     <ProtectedRoute allowed={canManageGroup} fallback={<RedirectToDashboard setPage={setPage} />}>
