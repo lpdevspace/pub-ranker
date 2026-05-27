@@ -2,23 +2,25 @@ import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import Header from './components/header.jsx';
 import useGroupData from './hooks/useGroupData';
 import useScoreCalculations from './hooks/useScoreCalculations';
-
-// Pages
-import Dashboard from './pages/DashboardPage.jsx';
-import PubDirectoryPage from './pages/PubsPage.jsx';
-import RateView from './pages/RateView.jsx';
-import ToVisitPage from './pages/PubsToVisitPage.jsx';
-import InsightsPage from './pages/InsightsPage.jsx';
-import EventsPage from './pages/EventsPage.jsx';
-import MapPage from './pages/MapPage.jsx';
-import LeaderboardPage from './pages/LeaderboardPage.jsx';
-import IndividualPage from './pages/IndividualRankingsPage.jsx';
-import SpinPage from './pages/SpinTheWheelPage.jsx';
-import FeedbackPage from './pages/FeedbackPage.jsx';
-import TaproomPage from './pages/TaproomPage.jsx';
-import VenuePortalPage from './pages/VenuePortalPage.jsx';
-import AchievementsPage from './pages/AchievementsPage.jsx';
 import LoadingScreen from './components/LoadingScreen';
+
+// ── Lazy-loaded pages — each page becomes its own split chunk ────────────────
+const Dashboard         = React.lazy(() => import('./pages/DashboardPage.jsx'));
+const PubDirectoryPage  = React.lazy(() => import('./pages/PubsPage.jsx'));
+const RateView          = React.lazy(() => import('./pages/RateView.jsx'));
+const ToVisitPage       = React.lazy(() => import('./pages/PubsToVisitPage.jsx'));
+const InsightsPage      = React.lazy(() => import('./pages/InsightsPage.jsx'));
+const EventsPage        = React.lazy(() => import('./pages/EventsPage.jsx'));
+const MapPage           = React.lazy(() => import('./pages/MapPage.jsx'));
+const LeaderboardPage   = React.lazy(() => import('./pages/LeaderboardPage.jsx'));
+const IndividualPage    = React.lazy(() => import('./pages/IndividualRankingsPage.jsx'));
+const SpinPage          = React.lazy(() => import('./pages/SpinTheWheelPage.jsx'));
+const FeedbackPage      = React.lazy(() => import('./pages/FeedbackPage.jsx'));
+const TaproomPage       = React.lazy(() => import('./pages/TaproomPage.jsx'));
+const VenuePortalPage   = React.lazy(() => import('./pages/VenuePortalPage.jsx'));
+const AchievementsPage  = React.lazy(() => import('./pages/AchievementsPage.jsx'));
+const AdminPageLoader      = React.lazy(() => import('./pages/AdminPage.jsx'));
+const SuperAdminPageLoader = React.lazy(() => import('./pages/SuperAdminPage.jsx'));
 
 // ── URL <-> page key mapping ────────────────────────────────────────────────
 const PATH_TO_PAGE = {
@@ -60,10 +62,6 @@ function RedirectToDashboard({ setPage }) {
     useEffect(() => { setPage('dashboard'); }, [setPage]);
     return null;
 }
-
-// Lazy-loaded admin pages — bundles not sent to non-admin users
-const AdminPageLoader = React.lazy(() => import('./pages/AdminPage.jsx'));
-const SuperAdminPageLoader = React.lazy(() => import('./pages/SuperAdminPage.jsx'));
 
 export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMode, toggleDarkMode, featureFlags = {} }) {
     const [page, setPageState] = useState(getPageFromURL);
@@ -118,23 +116,10 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
         catch (e) { console.error('Error switching group:', e); }
     };
 
-    if (selectedPub) {
-        return (
-            <RateView
-                pub={selectedPub}
-                criteria={criteria}
-                user={user}
-                onBack={() => setSelectedPub(null)}
-                groupRef={groupRef}
-                groupId={groupId}
-            />
-        );
-    }
-
     const sharedProps = {
         pubs, criteria, scores,
-        users,      // raw array (for components that iterate members)
-        allUsers,   // keyed object { [uid]: user } for name lookups
+        users,
+        allUsers,
         user, userProfile,
         groupRef, groupId, db, featureFlags, canManageGroup, isStaff,
     };
@@ -156,17 +141,13 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
             case 'admin':
                 return (
                     <ProtectedRoute allowed={canManageGroup} fallback={<RedirectToDashboard setPage={setPage} />}>
-                        <Suspense fallback={<LoadingScreen text="Loading Admin Panel..." />}>
-                            <AdminPageLoader {...sharedProps} currentGroup={groupData} groupRef={groupRef} auth={auth} />
-                        </Suspense>
+                        <AdminPageLoader {...sharedProps} currentGroup={groupData} groupRef={groupRef} auth={auth} />
                     </ProtectedRoute>
                 );
             case 'superadmin':
                 return (
                     <ProtectedRoute allowed={isStaff} fallback={<RedirectToDashboard setPage={setPage} />}>
-                        <Suspense fallback={<LoadingScreen text="Loading Super Admin Panel..." />}>
-                            <SuperAdminPageLoader {...sharedProps} auth={auth} db={db} />
-                        </Suspense>
+                        <SuperAdminPageLoader {...sharedProps} auth={auth} db={db} />
                     </ProtectedRoute>
                 );
             case 'dashboard':
@@ -174,6 +155,22 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                 return <Dashboard {...sharedProps} onSelectPub={setSelectedPub} onViewDetail={setSelectedPubForDetail} setPage={setPage} />;
         }
     };
+
+    // RateView gets its own Suspense so the full-screen rating UI loads cleanly
+    if (selectedPub) {
+        return (
+            <Suspense fallback={<LoadingScreen text="Loading..." />}>
+                <RateView
+                    pub={selectedPub}
+                    criteria={criteria}
+                    user={user}
+                    onBack={() => setSelectedPub(null)}
+                    groupRef={groupRef}
+                    groupId={groupId}
+                />
+            </Suspense>
+        );
+    }
 
     return (
         <>
@@ -195,7 +192,9 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                 groupId={groupId}
             />
             <main className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 pt-6">
-                {renderPage()}
+                <Suspense fallback={<LoadingScreen text="Loading..." />}>
+                    {renderPage()}
+                </Suspense>
             </main>
         </>
     );
