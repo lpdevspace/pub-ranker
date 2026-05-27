@@ -3,6 +3,7 @@ import Header from './components/header.jsx';
 import useGroupData from './hooks/useGroupData';
 import useScoreCalculations from './hooks/useScoreCalculations';
 import LoadingScreen from './components/LoadingScreen';
+import CheckInButton from './components/CheckInButton';
 
 // ── Lazy-loaded pages — each page becomes its own split chunk ────────────────
 const Dashboard         = React.lazy(() => import('./pages/DashboardPage.jsx'));
@@ -19,6 +20,7 @@ const FeedbackPage      = React.lazy(() => import('./pages/FeedbackPage.jsx'));
 const TaproomPage       = React.lazy(() => import('./pages/TaproomPage.jsx'));
 const VenuePortalPage   = React.lazy(() => import('./pages/VenuePortalPage.jsx'));
 const AchievementsPage  = React.lazy(() => import('./pages/AchievementsPage.jsx'));
+const CheckInsPage      = React.lazy(() => import('./pages/CheckInsPage.jsx'));
 const AdminPageLoader      = React.lazy(() => import('./pages/AdminPage.jsx'));
 const SuperAdminPageLoader = React.lazy(() => import('./pages/SuperAdminPage.jsx'));
 
@@ -38,6 +40,7 @@ const PATH_TO_PAGE = {
     '/feedback':       'feedback',
     '/venues':         'business',
     '/achievements':   'achievements',
+    '/checkins':       'checkins',
     '/admin':          'admin',
     '/superadmin':     'superadmin',
 };
@@ -138,6 +141,7 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
             case 'feedback':     return <FeedbackPage {...sharedProps} />;
             case 'business':     return <VenuePortalPage db={db} user={user} />;
             case 'achievements': return <AchievementsPage {...sharedProps} />;
+            case 'checkins':     return <CheckInsPage db={db} groupId={groupId} pubs={pubs} allUsers={allUsers} user={user} />;
             case 'admin':
                 return (
                     <ProtectedRoute allowed={canManageGroup} fallback={<RedirectToDashboard setPage={setPage} />}>
@@ -196,6 +200,7 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                     {renderPage()}
                 </Suspense>
             </main>
+            <CheckInButton user={user} pubs={pubs} groupId={groupId} db={db} />
         </>
     );
 }
