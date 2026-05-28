@@ -45,6 +45,20 @@ export default function useGroupData({ db, groupId }) {
     const pubsUnsubRef   = useRef(null);
     const scoresUnsubRef = useRef(null);
 
+    // Stable serialised key for the members list — prevents the users
+    // useEffect from re-firing every time Firestore re-emits the group doc
+    // with a new array reference (which would otherwise cause an infinite
+    // subscribe/unsubscribe loop and keep users stuck at []).
+    const membersKey = useMemo(() => {
+        if (!groupData) return '';
+        const ids = [...new Set([
+            groupData.ownerUid,
+            ...(groupData.managers || []),
+            ...(groupData.members  || []),
+        ].filter(Boolean))].sort();
+        return ids.join(',');
+    }, [groupData]);
+
     const groupRef = useMemo(
         () => db.collection('groups').doc(groupId),
         [db, groupId]
@@ -68,18 +82,7 @@ export default function useGroupData({ db, groupId }) {
 
         setPubsLoading(true);
 
-        // Pubs are written with createdAt — ordering by this field matches all
-        // existing docs. addedAt was the old (incorrect) field name.
-        let query = groupRef
-            .collection('pubs')
-            .orderBy('createdAt', 'desc')
-            .limit(PUBS_PAGE_SIZE + 1);
-
-        if (startAfterDoc) {
-            query = query.startAfter(startAfterDoc);
-        }
-
-        pubsUnsubRef.current = query.onSnapshot(snap => {
+        const handleSnap = (snap, append) => {
             const docs = snap.docs;
             const hasMore = docs.length > PUBS_PAGE_SIZE;
             const pageDocs = hasMore ? docs.slice(0, PUBS_PAGE_SIZE) : docs;
@@ -89,24 +92,37 @@ export default function useGroupData({ db, groupId }) {
             }
 
             const newPubs = pageDocs.map(d => ({ id: d.id, ...d.data() }));
-
-            // If we're paginating (startAfterDoc set) append; otherwise replace
-            setPubs(prev => startAfterDoc ? [...prev, ...newPubs] : newPubs);
+            setPubs(prev => append ? [...prev, ...newPubs] : newPubs);
             setHasMorePubs(hasMore);
             setPubsLoading(false);
-        }, err => {
-            // If the createdAt index hasn't propagated yet, fall back to unordered
-            console.warn('useGroupData: pubs orderBy(createdAt) failed, falling back to unordered', err.message);
-            groupRef.collection('pubs').limit(PUBS_PAGE_SIZE + 1).onSnapshot(snap => {
-                const docs = snap.docs;
-                const hasMore = docs.length > PUBS_PAGE_SIZE;
-                const pageDocs = hasMore ? docs.slice(0, PUBS_PAGE_SIZE) : docs;
-                const newPubs = pageDocs.map(d => ({ id: d.id, ...d.data() }));
-                setPubs(newPubs);
-                setHasMorePubs(hasMore);
-                setPubsLoading(false);
-            });
-        });
+        };
+
+        // Try ordered query first; fall back to unordered if the index is
+        // missing or any pubs lack the createdAt field.
+        let query = groupRef
+            .collection('pubs')
+            .orderBy('createdAt', 'desc')
+            .limit(PUBS_PAGE_SIZE + 1);
+
+        if (startAfterDoc) query = query.startAfter(startAfterDoc);
+
+        pubsUnsubRef.current = query.onSnapshot(
+            snap => handleSnap(snap, !!startAfterDoc),
+            err => {
+                console.warn('useGroupData: pubs orderBy(createdAt) failed, falling back to unordered', err.message);
+                // Fallback: fetch all pubs without ordering so nothing is missed
+                const fallbackQuery = groupRef
+                    .collection('pubs')
+                    .limit(PUBS_PAGE_SIZE + 1);
+                pubsUnsubRef.current = fallbackQuery.onSnapshot(
+                    snap => handleSnap(snap, false),
+                    fallbackErr => {
+                        console.error('useGroupData: pubs fallback also failed', fallbackErr);
+                        setPubsLoading(false);
+                    }
+                );
+            }
+        );
     }, [groupRef]);
 
     // Initial pubs subscription
@@ -179,30 +195,26 @@ export default function useGroupData({ db, groupId }) {
         subscribeToScores(lastScoreDocRef.current);
     }, [hasMoreScores, scoresLoading, subscribeToScores]);
 
-    // ── Users — fetch owner + managers + members so all names resolve correctly ────
+    // ── Users — stable listener keyed on the sorted members list ─────────────────
+    // membersKey is a stable string that only changes when the actual set of
+    // member UIDs changes (not on every Firestore re-emit of the group doc).
+    // This prevents the infinite subscribe/unsubscribe loop that was clearing
+    // the users array on every snapshot.
     useEffect(() => {
-        if (!groupData) return;
+        if (!membersKey) return;
 
-        // Collect ALL participant UIDs: owner + managers + members
-        const allIds = [...new Set([
-            groupData.ownerUid,
-            ...(groupData.managers || []),
-            ...(groupData.members  || []),
-        ].filter(Boolean))];
-
-        if (!allIds.length) return;
-
-        // Firestore 'in' queries are capped at 30 items
-        const ids = allIds.slice(0, 30);
+        const ids = membersKey.split(',').filter(Boolean).slice(0, 30);
+        if (!ids.length) return;
 
         const unsub = db
             .collection('users')
             .where(firebase.firestore.FieldPath.documentId(), 'in', ids)
-            .onSnapshot(snap =>
-                setUsers(snap.docs.map(d => ({ uid: d.id, ...d.data() })))
+            .onSnapshot(
+                snap => setUsers(snap.docs.map(d => ({ uid: d.id, ...d.data() }))),
+                err  => console.error('useGroupData: users listener error', err)
             );
         return () => unsub();
-    }, [db, groupData?.ownerUid, groupData?.managers, groupData?.members]);
+    }, [db, membersKey]);
 
     return {
         groupRef,
