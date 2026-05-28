@@ -13,15 +13,35 @@ import AddPubsTab     from '../components/admin/AddPubsTab';
 import ManagePubsTab  from '../components/admin/ManagePubsTab';
 import AuditTab       from '../components/admin/AuditTab';
 
-const TABS = [
-    { id: 'settings',     icon: '⚙️',  label: 'Settings' },
-    { id: 'invites',      icon: '📨',  label: 'Invites' },
-    { id: 'members',      icon: '👥',  label: 'Members', showBadge: true },
-    { id: 'criteria',     icon: '📋',  label: 'Add Criteria' },
-    { id: 'weights',      icon: '⚖️',  label: 'Weights' },
-    { id: 'pubs',         icon: '➕',  label: 'Add Pubs' },
-    { id: 'manage-pubs',  icon: '🍻',  label: 'Manage Pubs' },
-    { id: 'audit',        icon: '🕵️', label: 'Audit Logs' },
+const NAV_GROUPS = [
+    {
+        label: 'Group',
+        items: [
+            { id: 'settings', icon: '⚙️',  label: 'Settings' },
+            { id: 'invites',  icon: '📨',  label: 'Invites' },
+        ],
+    },
+    {
+        label: 'Members',
+        items: [
+            { id: 'members',  icon: '👥',  label: 'Members', showBadge: true },
+        ],
+    },
+    {
+        label: 'Content',
+        items: [
+            { id: 'pubs',        icon: '➕',  label: 'Add Pubs' },
+            { id: 'manage-pubs', icon: '🍻',  label: 'Manage Pubs' },
+            { id: 'criteria',    icon: '📋',  label: 'Criteria' },
+            { id: 'weights',     icon: '⚖️',  label: 'Weights' },
+        ],
+    },
+    {
+        label: 'Reports',
+        items: [
+            { id: 'audit', icon: '🕵️', label: 'Audit Logs' },
+        ],
+    },
 ];
 
 export default function AdminPage({
@@ -30,6 +50,7 @@ export default function AdminPage({
     const { showToast } = useToast();
     const [confirmState, setConfirmState] = useState(null);
     const [activeTab, setActiveTab] = useState('settings');
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     // --- SETTINGS ---
     const [editGroupName,  setEditGroupName]  = useState(currentGroup?.groupName   || '');
@@ -487,150 +508,213 @@ export default function AdminPage({
         catch (e) { setCopyMessage('Could not copy.'); }
     };
 
+    // ── Active tab label (for mobile header) ───────────────────────────────────
+    const activeLabel = NAV_GROUPS.flatMap(g => g.items).find(i => i.id === activeTab)?.label ?? '';
+
+    // ── Nav item renderer ──────────────────────────────────────────────────────
+    const NavItem = ({ item }) => {
+        const isActive = activeTab === item.id;
+        return (
+            <button
+                onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 relative ${
+                    isActive
+                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100'
+                }`}
+            >
+                {isActive && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-blue-500 rounded-r-full" />
+                )}
+                <span className="text-base leading-none">{item.icon}</span>
+                <span className="flex-1 text-left">{item.label}</span>
+                {item.id === 'members' && pendingMembers.length > 0 && (
+                    <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">
+                        {pendingMembers.length}
+                    </span>
+                )}
+                {item.id === 'members' && (
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{members.length}</span>
+                )}
+            </button>
+        );
+    };
+
+    // ── Sidebar content ────────────────────────────────────────────────────────
+    const SidebarContent = () => (
+        <nav className="flex flex-col gap-5 p-4">
+            {/* Group identity */}
+            <div className="px-3 pb-3 border-b border-gray-200 dark:border-gray-700">
+                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-0.5">Managing</p>
+                <p className="text-sm font-bold text-blue-600 dark:text-blue-400 truncate">{currentGroup?.groupName}</p>
+            </div>
+
+            {NAV_GROUPS.map(group => (
+                <div key={group.label}>
+                    <p className="px-3 mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                        {group.label}
+                    </p>
+                    <div className="flex flex-col gap-0.5">
+                        {group.items.map(item => <NavItem key={item.id} item={item} />)}
+                    </div>
+                </div>
+            ))}
+        </nav>
+    );
+
     // ── Render ─────────────────────────────────────────────────────────────────
     return (
-        <div className="space-y-6 w-full">
+        <div className="w-full">
             {confirmState && <ConfirmModal {...confirmState} onClose={() => setConfirmState(null)} />}
 
-            <div>
-                <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Group Admin</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Managing <span className="font-bold text-blue-600 dark:text-blue-400">{currentGroup?.groupName}</span>
-                </p>
+            {/* Page header */}
+            <div className="mb-6">
+                <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Group Admin</h2>
             </div>
 
-            {/* Tab bar */}
-            <div className="flex overflow-x-auto bg-gray-200 dark:bg-gray-700 p-1 rounded-xl shadow-inner gap-1 hide-scrollbar">
-                {TABS.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`flex-1 min-w-[120px] py-2 px-4 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all duration-300 ${
-                            activeTab === tab.id
-                                ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
-                                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                        }`}
-                    >
-                        <span>{tab.icon}</span>
-                        {tab.id === 'members' ? `Members (${members.length})` : tab.label}
-                        {tab.id === 'members' && pendingMembers.length > 0 && (
-                            <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full ml-1 animate-pulse">{pendingMembers.length}</span>
-                        )}
-                    </button>
-                ))}
+            {/* Mobile: top bar with hamburger */}
+            <div className="flex items-center gap-3 mb-4 md:hidden">
+                <button
+                    onClick={() => setSidebarOpen(o => !o)}
+                    className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                    aria-label="Toggle admin menu"
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="3" y1="6"  x2="21" y2="6"  />
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
+                </button>
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{activeLabel}</span>
             </div>
 
-            {/* Tab content */}
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 transition-colors duration-300 min-h-[400px]">
+            {/* Mobile: slide-down sidebar */}
+            {sidebarOpen && (
+                <div className="md:hidden mb-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg">
+                    <SidebarContent />
+                </div>
+            )}
 
-                {activeTab === 'settings' && (
-                    <SettingsTab
-                        editGroupName={editGroupName} setEditGroupName={setEditGroupName}
-                        brandColor={brandColor} setBrandColor={setBrandColor}
-                        editGroupCover={editGroupCover} setEditGroupCover={setEditGroupCover}
-                        safeEditGroupCover={safeEditGroupCover}
-                        requireApproval={requireApproval} setRequireApproval={setRequireApproval}
-                        city={city} setCity={setCity}
-                        isPublic={isPublic} setIsPublic={setIsPublic}
-                        isSavingSettings={isSavingSettings}
-                        isSyncing={isSyncing} syncProgress={syncProgress}
-                        handleSaveSettings={handleSaveSettings}
-                        handleSyncLegacyPubs={handleSyncLegacyPubs}
-                        handleExportData={handleExportData}
-                    />
-                )}
+            {/* Desktop: sidebar + content layout */}
+            <div className="flex gap-6 items-start">
 
-                {activeTab === 'invites' && (
-                    <InvitesTab
-                        inviteUrl={inviteUrl} inviteCode={inviteCode}
-                        requireApproval={requireApproval}
-                        copyMessage={copyMessage}
-                        handleCopyInvite={handleCopyInvite}
-                        setShowQr={setShowQr}
-                    />
-                )}
+                {/* Sidebar — desktop only */}
+                <aside className="hidden md:block w-52 shrink-0 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm sticky top-20">
+                    <SidebarContent />
+                </aside>
 
-                {activeTab === 'members' && (
-                    <MembersTab
-                        members={members} managers={managers} pendingMembers={pendingMembers}
-                        memberTitles={memberTitles}
-                        editingTitleId={editingTitleId} setEditingTitleId={setEditingTitleId}
-                        editingTitleText={editingTitleText} setEditingTitleText={setEditingTitleText}
-                        user={user} currentGroup={currentGroup}
-                        isCurrentUserOwner={isCurrentUserOwner}
-                        canManageSettings={canManageSettings}
-                        getUserLabel={getUserLabel}
-                        handleApproveMember={handleApproveMember}
-                        handleRejectMember={handleRejectMember}
-                        handleSaveTitle={handleSaveTitle}
-                        handleRoleChange={handleRoleChange}
-                        handleRemoveMember={handleRemoveMember}
-                    />
-                )}
+                {/* Main content */}
+                <div className="flex-1 min-w-0 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 min-h-[500px]">
 
-                {activeTab === 'criteria' && (
-                    <CriteriaTab
-                        criteria={criteria}
-                        newCriterionName={newCriterionName} setNewCriterionName={setNewCriterionName}
-                        newCriterionType={newCriterionType} setNewCriterionType={setNewCriterionType}
-                        newCriterionWeight={newCriterionWeight} setNewCriterionWeight={setNewCriterionWeight}
-                        savingCriterion={savingCriterion}
-                        criterionError={criterionError}
-                        editingCriterionId={editingCriterionId} setEditingCriterionId={setEditingCriterionId}
-                        editingCriterionName={editingCriterionName} setEditingCriterionName={setEditingCriterionName}
-                        canManageSettings={canManageSettings}
-                        handleAddCriterion={handleAddCriterion}
-                        handleArchiveCriterion={handleArchiveCriterion}
-                        handleSaveCriterionEdit={handleSaveCriterionEdit}
-                    />
-                )}
+                    {activeTab === 'settings' && (
+                        <SettingsTab
+                            editGroupName={editGroupName} setEditGroupName={setEditGroupName}
+                            brandColor={brandColor} setBrandColor={setBrandColor}
+                            editGroupCover={editGroupCover} setEditGroupCover={setEditGroupCover}
+                            safeEditGroupCover={safeEditGroupCover}
+                            requireApproval={requireApproval} setRequireApproval={setRequireApproval}
+                            city={city} setCity={setCity}
+                            isPublic={isPublic} setIsPublic={setIsPublic}
+                            isSavingSettings={isSavingSettings}
+                            isSyncing={isSyncing} syncProgress={syncProgress}
+                            handleSaveSettings={handleSaveSettings}
+                            handleSyncLegacyPubs={handleSyncLegacyPubs}
+                            handleExportData={handleExportData}
+                        />
+                    )}
 
-                {activeTab === 'weights' && (
-                    <WeightsTab
-                        criteria={criteria}
-                        localWeights={localWeights} setLocalWeights={setLocalWeights}
-                        savingWeights={savingWeights}
-                        simulatedLeaderboard={simulatedLeaderboard}
-                        handleSaveWeights={handleSaveWeights}
-                    />
-                )}
+                    {activeTab === 'invites' && (
+                        <InvitesTab
+                            inviteUrl={inviteUrl} inviteCode={inviteCode}
+                            requireApproval={requireApproval}
+                            copyMessage={copyMessage}
+                            handleCopyInvite={handleCopyInvite}
+                            setShowQr={setShowQr}
+                        />
+                    )}
 
-                {activeTab === 'pubs' && (
-                    <AddPubsTab
-                        showManualForm={showManualForm} setShowManualForm={setShowManualForm}
-                        masterSearchTerm={masterSearchTerm} setMasterSearchTerm={setMasterSearchTerm}
-                        masterResults={masterResults}
-                        hasSearched={hasSearched}
-                        savingPub={savingPub}
-                        newPubName={newPubName} setNewPubName={setNewPubName}
-                        newPubLocation={newPubLocation} setNewPubLocation={setNewPubLocation}
-                        newPubLat={newPubLat} setNewPubLat={setNewPubLat}
-                        newPubLng={newPubLng} setNewPubLng={setNewPubLng}
-                        newPubPhotoURL={newPubPhotoURL} setNewPubPhotoURL={setNewPubPhotoURL}
-                        newPubGoogleLink={newPubGoogleLink} setNewPubGoogleLink={setNewPubGoogleLink}
-                        pubError={pubError}
-                        uploading={uploading}
-                        searchMasterList={searchMasterList}
-                        importPub={importPub}
-                        handleAddPub={handleAddPub}
-                        handleImageUpload={handleImageUpload}
-                    />
-                )}
+                    {activeTab === 'members' && (
+                        <MembersTab
+                            members={members} managers={managers} pendingMembers={pendingMembers}
+                            memberTitles={memberTitles}
+                            editingTitleId={editingTitleId} setEditingTitleId={setEditingTitleId}
+                            editingTitleText={editingTitleText} setEditingTitleText={setEditingTitleText}
+                            user={user} currentGroup={currentGroup}
+                            isCurrentUserOwner={isCurrentUserOwner}
+                            canManageSettings={canManageSettings}
+                            getUserLabel={getUserLabel}
+                            handleApproveMember={handleApproveMember}
+                            handleRejectMember={handleRejectMember}
+                            handleSaveTitle={handleSaveTitle}
+                            handleRoleChange={handleRoleChange}
+                            handleRemoveMember={handleRemoveMember}
+                        />
+                    )}
 
-                {activeTab === 'manage-pubs' && (
-                    <ManagePubsTab
-                        pubs={pubs}
-                        handleDeleteGroupPub={handleDeleteGroupPub}
-                    />
-                )}
+                    {activeTab === 'criteria' && (
+                        <CriteriaTab
+                            criteria={criteria}
+                            newCriterionName={newCriterionName} setNewCriterionName={setNewCriterionName}
+                            newCriterionType={newCriterionType} setNewCriterionType={setNewCriterionType}
+                            newCriterionWeight={newCriterionWeight} setNewCriterionWeight={setNewCriterionWeight}
+                            savingCriterion={savingCriterion}
+                            criterionError={criterionError}
+                            editingCriterionId={editingCriterionId} setEditingCriterionId={setEditingCriterionId}
+                            editingCriterionName={editingCriterionName} setEditingCriterionName={setEditingCriterionName}
+                            canManageSettings={canManageSettings}
+                            handleAddCriterion={handleAddCriterion}
+                            handleArchiveCriterion={handleArchiveCriterion}
+                            handleSaveCriterionEdit={handleSaveCriterionEdit}
+                        />
+                    )}
 
-                {activeTab === 'audit' && (
-                    <AuditTab
-                        auditLogs={auditLogs}
-                        loadingLogs={loadingLogs}
-                        getUserLabel={getUserLabel}
-                    />
-                )}
+                    {activeTab === 'weights' && (
+                        <WeightsTab
+                            criteria={criteria}
+                            localWeights={localWeights} setLocalWeights={setLocalWeights}
+                            savingWeights={savingWeights}
+                            simulatedLeaderboard={simulatedLeaderboard}
+                            handleSaveWeights={handleSaveWeights}
+                        />
+                    )}
+
+                    {activeTab === 'pubs' && (
+                        <AddPubsTab
+                            showManualForm={showManualForm} setShowManualForm={setShowManualForm}
+                            masterSearchTerm={masterSearchTerm} setMasterSearchTerm={setMasterSearchTerm}
+                            masterResults={masterResults}
+                            hasSearched={hasSearched}
+                            savingPub={savingPub}
+                            newPubName={newPubName} setNewPubName={setNewPubName}
+                            newPubLocation={newPubLocation} setNewPubLocation={setNewPubLocation}
+                            newPubLat={newPubLat} setNewPubLat={setNewPubLat}
+                            newPubLng={newPubLng} setNewPubLng={setNewPubLng}
+                            newPubPhotoURL={newPubPhotoURL} setNewPubPhotoURL={setNewPubPhotoURL}
+                            newPubGoogleLink={newPubGoogleLink} setNewPubGoogleLink={setNewPubGoogleLink}
+                            pubError={pubError}
+                            uploading={uploading}
+                            searchMasterList={searchMasterList}
+                            importPub={importPub}
+                            handleAddPub={handleAddPub}
+                            handleImageUpload={handleImageUpload}
+                        />
+                    )}
+
+                    {activeTab === 'manage-pubs' && (
+                        <ManagePubsTab
+                            pubs={pubs}
+                            handleDeleteGroupPub={handleDeleteGroupPub}
+                        />
+                    )}
+
+                    {activeTab === 'audit' && (
+                        <AuditTab
+                            auditLogs={auditLogs}
+                            loadingLogs={loadingLogs}
+                            getUserLabel={getUserLabel}
+                        />
+                    )}
+                </div>
             </div>
         </div>
     );
