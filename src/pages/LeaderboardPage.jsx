@@ -396,7 +396,10 @@ export default function LeaderboardPage({ scores, users, pubs, criteria, db, gro
 
     const safePubs     = pubs     || [];
     const safeScores   = scores   || {};
-    const safeUsers    = users    || {};
+    // Normalise users: useGroupData may pass an array; rankedMembers needs a { [uid]: user } map.
+    const safeUsers    = Array.isArray(users)
+        ? Object.fromEntries(users.map(u => [u.uid || u.id, u]))
+        : (users || {});
     const safeCriteria = criteria || [];
 
     useEffect(() => {
