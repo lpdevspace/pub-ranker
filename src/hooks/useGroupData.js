@@ -179,11 +179,22 @@ export default function useGroupData({ db, groupId }) {
         subscribeToScores(lastScoreDocRef.current);
     }, [hasMoreScores, scoresLoading, subscribeToScores]);
 
-    // ── Members (capped at 30 by Firestore 'in' limit) ────────────────────────────
+    // ── Users — fetch owner + managers + members so all names resolve correctly ────
     useEffect(() => {
-        const memberIds = groupData?.members;
-        if (!memberIds?.length) return;
-        const ids = memberIds.slice(0, 30);
+        if (!groupData) return;
+
+        // Collect ALL participant UIDs: owner + managers + members
+        const allIds = [...new Set([
+            groupData.ownerUid,
+            ...(groupData.managers || []),
+            ...(groupData.members  || []),
+        ].filter(Boolean))];
+
+        if (!allIds.length) return;
+
+        // Firestore 'in' queries are capped at 30 items
+        const ids = allIds.slice(0, 30);
+
         const unsub = db
             .collection('users')
             .where(firebase.firestore.FieldPath.documentId(), 'in', ids)
@@ -191,7 +202,7 @@ export default function useGroupData({ db, groupId }) {
                 setUsers(snap.docs.map(d => ({ uid: d.id, ...d.data() })))
             );
         return () => unsub();
-    }, [db, groupData?.members]);
+    }, [db, groupData?.ownerUid, groupData?.managers, groupData?.members]);
 
     return {
         groupRef,
