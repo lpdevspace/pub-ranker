@@ -7,7 +7,7 @@ import { firebase } from '../firebase';
  * on the scores and pubs collections (the two that grow unboundedly).
  *
  * Pagination strategy:
- *   - pubs:   real-time listener, ordered by addedAt desc, limited to PAGE_SIZE.
+ *   - pubs:   real-time listener, ordered by createdAt desc, limited to PAGE_SIZE.
  *             loadMorePubs() advances the cursor for the next page.
  *   - scores: real-time listener on the full collection (scores are small
  *             documents — one per rating field per user per pub). For very
@@ -68,10 +68,12 @@ export default function useGroupData({ db, groupId }) {
 
         setPubsLoading(true);
 
+        // Pubs are written with createdAt — ordering by this field matches all
+        // existing docs. addedAt was the old (incorrect) field name.
         let query = groupRef
             .collection('pubs')
-            .orderBy('addedAt', 'desc')
-            .limit(PUBS_PAGE_SIZE + 1); // fetch one extra to detect hasMore
+            .orderBy('createdAt', 'desc')
+            .limit(PUBS_PAGE_SIZE + 1);
 
         if (startAfterDoc) {
             query = query.startAfter(startAfterDoc);
@@ -92,6 +94,18 @@ export default function useGroupData({ db, groupId }) {
             setPubs(prev => startAfterDoc ? [...prev, ...newPubs] : newPubs);
             setHasMorePubs(hasMore);
             setPubsLoading(false);
+        }, err => {
+            // If the createdAt index hasn't propagated yet, fall back to unordered
+            console.warn('useGroupData: pubs orderBy(createdAt) failed, falling back to unordered', err.message);
+            groupRef.collection('pubs').limit(PUBS_PAGE_SIZE + 1).onSnapshot(snap => {
+                const docs = snap.docs;
+                const hasMore = docs.length > PUBS_PAGE_SIZE;
+                const pageDocs = hasMore ? docs.slice(0, PUBS_PAGE_SIZE) : docs;
+                const newPubs = pageDocs.map(d => ({ id: d.id, ...d.data() }));
+                setPubs(newPubs);
+                setHasMorePubs(hasMore);
+                setPubsLoading(false);
+            });
         });
     }, [groupRef]);
 
