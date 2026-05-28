@@ -4,8 +4,9 @@ import useGroupData from './hooks/useGroupData';
 import useScoreCalculations from './hooks/useScoreCalculations';
 import LoadingScreen from './components/LoadingScreen';
 import CheckInButton from './components/CheckInButton';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
-// ── Lazy-loaded pages — each page becomes its own split chunk ────────────────
+// ── Lazy-loaded pages — each page becomes its own split chunk ──────────────────
 const Dashboard         = React.lazy(() => import('./pages/DashboardPage.jsx'));
 const PubDirectoryPage  = React.lazy(() => import('./pages/PubsPage.jsx'));
 const RateView          = React.lazy(() => import('./pages/RateView.jsx'));
@@ -23,8 +24,9 @@ const AchievementsPage  = React.lazy(() => import('./pages/AchievementsPage.jsx'
 const CheckInsPage      = React.lazy(() => import('./pages/CheckInsPage.jsx'));
 const AdminPageLoader      = React.lazy(() => import('./pages/AdminPage.jsx'));
 const SuperAdminPageLoader = React.lazy(() => import('./pages/SuperAdminPage.jsx'));
+const NotFoundPage         = React.lazy(() => import('./pages/NotFoundPage.jsx'));
 
-// ── URL <-> page key mapping ────────────────────────────────────────────────
+// ── URL <-> page key mapping ──────────────────────────────────────────────────────────────────
 const PATH_TO_PAGE = {
     '/':               'dashboard',
     '/dashboard':      'dashboard',
@@ -52,10 +54,10 @@ PAGE_TO_PATH['dashboard'] = '/dashboard';
 
 function getPageFromURL() {
     const path = window.location.pathname;
-    return PATH_TO_PAGE[path] || 'dashboard';
+    return PATH_TO_PAGE[path] || '404';
 }
 
-// ── Route guard ─────────────────────────────────────────────────────────────
+// ── Route guard ─────────────────────────────────────────────────────────────────────────────
 function ProtectedRoute({ allowed, children, fallback = null }) {
     if (!allowed) return fallback;
     return children;
@@ -74,7 +76,6 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
     const { groupRef, groupData, pubs, criteria, rawScores, users } = useGroupData({ db, groupId });
     const scores = useScoreCalculations(rawScores);
 
-    // Convert users array [ { uid, displayName, ... } ] to keyed object { [uid]: { ... } }
     const allUsers = useMemo(() => {
         if (!Array.isArray(users)) return {};
         return users.reduce((acc, u) => {
@@ -88,7 +89,6 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
 
     const isStaff = userProfile?.isSuperAdmin || userProfile?.isAdmin || userProfile?.isModerator;
 
-    // Navigate: update state + push to browser history
     const setPage = (newPage) => {
         const path = PAGE_TO_PATH[newPage] || '/dashboard';
         if (window.location.pathname !== path) {
@@ -98,7 +98,6 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // Handle browser back/forward buttons
     useEffect(() => {
         const onPop = (e) => {
             const p = e.state?.page || getPageFromURL();
@@ -108,10 +107,9 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
         return () => window.removeEventListener('popstate', onPop);
     }, []);
 
-    // On first mount, replace state so the initial entry has page metadata
     useEffect(() => {
         const p = getPageFromURL();
-        window.history.replaceState({ page: p }, '', PAGE_TO_PATH[p] || '/dashboard');
+        window.history.replaceState({ page: p }, '', PAGE_TO_PATH[p] || window.location.pathname);
     }, []);
 
     const handleSwitchGroup = async () => {
@@ -154,13 +152,14 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                         <SuperAdminPageLoader {...sharedProps} auth={auth} db={db} />
                     </ProtectedRoute>
                 );
+            case '404':
+                return <NotFoundPage setPage={setPage} />;
             case 'dashboard':
             default:
                 return <Dashboard {...sharedProps} onSelectPub={setSelectedPub} onViewDetail={setSelectedPubForDetail} setPage={setPage} />;
         }
     };
 
-    // RateView gets its own Suspense so the full-screen rating UI loads cleanly
     if (selectedPub) {
         return (
             <Suspense fallback={<LoadingScreen text="Loading..." />}>
@@ -196,9 +195,12 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                 groupId={groupId}
             />
             <main className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 pt-6">
-                <Suspense fallback={<LoadingScreen text="Loading..." />}>
-                    {renderPage()}
-                </Suspense>
+                {/* Per-page ErrorBoundary so one broken page can't take down the whole app */}
+                <ErrorBoundary key={page}>
+                    <Suspense fallback={<LoadingScreen text="Loading..." />}>
+                        {renderPage()}
+                    </Suspense>
+                </ErrorBoundary>
             </main>
             <CheckInButton user={user} pubs={pubs} groupId={groupId} db={db} />
         </>

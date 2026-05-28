@@ -3,12 +3,15 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
 import { BrowserRouter } from 'react-router-dom';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>,
 );
 
@@ -30,8 +33,6 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
               newWorker.state === 'installed' &&
               navigator.serviceWorker.controller
             ) {
-              // New content available — send SKIP_WAITING
-              // The page will reload once the new SW takes control
               newWorker.postMessage({ type: 'SKIP_WAITING' });
               navigator.serviceWorker.addEventListener('controllerchange', () => {
                 window.location.reload();

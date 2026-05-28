@@ -1,0 +1,41 @@
+{
+  "name": "Group Pub Ranker",
+  "short_name": "Pub Ranker",
+  "description": "Rate, rank and discover pubs with your group.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#f59e0b",
+  "lang": "en-GB",
+  "categories": ["food", "social", "lifestyle"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Home",
+      "url": "/dashboard",
+      "description": "Go to your group dashboard"
+    },
+    {
+      "name": "Pubs",
+      "short_name": "Pubs",
+      "url": "/pubs",
+      "description": "Browse ranked pubs"
+    },
+    {
+      "name": "Spin the Wheel",
+      "short_name": "Spin",
+      "url": "/spin",
+      "description": "Pick a random pub"
+    }
+  ]
+}
