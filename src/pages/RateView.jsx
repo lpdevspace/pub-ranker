@@ -41,6 +41,7 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
         try {
             const batch = db.batch();
             const scoresCollectionRef = groupRef.collection("scores");
+            const now = firebase.firestore.FieldValue.serverTimestamp();
             for (const [criterionId, value] of Object.entries(ratings)) {
                 if (value === null || value === "") continue;
                 const safeCriteria = criteria || [];
@@ -49,10 +50,27 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
                 const existingDocId = ratingDocIds[criterionId];
                 if (existingDocId) {
                     const docRef = scoresCollectionRef.doc(existingDocId);
-                    batch.update(docRef, { value, type: criterion.type, lastEditedBy: user.uid, lastEditedAt: firebase.firestore.FieldValue.serverTimestamp() });
+                    batch.update(docRef, {
+                        value,
+                        type: criterion.type,
+                        lastEditedBy: user.uid,
+                        lastEditedAt: now,
+                        updatedAt: now,
+                    });
                 } else {
                     const newScoreRef = scoresCollectionRef.doc();
-                    batch.set(newScoreRef, { pubId: pub.id, userId: user.uid, criterionId, value, type: criterion.type, groupId, timestamp: firebase.firestore.FieldValue.serverTimestamp(), lastEditedBy: user.uid, lastEditedAt: firebase.firestore.FieldValue.serverTimestamp() });
+                    batch.set(newScoreRef, {
+                        pubId: pub.id,
+                        userId: user.uid,
+                        criterionId,
+                        value,
+                        type: criterion.type,
+                        groupId,
+                        timestamp: now,
+                        lastEditedBy: user.uid,
+                        lastEditedAt: now,
+                        updatedAt: now,
+                    });
                 }
             }
             await batch.commit();
