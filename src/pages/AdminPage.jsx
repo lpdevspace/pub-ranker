@@ -153,6 +153,44 @@ export default function AdminPage({
     }, [criteria]);
 
     useEffect(() => {
+        if (!showQr) return;
+
+        const renderQr = () => {
+            const container = document.getElementById('admin-qr-canvas');
+            if (!container || !window.QRCode) return;
+            container.innerHTML = '';
+            new window.QRCode(container, {
+                text: inviteUrl,
+                width: 200,
+                height: 200,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: window.QRCode.CorrectLevel?.H ?? 2,
+            });
+        };
+
+        if (window.QRCode) {
+            window.setTimeout(renderQr, 50);
+            return;
+        }
+
+        const existingScript = document.querySelector('script[data-admin-qr="true"]');
+        if (existingScript) {
+            existingScript.addEventListener('load', renderQr, { once: true });
+            return () => existingScript.removeEventListener('load', renderQr);
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+        script.async = true;
+        script.dataset.adminQr = 'true';
+        script.addEventListener('load', renderQr, { once: true });
+        document.head.appendChild(script);
+
+        return () => script.removeEventListener('load', renderQr);
+    }, [showQr, inviteUrl]);
+
+    useEffect(() => {
         if (activeTab !== 'audit') return;
         setLoadingLogs(true);
         const unsub = groupRef.collection('auditLogs')
@@ -160,6 +198,9 @@ export default function AdminPage({
             .limit(50)
             .onSnapshot(snap => {
                 setAuditLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                setLoadingLogs(false);
+            }, err => {
+                console.error('Failed to load audit logs:', err);
                 setLoadingLogs(false);
             });
         return () => unsub();
@@ -508,6 +549,17 @@ export default function AdminPage({
         catch (e) { setCopyMessage('Could not copy.'); }
     };
 
+    const handleDownloadQr = () => {
+        const canvas = document.querySelector('#admin-qr-canvas canvas');
+        if (!canvas) return;
+        const link = document.createElement('a');
+        link.href = canvas.toDataURL('image/png');
+        link.download = `${(currentGroup?.groupName || 'group').replace(/\s+/g, '_')}_invite_qr.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     // ── Active tab label (for mobile header) ───────────────────────────────────
     const activeLabel = NAV_GROUPS.flatMap(g => g.items).find(i => i.id === activeTab)?.label ?? '';
 
@@ -566,6 +618,104 @@ export default function AdminPage({
     return (
         <div className="w-full">
             {confirmState && <ConfirmModal {...confirmState} onClose={() => setConfirmState(null)} />}
+
+            {showQr && (
+                <div
+                    onClick={() => setShowQr(false)}
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0, 0, 0, 0.72)',
+                        zIndex: 9999,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 'var(--space-4)',
+                        backdropFilter: 'blur(4px)',
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            width: '100%',
+                            maxWidth: '360px',
+                            background: 'var(--color-surface)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: 'var(--radius-xl)',
+                            boxShadow: 'var(--shadow-lg)',
+                            padding: 'var(--space-6)',
+                            position: 'relative',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 'var(--space-4)',
+                        }}
+                    >
+                        <button
+                            onClick={() => setShowQr(false)}
+                            aria-label="Close QR modal"
+                            style={{
+                                position: 'absolute',
+                                top: 'var(--space-3)',
+                                right: 'var(--space-3)',
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '9999px',
+                                border: '1px solid var(--color-border)',
+                                background: 'var(--color-surface-offset)',
+                                color: 'var(--color-text-muted)',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '16px',
+                                fontWeight: 700,
+                            }}
+                        >
+                            ✕
+                        </button>
+
+                        <div style={{ textAlign: 'center', paddingTop: 'var(--space-2)' }}>
+                            <h3 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text)' }}>Scan to Join</h3>
+                            <p style={{ margin: 'var(--space-2) 0 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+                                Share this QR code so people can join <strong>{currentGroup?.groupName || 'your group'}</strong>.
+                            </p>
+                        </div>
+
+                        <div
+                            id="admin-qr-canvas"
+                            style={{
+                                background: '#ffffff',
+                                padding: '14px',
+                                borderRadius: 'var(--radius-lg)',
+                                border: '1px solid #e5e7eb',
+                                minHeight: '228px',
+                                minWidth: '228px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        />
+
+                        <button
+                            onClick={handleDownloadQr}
+                            style={{
+                                width: '100%',
+                                padding: 'var(--space-3) var(--space-4)',
+                                background: 'var(--color-primary)',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: 'var(--radius-md)',
+                                fontWeight: 700,
+                                fontSize: 'var(--text-sm)',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            ⬇ Download QR
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Page header */}
             <div className="mb-6">
