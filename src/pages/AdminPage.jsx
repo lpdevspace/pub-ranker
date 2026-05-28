@@ -9,8 +9,7 @@ import InvitesTab     from '../components/admin/InvitesTab';
 import MembersTab     from '../components/admin/MembersTab';
 import CriteriaTab    from '../components/admin/CriteriaTab';
 import WeightsTab     from '../components/admin/WeightsTab';
-import AddPubsTab     from '../components/admin/AddPubsTab';
-import ManagePubsTab  from '../components/admin/ManagePubsTab';
+import PubsTab        from '../components/admin/PubsTab';
 import AuditTab       from '../components/admin/AuditTab';
 
 const NAV_GROUPS = [
@@ -30,10 +29,9 @@ const NAV_GROUPS = [
     {
         label: 'Content',
         items: [
-            { id: 'pubs',        icon: '➕',  label: 'Add Pubs' },
-            { id: 'manage-pubs', icon: '🍻',  label: 'Manage Pubs' },
-            { id: 'criteria',    icon: '📋',  label: 'Criteria' },
-            { id: 'weights',     icon: '⚖️',  label: 'Weights' },
+            { id: 'pubs',     icon: '🍻',  label: 'Pubs' },
+            { id: 'criteria', icon: '📋',  label: 'Criteria' },
+            { id: 'weights',  icon: '⚖️',  label: 'Weights' },
         ],
     },
     {
@@ -829,7 +827,8 @@ export default function AdminPage({
                     )}
 
                     {activeTab === 'pubs' && (
-                        <AddPubsTab
+                        <PubsTab
+                            pubs={pubs}
                             showManualForm={showManualForm} setShowManualForm={setShowManualForm}
                             masterSearchTerm={masterSearchTerm} setMasterSearchTerm={setMasterSearchTerm}
                             masterResults={masterResults}
@@ -847,12 +846,6 @@ export default function AdminPage({
                             importPub={importPub}
                             handleAddPub={handleAddPub}
                             handleImageUpload={handleImageUpload}
-                        />
-                    )}
-
-                    {activeTab === 'manage-pubs' && (
-                        <ManagePubsTab
-                            pubs={pubs}
                             handleDeleteGroupPub={handleDeleteGroupPub}
                         />
                     )}
