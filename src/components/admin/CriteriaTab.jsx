@@ -1,5 +1,7 @@
 import React from 'react';
 
+const TYPE_LABELS = { scale: '⭐ Scale (1–10)', price: '💰 Price (1–5)', binary: '✅ Yes / No' };
+
 export default function CriteriaTab({
     criteria,
     newCriterionName, setNewCriterionName,
@@ -14,90 +16,100 @@ export default function CriteriaTab({
     handleArchiveCriterion,
     handleSaveCriterionEdit,
 }) {
-    return (
-        <div className="space-y-6 animate-fadeIn">
-            <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600">
-                <h3 className="font-bold text-gray-800 dark:text-white mb-3">Create New Criterion</h3>
-                <form onSubmit={handleAddCriterion} className="flex flex-col md:flex-row gap-3">
-                    <input
-                        type="text"
-                        value={newCriterionName}
-                        onChange={(e) => setNewCriterionName(e.target.value)}
-                        placeholder="e.g., Guinness Quality"
-                        className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white"
-                    />
-                    <div className="flex gap-3">
-                        <select
-                            value={newCriterionType}
-                            onChange={(e) => setNewCriterionType(e.target.value)}
-                            className="w-40 px-3 py-2 border dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 dark:text-white cursor-pointer"
-                        >
-                            <option value="scale">Scale (1–10)</option>
-                            <option value="yes-no">Yes / No</option>
-                            <option value="price">Price (£-£££)</option>
-                            <option value="currency">Exact Price (£)</option>
-                            <option value="text">Written Review</option>
-                        </select>
-                        <button type="submit" disabled={savingCriterion} className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition disabled:opacity-60">
-                            Add Rule
-                        </button>
-                    </div>
-                </form>
-                {criterionError && <p className="text-xs text-red-500 mt-2 font-bold">{criterionError}</p>}
-            </div>
+    const inputClass = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+    const active = criteria.filter(c => !c.archived);
+    const archived = criteria.filter(c => c.archived);
 
-            <div className="space-y-3">
-                <h3 className="font-bold text-gray-800 dark:text-white mb-2">Active Criteria</h3>
-                {criteria.map((c) => (
-                    <div key={c.id} className={`flex items-center justify-between p-3 border rounded-xl transition-all ${
-                        c.archived
-                            ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 opacity-60'
-                            : 'bg-white dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 shadow-sm'
-                    }`}>
-                        <div className="flex-1 mr-4">
+    return (
+        <div className="space-y-6">
+            <h3 className="text-xl font-bold text-gray-800 dark:text-white">Rating Criteria</h3>
+
+            {/* Add form */}
+            {canManageSettings && (
+                <form onSubmit={handleAddCriterion} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 space-y-3 border border-gray-200 dark:border-gray-600">
+                    <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300">Add New Criterion</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <input
+                            type="text"
+                            value={newCriterionName}
+                            onChange={e => setNewCriterionName(e.target.value)}
+                            className={inputClass}
+                            placeholder="e.g. Atmosphere"
+                        />
+                        <select value={newCriterionType} onChange={e => setNewCriterionType(e.target.value)} className={inputClass}>
+                            {Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select>
+                        <input
+                            type="number"
+                            min="0.1" step="0.1" max="10"
+                            value={newCriterionWeight}
+                            onChange={e => setNewCriterionWeight(e.target.value)}
+                            className={inputClass}
+                            placeholder="Weight (default 1)"
+                        />
+                    </div>
+                    {criterionError && <p className="text-xs text-red-500">{criterionError}</p>}
+                    <button
+                        type="submit"
+                        disabled={savingCriterion}
+                        className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors"
+                    >
+                        {savingCriterion ? 'Adding…' : '+ Add Criterion'}
+                    </button>
+                </form>
+            )}
+
+            {/* Active criteria */}
+            <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Active ({active.length})</h4>
+                {active.length === 0 && <p className="text-sm text-gray-400 italic">No active criteria yet.</p>}
+                {active.map(c => (
+                    <div key={c.id} className="flex items-center justify-between gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5">
+                        <div className="flex-1 min-w-0">
                             {editingCriterionId === c.id ? (
                                 <div className="flex items-center gap-2">
                                     <input
-                                        type="text"
+                                        autoFocus
                                         value={editingCriterionName}
-                                        onChange={(e) => setEditingCriterionName(e.target.value)}
-                                        className="flex-1 px-3 py-1 border rounded focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white text-sm"
+                                        onChange={e => setEditingCriterionName(e.target.value)}
+                                        onKeyDown={e => { if (e.key === 'Enter') handleSaveCriterionEdit(c.id); if (e.key === 'Escape') setEditingCriterionId(null); }}
+                                        className="flex-1 text-sm px-2 py-1 border border-blue-400 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
                                     />
-                                    <button onClick={() => handleSaveCriterionEdit(c.id)} className="px-3 py-1 bg-green-100 text-green-700 rounded font-bold text-xs hover:bg-green-200">Save</button>
-                                    <button onClick={() => setEditingCriterionId(null)} className="px-3 py-1 bg-gray-100 text-gray-600 rounded font-bold text-xs hover:bg-gray-200">Cancel</button>
+                                    <button onClick={() => handleSaveCriterionEdit(c.id)} className="text-xs text-green-600 font-bold">Save</button>
+                                    <button onClick={() => setEditingCriterionId(null)} className="text-xs text-gray-400">Cancel</button>
                                 </div>
                             ) : (
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <p className="font-bold text-gray-800 dark:text-gray-200">{c.name}</p>
-                                        <span className="text-[10px] uppercase font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">{c.type}</span>
-                                        {!c.archived && (
-                                            <button
-                                                onClick={() => { setEditingCriterionId(c.id); setEditingCriterionName(c.name); }}
-                                                className="text-blue-500 hover:text-blue-700 text-xs font-bold ml-2"
-                                            >Edit</button>
-                                        )}
-                                    </div>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Multiplier Weight: {c.weight ?? 1}x</p>
-                                </div>
+                                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+                                    {c.name}
+                                    <span className="ml-2 text-xs text-gray-400">{TYPE_LABELS[c.type] || c.type}</span>
+                                    <span className="ml-2 text-xs text-blue-500">×{c.weight ?? 1}</span>
+                                </p>
                             )}
                         </div>
-                        <button
-                            onClick={() => canManageSettings && handleArchiveCriterion(c.id, !c.archived, c.name)}
-                            disabled={!canManageSettings}
-                            className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
-                                !canManageSettings ? 'opacity-50 cursor-not-allowed' : ''
-                            } ${
-                                c.archived
-                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                    : 'bg-red-50 text-red-600 hover:bg-red-100'
-                            }`}
-                        >
-                            {c.archived ? 'Restore' : 'Archive'}
-                        </button>
+                        {canManageSettings && editingCriterionId !== c.id && (
+                            <div className="flex gap-2">
+                                <button onClick={() => { setEditingCriterionId(c.id); setEditingCriterionName(c.name); }} className="text-xs text-blue-500 hover:underline">Edit</button>
+                                <button onClick={() => handleArchiveCriterion(c.id, true, c.name)} className="text-xs text-red-500 hover:underline">Archive</button>
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>
+
+            {/* Archived criteria */}
+            {archived.length > 0 && (
+                <div className="space-y-2">
+                    <h4 className="text-xs font-bold uppercase tracking-wide text-gray-400">Archived ({archived.length})</h4>
+                    {archived.map(c => (
+                        <div key={c.id} className="flex items-center justify-between opacity-50 bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2">
+                            <p className="text-sm text-gray-600 dark:text-gray-400 line-through">{c.name}</p>
+                            {canManageSettings && (
+                                <button onClick={() => handleArchiveCriterion(c.id, false, c.name)} className="text-xs text-green-600 hover:underline">Restore</button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

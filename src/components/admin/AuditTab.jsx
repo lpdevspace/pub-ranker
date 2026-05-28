@@ -1,31 +1,43 @@
 import React from 'react';
 
+function formatTimestamp(ts) {
+    if (!ts) return '—';
+    const date = ts.toDate ? ts.toDate() : new Date(ts);
+    return date.toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' });
+}
+
 export default function AuditTab({ auditLogs, loadingLogs, getUserLabel }) {
     return (
-        <div className="space-y-4 animate-fadeIn">
-            <div>
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-1">Audit Log</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">A record of the last 50 admin actions in this group.</p>
-            </div>
+        <div className="space-y-4">
+            <h3 className="text-xl font-bold text-gray-800 dark:text-white">Audit Logs</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">The 50 most recent admin actions in this group.</p>
 
-            {loadingLogs ? (
-                <p className="text-gray-500 dark:text-gray-400 text-sm italic py-8 text-center">Loading logs...</p>
-            ) : auditLogs.length === 0 ? (
-                <p className="text-gray-500 dark:text-gray-400 text-sm italic py-8 text-center">No audit logs yet.</p>
-            ) : (
+            {loadingLogs && (
                 <div className="space-y-2">
+                    {[...Array(5)].map((_, i) => (
+                        <div key={i} className="h-12 rounded-lg bg-gray-200 dark:bg-gray-700 animate-pulse" />
+                    ))}
+                </div>
+            )}
+
+            {!loadingLogs && auditLogs.length === 0 && (
+                <p className="text-sm text-gray-400 italic py-4 text-center">No audit logs yet.</p>
+            )}
+
+            {!loadingLogs && auditLogs.length > 0 && (
+                <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
                     {auditLogs.map(log => (
-                        <div key={log.id} className="flex gap-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
-                            <div className="flex-1">
-                                <p className="font-bold text-gray-800 dark:text-white text-sm">{log.action}</p>
-                                {log.details && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{log.details}</p>}
-                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">by {getUserLabel(log.adminId)}</p>
+                        <div key={log.id} className="flex items-start gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{log.action}</p>
+                                {log.details && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{log.details}</p>
+                                )}
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                    by <span className="font-medium">{getUserLabel(log.adminId)}</span>
+                                </p>
                             </div>
-                            <div className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap pt-0.5">
-                                {log.timestamp?.toDate
-                                    ? log.timestamp.toDate().toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-                                    : '—'}
-                            </div>
+                            <span className="text-xs text-gray-400 whitespace-nowrap">{formatTimestamp(log.timestamp)}</span>
                         </div>
                     ))}
                 </div>

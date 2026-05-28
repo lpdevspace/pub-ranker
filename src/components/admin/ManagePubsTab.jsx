@@ -1,60 +1,71 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export default function ManagePubsTab({ pubs, handleDeleteGroupPub }) {
-    return (
-        <div className="space-y-6 animate-fadeIn">
-            <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-xl border border-gray-200 dark:border-gray-600">
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Manage Group Pubs</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">View and remove pubs from your group's Hit List or Visited directory.</p>
+    const [filter, setFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
 
-                {pubs.length === 0 ? (
-                    <p className="text-center text-gray-500 dark:text-gray-400 py-8 italic">No pubs in your group yet.</p>
-                ) : (
-                    <div className="overflow-x-auto border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                                <tr>
-                                    <th className="p-3">Pub</th>
-                                    <th className="p-3">Location</th>
-                                    <th className="p-3">Status</th>
-                                    <th className="p-3 text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {[...pubs].sort((a, b) => a.name.localeCompare(b.name)).map(pub => (
-                                    <tr key={pub.id} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
-                                        <td className="p-3 font-bold text-gray-800 dark:text-white">
-                                            <div className="flex items-center gap-3">
-                                                {pub.photoURL ? (
-                                                    <img src={pub.photoURL} alt={pub.name} className="w-8 h-8 rounded-full object-cover" />
-                                                ) : (
-                                                    <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-sm">🍺</div>
-                                                )}
-                                                {pub.name}
-                                            </div>
-                                        </td>
-                                        <td className="p-3 text-gray-500 dark:text-gray-400">{pub.location || '—'}</td>
-                                        <td className="p-3">
-                                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                                                pub.status === 'visited'
-                                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                                                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                            }`}>
-                                                {pub.status === 'visited' ? '✅ Visited' : '📍 To Visit'}
-                                            </span>
-                                        </td>
-                                        <td className="p-3 text-right">
-                                            <button
-                                                onClick={() => handleDeleteGroupPub(pub.id, pub.name)}
-                                                className="px-3 py-1 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded text-xs font-bold transition border border-red-100 dark:border-red-800"
-                                            >Remove</button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+    const filtered = pubs
+        .filter(p => statusFilter === 'all' || p.status === statusFilter)
+        .filter(p => p.name.toLowerCase().includes(filter.toLowerCase()) || (p.location || '').toLowerCase().includes(filter.toLowerCase()));
+
+    const STATUS_COLOURS = {
+        visited:    'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300',
+        'to-visit': 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300',
+        skipped:    'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400',
+    };
+
+    return (
+        <div className="space-y-4">
+            <h3 className="text-xl font-bold text-gray-800 dark:text-white">Manage Pubs ({pubs.length})</h3>
+
+            {/* Filters */}
+            <div className="flex flex-wrap gap-2">
+                <input
+                    type="text"
+                    value={filter}
+                    onChange={e => setFilter(e.target.value)}
+                    placeholder="Search pubs…"
+                    className="flex-1 min-w-[180px] px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+                />
+                {['all', 'visited', 'to-visit', 'skipped'].map(s => (
+                    <button
+                        key={s}
+                        onClick={() => setStatusFilter(s)}
+                        className={`px-3 py-1 text-xs font-semibold rounded-full capitalize border transition-colors ${
+                            statusFilter === s
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-blue-400'
+                        }`}
+                    >
+                        {s === 'all' ? 'All' : s}
+                    </button>
+                ))}
+            </div>
+
+            {/* List */}
+            <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
+                {filtered.length === 0 && (
+                    <p className="text-sm text-gray-400 italic py-4 text-center">No pubs match your filters.</p>
                 )}
+                {filtered.map(pub => (
+                    <div key={pub.id} className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2.5">
+                        {pub.photoURL && (
+                            <img src={pub.photoURL} alt={pub.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{pub.name}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{pub.location}</p>
+                        </div>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize whitespace-nowrap ${STATUS_COLOURS[pub.status] || STATUS_COLOURS.skipped}`}>
+                            {pub.status}
+                        </span>
+                        <button
+                            onClick={() => handleDeleteGroupPub(pub.id, pub.name)}
+                            className="text-red-400 hover:text-red-600 text-lg font-bold ml-1 flex-shrink-0 transition-colors"
+                            title="Remove from group"
+                        >×</button>
+                    </div>
+                ))}
             </div>
         </div>
     );
