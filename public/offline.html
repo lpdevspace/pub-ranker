@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Offline — Pub Ranker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
+    body {
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #94a3b8;
+      text-align: center;
+      padding: 2rem;
+      gap: 1rem;
+    }
+    .icon {
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+    p {
+      max-width: 30ch;
+      line-height: 1.6;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.625rem 1.5rem;
+      border: none;
+      border-radius: 0.5rem;
+      background: #f59e0b;
+      color: #0f172a;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { background: #d97706; }
+  </style>
+</head>
+<body>
+  <div class="icon">🍺</div>
+  <h1>You're offline</h1>
+  <p>No connection detected. Check your signal and try again — the pints will wait.</p>
+  <button onclick="window.location.reload()">Try again</button>
+</body>
+</html>
