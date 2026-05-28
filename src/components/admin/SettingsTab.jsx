@@ -5,8 +5,8 @@ const labelClass = 'block text-xs font-semibold uppercase tracking-wide text-gra
 
 function Card({ title, description, children }) {
     return (
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="px-5 py-4 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-visible">
+            <div className="px-5 pt-4 pb-3 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 rounded-t-xl">
                 <h4 className="text-sm font-bold text-gray-800 dark:text-gray-100">{title}</h4>
                 {description && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{description}</p>}
             </div>
@@ -29,11 +29,11 @@ function Toggle({ checked, onChange, label, description, color = 'blue' }) {
                 role="switch"
                 aria-checked={checked}
                 onClick={() => onChange(!checked)}
-                className={`mt-0.5 relative shrink-0 w-10 h-5.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${colors[color]}`}
+                className={`mt-0.5 relative shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${colors[color]}`}
                 style={{ height: '22px', width: '40px' }}
             >
                 <span
-                    className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform ${
+                    className={`absolute top-0.5 left-0.5 bg-white rounded-full shadow transition-transform ${
                         checked ? 'translate-x-[18px]' : 'translate-x-0'
                     }`}
                     style={{ width: '18px', height: '18px' }}
@@ -49,7 +49,6 @@ function Toggle({ checked, onChange, label, description, color = 'blue' }) {
 
 export default function SettingsTab({
     editGroupName, setEditGroupName,
-    brandColor, setBrandColor,
     editGroupCover, setEditGroupCover,
     safeEditGroupCover,
     requireApproval, setRequireApproval,
@@ -60,6 +59,8 @@ export default function SettingsTab({
     handleSaveSettings,
     handleSyncLegacyPubs,
     handleExportData,
+    // brandColor / setBrandColor kept as props for backwards compat but not rendered
+    brandColor, setBrandColor,
 }) {
     return (
         <div className="space-y-5">
@@ -68,7 +69,7 @@ export default function SettingsTab({
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Manage your group's appearance and access controls.</p>
             </div>
 
-            {/* ── Branding ─────────────────────────────────────────────── */}
+            {/* ── Branding ───────────────────────────────────────────── */}
             <Card title="Branding" description="How your group appears to members.">
                 <div>
                     <label className={labelClass}>Group Name</label>
@@ -93,19 +94,6 @@ export default function SettingsTab({
                 </div>
 
                 <div>
-                    <label className={labelClass}>Brand Colour</label>
-                    <div className="flex items-center gap-3">
-                        <input
-                            type="color"
-                            value={brandColor}
-                            onChange={e => setBrandColor(e.target.value)}
-                            className="w-10 h-9 rounded-lg cursor-pointer border border-gray-200 dark:border-gray-600 p-0.5"
-                        />
-                        <span className="text-sm font-mono text-gray-500 dark:text-gray-400">{brandColor}</span>
-                    </div>
-                </div>
-
-                <div>
                     <label className={labelClass}>Cover Photo URL</label>
                     <input
                         type="url"
@@ -124,7 +112,7 @@ export default function SettingsTab({
                 </div>
             </Card>
 
-            {/* ── Privacy ──────────────────────────────────────────────── */}
+            {/* ── Privacy ───────────────────────────────────────────── */}
             <Card title="Privacy &amp; Access" description="Control who can find and join your group.">
                 <Toggle
                     checked={requireApproval}
@@ -143,17 +131,17 @@ export default function SettingsTab({
             </Card>
 
             {/* Save button */}
-            <div className="flex justify-end">
+            <div className="flex justify-end pt-1">
                 <button
                     onClick={handleSaveSettings}
                     disabled={isSavingSettings || !editGroupName.trim()}
-                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors"
+                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold rounded-lg shadow-sm transition-colors"
                 >
                     {isSavingSettings ? 'Saving…' : 'Save Settings'}
                 </button>
             </div>
 
-            {/* ── Tools ────────────────────────────────────────────────── */}
+            {/* ── Tools ─────────────────────────────────────────────── */}
             <Card title="Tools" description="Maintenance and data utilities.">
                 <div className="flex flex-wrap gap-3">
                     <button
