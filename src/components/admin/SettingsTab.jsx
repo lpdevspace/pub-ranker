@@ -1,5 +1,52 @@
 import React from 'react';
 
+const inputClass = 'w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors';
+const labelClass = 'block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1.5';
+
+function Card({ title, description, children }) {
+    return (
+        <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="px-5 py-4 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+                <h4 className="text-sm font-bold text-gray-800 dark:text-gray-100">{title}</h4>
+                {description && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{description}</p>}
+            </div>
+            <div className="px-5 py-5 space-y-4">
+                {children}
+            </div>
+        </div>
+    );
+}
+
+function Toggle({ checked, onChange, label, description, color = 'blue' }) {
+    const colors = {
+        blue:  checked ? 'bg-blue-600'  : 'bg-gray-300 dark:bg-gray-600',
+        green: checked ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600',
+    };
+    return (
+        <div className="flex items-start gap-3">
+            <button
+                type="button"
+                role="switch"
+                aria-checked={checked}
+                onClick={() => onChange(!checked)}
+                className={`mt-0.5 relative shrink-0 w-10 h-5.5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${colors[color]}`}
+                style={{ height: '22px', width: '40px' }}
+            >
+                <span
+                    className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform ${
+                        checked ? 'translate-x-[18px]' : 'translate-x-0'
+                    }`}
+                    style={{ width: '18px', height: '18px' }}
+                />
+            </button>
+            <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-200 leading-tight">{label}</p>
+                {description && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{description}</p>}
+            </div>
+        </div>
+    );
+}
+
 export default function SettingsTab({
     editGroupName, setEditGroupName,
     brandColor, setBrandColor,
@@ -14,132 +61,120 @@ export default function SettingsTab({
     handleSyncLegacyPubs,
     handleExportData,
 }) {
-    const inputClass = 'w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors';
-    const labelClass = 'block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1';
-
     return (
-        <div className="space-y-6">
-            <h3 className="text-xl font-bold text-gray-800 dark:text-white">Group Settings</h3>
-
-            {/* Group name */}
+        <div className="space-y-5">
             <div>
-                <label className={labelClass}>Group Name</label>
-                <input
-                    type="text"
-                    value={editGroupName}
-                    onChange={e => setEditGroupName(e.target.value)}
-                    className={inputClass}
-                    placeholder="e.g. The Usual Suspects"
-                />
+                <h3 className="text-lg font-bold text-gray-800 dark:text-white">Settings</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Manage your group's appearance and access controls.</p>
             </div>
 
-            {/* Brand colour */}
-            <div>
-                <label className={labelClass}>Brand Colour</label>
-                <div className="flex items-center gap-3">
+            {/* ── Branding ─────────────────────────────────────────────── */}
+            <Card title="Branding" description="How your group appears to members.">
+                <div>
+                    <label className={labelClass}>Group Name</label>
                     <input
-                        type="color"
-                        value={brandColor}
-                        onChange={e => setBrandColor(e.target.value)}
-                        className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+                        type="text"
+                        value={editGroupName}
+                        onChange={e => setEditGroupName(e.target.value)}
+                        className={inputClass}
+                        placeholder="e.g. The Usual Suspects"
                     />
-                    <span className="text-sm text-gray-500 dark:text-gray-400">{brandColor}</span>
                 </div>
-            </div>
 
-            {/* Cover photo */}
-            <div>
-                <label className={labelClass}>Cover Photo URL</label>
-                <input
-                    type="url"
-                    value={editGroupCover}
-                    onChange={e => setEditGroupCover(e.target.value)}
-                    className={inputClass}
-                    placeholder="https://..."
-                />
-                {safeEditGroupCover && (
-                    <img
-                        src={safeEditGroupCover}
-                        alt="Cover preview"
-                        className="mt-2 w-full max-h-40 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                <div>
+                    <label className={labelClass}>City / Region</label>
+                    <input
+                        type="text"
+                        value={city}
+                        onChange={e => setCity(e.target.value)}
+                        className={inputClass}
+                        placeholder="e.g. Wolverhampton"
                     />
-                )}
-            </div>
+                </div>
 
-            {/* City */}
-            <div>
-                <label className={labelClass}>City / Region</label>
-                <input
-                    type="text"
-                    value={city}
-                    onChange={e => setCity(e.target.value)}
-                    className={inputClass}
-                    placeholder="e.g. Wolverhampton"
+                <div>
+                    <label className={labelClass}>Brand Colour</label>
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="color"
+                            value={brandColor}
+                            onChange={e => setBrandColor(e.target.value)}
+                            className="w-10 h-9 rounded-lg cursor-pointer border border-gray-200 dark:border-gray-600 p-0.5"
+                        />
+                        <span className="text-sm font-mono text-gray-500 dark:text-gray-400">{brandColor}</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label className={labelClass}>Cover Photo URL</label>
+                    <input
+                        type="url"
+                        value={editGroupCover}
+                        onChange={e => setEditGroupCover(e.target.value)}
+                        className={inputClass}
+                        placeholder="https://..."
+                    />
+                    {safeEditGroupCover && (
+                        <img
+                            src={safeEditGroupCover}
+                            alt="Cover preview"
+                            className="mt-2 w-full max-h-36 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                        />
+                    )}
+                </div>
+            </Card>
+
+            {/* ── Privacy ──────────────────────────────────────────────── */}
+            <Card title="Privacy &amp; Access" description="Control who can find and join your group.">
+                <Toggle
+                    checked={requireApproval}
+                    onChange={setRequireApproval}
+                    color="blue"
+                    label="Require approval to join"
+                    description="New members must be approved by an admin before they can see group content."
                 />
-            </div>
+                <Toggle
+                    checked={isPublic}
+                    onChange={setIsPublic}
+                    color="green"
+                    label="Public group"
+                    description="Public groups are listed in the directory and can be found by anyone."
+                />
+            </Card>
 
-            {/* Toggles */}
-            <div className="flex flex-col sm:flex-row gap-4">
-                <label className="flex items-center gap-3 cursor-pointer select-none">
-                    <div
-                        onClick={() => setRequireApproval(v => !v)}
-                        className={`relative w-11 h-6 rounded-full transition-colors ${
-                            requireApproval ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                        }`}
-                    >
-                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                            requireApproval ? 'translate-x-5' : 'translate-x-0'
-                        }`} />
-                    </div>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Require approval to join</span>
-                </label>
-
-                <label className="flex items-center gap-3 cursor-pointer select-none">
-                    <div
-                        onClick={() => setIsPublic(v => !v)}
-                        className={`relative w-11 h-6 rounded-full transition-colors ${
-                            isPublic ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'
-                        }`}
-                    >
-                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                            isPublic ? 'translate-x-5' : 'translate-x-0'
-                        }`} />
-                    </div>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Public group</span>
-                </label>
-            </div>
-
-            {/* Save */}
-            <button
-                onClick={handleSaveSettings}
-                disabled={isSavingSettings || !editGroupName.trim()}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-lg transition-colors"
-            >
-                {isSavingSettings ? 'Saving…' : 'Save Settings'}
-            </button>
-
-            <hr className="border-gray-200 dark:border-gray-700" />
-
-            {/* Maintenance */}
-            <h4 className="text-base font-bold text-gray-700 dark:text-gray-300">Maintenance</h4>
-            <div className="flex flex-wrap gap-3">
+            {/* Save button */}
+            <div className="flex justify-end">
                 <button
-                    onClick={handleSyncLegacyPubs}
-                    disabled={isSyncing}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
+                    onClick={handleSaveSettings}
+                    disabled={isSavingSettings || !editGroupName.trim()}
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors"
                 >
-                    {isSyncing ? '🔄 Syncing…' : '🔄 Sync Legacy Pubs'}
-                </button>
-                <button
-                    onClick={handleExportData}
-                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-semibold rounded-lg transition-colors"
-                >
-                    📤 Export Data (CSV)
+                    {isSavingSettings ? 'Saving…' : 'Save Settings'}
                 </button>
             </div>
-            {isSyncing && syncProgress && (
-                <p className="text-sm text-indigo-600 dark:text-indigo-400 animate-pulse">{syncProgress}</p>
-            )}
+
+            {/* ── Tools ────────────────────────────────────────────────── */}
+            <Card title="Tools" description="Maintenance and data utilities.">
+                <div className="flex flex-wrap gap-3">
+                    <button
+                        onClick={handleSyncLegacyPubs}
+                        disabled={isSyncing}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 disabled:opacity-50 text-indigo-700 dark:text-indigo-300 text-sm font-semibold rounded-lg border border-indigo-200 dark:border-indigo-700 transition-colors"
+                    >
+                        <span>{isSyncing ? '🔄' : '🔄'}</span>
+                        {isSyncing ? 'Syncing…' : 'Sync Legacy Pubs'}
+                    </button>
+                    <button
+                        onClick={handleExportData}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm font-semibold rounded-lg border border-gray-200 dark:border-gray-600 transition-colors"
+                    >
+                        <span>📤</span> Export CSV
+                    </button>
+                </div>
+                {isSyncing && syncProgress && (
+                    <p className="text-xs text-indigo-600 dark:text-indigo-400 animate-pulse mt-1">{syncProgress}</p>
+                )}
+            </Card>
         </div>
     );
 }
