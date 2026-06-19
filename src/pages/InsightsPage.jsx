@@ -25,24 +25,22 @@ function KpiCard({ icon, label, value, suffix = '', color, delay = 0 }) {
         ? (suffix === '' ? animated.toLocaleString() : animated.toFixed(1)) : value;
     useEffect(() => { const t = setTimeout(() => setVisible(true), delay); return () => clearTimeout(t); }, [delay]);
     return (
-        <div style={{
-            flex: '1 1 180px',
-            background: 'var(--color-surface)',
-            border: `1.5px solid ${color}33`,
-            borderRadius: 'var(--radius-xl)',
-            padding: 'var(--space-6) var(--space-6)',
-            boxShadow: `0 4px 20px ${color}18, var(--shadow-sm)`,
-            display: 'flex', flexDirection: 'column', gap: 'var(--space-3)',
-            opacity: visible ? 1 : 0,
-            transform: visible ? 'translateY(0)' : 'translateY(16px)',
-            transition: 'opacity 0.5s ease, transform 0.5s ease',
-        }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>{icon}</span>
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-text-muted)', fontFamily: 'var(--font-body)' }}>{label}</span>
+        <div 
+            className="flex-1 basis-[180px] bg-surface rounded-xl p-6 flex flex-col gap-3 shadow-sm"
+            style={{
+                border: `1.5px solid ${color}33`,
+                boxShadow: `0 4px 20px ${color}18, var(--shadow-sm)`,
+                opacity: visible ? 1 : 0,
+                transform: visible ? 'translateY(0)' : 'translateY(16px)',
+                transition: 'opacity 0.5s ease, transform 0.5s ease',
+            }}
+        >
+            <div className="flex items-center gap-2">
+                <span className="text-[1.4rem] leading-none">{icon}</span>
+                <span className="text-xs font-bold tracking-[0.1em] uppercase text-muted font-body">{label}</span>
             </div>
-            <div style={{ fontSize: 'clamp(2rem, 3vw, 2.8rem)', fontWeight: 900, fontVariantNumeric: 'tabular-nums', color, fontFamily: 'var(--font-display)', lineHeight: 1 }}>{display}{suffix}</div>
-            <div style={{ height: '3px', width: '3rem', borderRadius: 'var(--radius-full)', background: color, opacity: 0.5 }} />
+            <div className="text-[clamp(2rem,3vw,2.8rem)] font-black tabular-nums font-display leading-none" style={{ color }}>{display}{suffix}</div>
+            <div className="h-[3px] w-12 rounded-full opacity-50" style={{ background: color }} />
         </div>
     );
 }
@@ -68,47 +66,50 @@ function TopPubsChart({ pubs, scores, criteria }) {
     }, [pubs, scores, activeTab]);
     useEffect(() => { setAnimated(false); const t = setTimeout(() => setAnimated(true), 60); return () => clearTimeout(t); }, [activeTab, chartData]);
     if (chartData.length === 0) return null;
-    const tierColor = s => s >= 8.5 ? '#b45309' : s >= 7 ? '#d97706' : s >= 5 ? '#f59e0b' : '#fbbf24';
+    const tierColor = s => s >= 8.5 ? 'var(--color-brand)' : s >= 7 ? 'color-mix(in srgb, var(--color-brand) 75%, #000)' : s >= 5 ? '#f59e0b' : '#fbbf24';
     return (
-        <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-6)', boxShadow: 'var(--shadow-md)' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
+        <div className="bg-surface border border-border rounded-xl p-6 shadow-md">
+            <div className="flex items-start justify-between flex-wrap gap-4 mb-5">
                 <div>
-                    <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}>Top Ranked Pubs</h3>
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>Top 10 by average score — switch category with the tabs.</p>
+                    <h3 className="text-lg font-black text-text font-display">Top Ranked Pubs</h3>
+                    <p className="text-xs text-muted mt-1">Top 10 by average score — switch category with the tabs.</p>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                <div className="flex flex-wrap gap-2">
                     {tabs.map(tab => (
-                        <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-full)', border: activeTab === tab.id ? '2px solid var(--color-brand)' : '1.5px solid var(--color-border)', background: activeTab === tab.id ? 'var(--color-brand)' : 'transparent', color: activeTab === tab.id ? '#fff' : 'var(--color-text-muted)', fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 'var(--text-xs)', cursor: 'pointer', transition: 'all 180ms ease' }}>{tab.name}</button>
+                        <button key={tab.id} onClick={() => setActiveTab(tab.id)} 
+                            className={`px-3 py-1 rounded-full border-[1.5px] font-body font-bold text-xs cursor-pointer transition-all duration-180 ${activeTab === tab.id ? 'border-brand bg-brand text-white' : 'border-border bg-transparent text-muted hover:border-brand'}`}>
+                            {tab.name}
+                        </button>
                     ))}
                 </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', position: 'relative' }}>
+            <div className="flex flex-col gap-3 relative">
                 {chartData.map((row, i) => {
                     const pct = (row.score / 10) * 100;
                     const color = tierColor(row.score);
                     return (
-                        <div key={row.name} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', cursor: 'default' }} onMouseEnter={() => setTooltip({ name: row.name, score: row.score, count: row.count, idx: i })} onMouseLeave={() => setTooltip(null)}>
-                            <span style={{ minWidth: '1.6rem', textAlign: 'right', fontSize: 'var(--text-xs)', fontWeight: 900, color: i === 0 ? '#b45309' : 'var(--color-text-faint)', fontVariantNumeric: 'tabular-nums' }}>#{i + 1}</span>
-                            <span style={{ minWidth: '10rem', maxWidth: '10rem', fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.name}>{row.name}</span>
-                            <div style={{ flex: 1, height: '26px', background: 'var(--color-surface-2)', borderRadius: 'var(--radius-full)', overflow: 'hidden', position: 'relative' }}>
-                                <div style={{ height: '100%', width: animated ? `${pct}%` : '0%', background: `linear-gradient(90deg, ${color}cc, ${color})`, borderRadius: 'var(--radius-full)', transition: `width ${0.4 + i * 0.05}s cubic-bezier(0.16, 1, 0.3, 1)`, boxShadow: `0 2px 8px ${color}55` }} />
-                                {pct > 30 && <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', fontWeight: 900, color: '#fff', fontVariantNumeric: 'tabular-nums', opacity: animated ? 1 : 0, transition: `opacity 0.3s ease ${0.4 + i * 0.05}s`, pointerEvents: 'none' }}>{row.score.toFixed(1)}</span>}
+                        <div key={row.name} className="flex items-center gap-3 cursor-default" onMouseEnter={() => setTooltip({ name: row.name, score: row.score, count: row.count, idx: i })} onMouseLeave={() => setTooltip(null)}>
+                            <span className={`min-w-[1.6rem] text-right text-xs font-black tabular-nums ${i === 0 ? 'text-brand' : 'text-faint'}`}>#{i + 1}</span>
+                            <span className="min-w-[10rem] max-w-[10rem] text-xs font-bold text-text truncate" title={row.name}>{row.name}</span>
+                            <div className="flex-1 h-[26px] bg-surface-2 rounded-full overflow-hidden relative">
+                                <div className="h-full rounded-full" style={{ width: animated ? `${pct}%` : '0%', background: `linear-gradient(90deg, ${color}cc, ${color})`, transition: `width ${0.4 + i * 0.05}s cubic-bezier(0.16, 1, 0.3, 1)`, boxShadow: `0 2px 8px ${color}55` }} />
+                                {pct > 30 && <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-black text-white tabular-nums pointer-events-none" style={{ opacity: animated ? 1 : 0, transition: `opacity 0.3s ease ${0.4 + i * 0.05}s` }}>{row.score.toFixed(1)}</span>}
                             </div>
-                            <span style={{ minWidth: '2.8rem', textAlign: 'right', fontSize: 'var(--text-sm)', fontWeight: 900, fontVariantNumeric: 'tabular-nums', color }}>{row.score.toFixed(1)}</span>
+                            <span className="min-w-[2.8rem] text-right text-sm font-black tabular-nums" style={{ color }}>{row.score.toFixed(1)}</span>
                         </div>
                     );
                 })}
                 {tooltip !== null && (
-                    <div style={{ position: 'absolute', top: `${tooltip.idx * 38 - 6}px`, right: 0, background: 'var(--color-text)', color: 'var(--color-bg)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-2) var(--space-3)', fontSize: 'var(--text-xs)', fontWeight: 700, pointerEvents: 'none', zIndex: 10, whiteSpace: 'nowrap', boxShadow: 'var(--shadow-md)' }}>
-                        {tooltip.name} &mdash; <span style={{ fontVariantNumeric: 'tabular-nums' }}>{tooltip.score.toFixed(2)}/10</span> &bull; {tooltip.count} ratings
+                    <div className="absolute right-0 bg-text text-bg rounded-lg px-3 py-2 text-xs font-bold pointer-events-none z-10 whitespace-nowrap shadow-md" style={{ top: `${tooltip.idx * 38 - 6}px` }}>
+                        {tooltip.name} &mdash; <span className="tabular-nums">{tooltip.score.toFixed(2)}/10</span> &bull; {tooltip.count} ratings
                     </div>
                 )}
             </div>
-            <div style={{ display: 'flex', gap: 'var(--space-4)', marginTop: 'var(--space-5)', flexWrap: 'wrap' }}>
-                {[{ color: '#b45309', label: '8.5+ Legendary' }, { color: '#d97706', label: '7.0+ Great' }, { color: '#f59e0b', label: '5.0+ Decent' }, { color: '#fbbf24', label: 'Below 5' }].map(({ color, label }) => (
-                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                        <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: color }} />
-                        <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 600 }}>{label}</span>
+            <div className="flex gap-4 mt-5 flex-wrap">
+                {[{ color: 'var(--color-brand)', label: '8.5+ Legendary' }, { color: 'color-mix(in srgb, var(--color-brand) 75%, #000)', label: '7.0+ Great' }, { color: '#f59e0b', label: '5.0+ Decent' }, { color: '#fbbf24', label: 'Below 5' }].map(({ color, label }) => (
+                    <div key={label} className="flex items-center gap-2">
+                        <div className="w-[10px] h-[10px] rounded-[2px]" style={{ background: color }} />
+                        <span className="text-[11px] text-muted font-semibold">{label}</span>
                     </div>
                 ))}
             </div>
@@ -134,24 +135,24 @@ function ScoreDistribution({ pubs, scores }) {
     if (total === 0) return null;
     const maxCount = Math.max(...buckets, 1);
     const meanPct = ((mean - 1) / 9) * 100;
-    const barColor = s => s >= 9 ? '#b45309' : s >= 7 ? '#d97706' : s >= 5 ? '#f59e0b' : '#fbbf24';
+    const barColor = s => s >= 9 ? 'var(--color-brand)' : s >= 7 ? 'color-mix(in srgb, var(--color-brand) 75%, #000)' : s >= 5 ? '#f59e0b' : '#fbbf24';
     return (
-        <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-6)', boxShadow: 'var(--shadow-md)' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
+        <div className="bg-surface border border-border rounded-xl p-6 shadow-md">
+            <div className="flex items-start justify-between flex-wrap gap-4 mb-5">
                 <div>
-                    <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}>Score Distribution</h3>
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>How your group's {total.toLocaleString()} individual scores are spread across 1–10.</p>
+                    <h3 className="text-lg font-black text-text font-display">Score Distribution</h3>
+                    <p className="text-xs text-muted mt-1">How your group's {total.toLocaleString()} individual scores are spread across 1–10.</p>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Group Mean</p>
-                    <p style={{ fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', fontWeight: 900, fontVariantNumeric: 'tabular-nums', color: 'var(--color-brand)', fontFamily: 'var(--font-display)', lineHeight: 1 }}>{mean.toFixed(2)}</p>
+                <div className="text-right">
+                    <p className="text-xs text-muted font-semibold uppercase tracking-[0.08em]">Group Mean</p>
+                    <p className="text-[clamp(1.8rem,3vw,2.4rem)] font-black tabular-nums text-brand font-display leading-none">{mean.toFixed(2)}</p>
                 </div>
             </div>
-            <div style={{ position: 'relative', paddingBottom: 'var(--space-6)' }}>
-                <div style={{ position: 'absolute', left: `calc(${meanPct}% + 5%)`, top: 0, bottom: 'var(--space-6)', width: '2px', background: 'var(--color-brand)', opacity: animated ? 0.7 : 0, transition: 'opacity 0.6s ease 0.8s', zIndex: 2, pointerEvents: 'none' }}>
-                    <span style={{ position: 'absolute', top: 0, left: '6px', fontSize: '10px', fontWeight: 800, color: 'var(--color-brand)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>avg {mean.toFixed(1)}</span>
+            <div className="relative pb-6">
+                <div className="absolute top-0 bottom-6 w-[2px] bg-brand z-[2] pointer-events-none" style={{ left: `calc(${meanPct}% + 5%)`, opacity: animated ? 0.7 : 0, transition: 'opacity 0.6s ease 0.8s' }}>
+                    <span className="absolute top-0 left-[6px] text-[10px] font-black text-brand whitespace-nowrap tabular-nums">avg {mean.toFixed(1)}</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '140px' }}>
+                <div className="flex items-end gap-1 h-[140px]">
                     {buckets.map((count, i) => {
                         const score = i + 1;
                         const heightPct = (count / maxCount) * 100;
@@ -159,30 +160,30 @@ function ScoreDistribution({ pubs, scores }) {
                         const isHovered = hoveredBucket === i;
                         const color = barColor(score);
                         return (
-                            <div key={score} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'default', height: '100%', justifyContent: 'flex-end', position: 'relative' }} onMouseEnter={() => setHoveredBucket(i)} onMouseLeave={() => setHoveredBucket(null)}>
+                            <div key={score} className="flex-1 flex flex-col items-center gap-[3px] cursor-default h-full justify-end relative" onMouseEnter={() => setHoveredBucket(i)} onMouseLeave={() => setHoveredBucket(null)}>
                                 {isHovered && count > 0 && (
-                                    <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', background: 'var(--color-text)', color: 'var(--color-bg)', borderRadius: 'var(--radius-md)', padding: '4px 8px', fontSize: '11px', fontWeight: 700, whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 10, boxShadow: 'var(--shadow-md)', left: '50%', transform: 'translateX(-50%)' }}>Score {score}: {count} ({pct}%)</div>
+                                    <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 bg-text text-bg rounded-md px-2 py-1 text-[11px] font-bold whitespace-nowrap pointer-events-none z-10 shadow-md">Score {score}: {count} ({pct}%)</div>
                                 )}
-                                <div style={{ width: '100%', height: animated ? `${Math.max(heightPct, count > 0 ? 4 : 0)}%` : '0%', borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0', position: 'relative', transition: `height ${0.35 + i * 0.04}s cubic-bezier(0.16, 1, 0.3, 1)`, overflow: 'hidden' }}>
-                                    <div style={{ position: 'absolute', inset: 0, background: isHovered ? `linear-gradient(180deg, ${color}, ${color}cc)` : `linear-gradient(180deg, ${color}bb, ${color}88)`, borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0', boxShadow: isHovered ? `0 -4px 12px ${color}88` : 'none', transition: 'background 150ms ease' }} />
+                                <div className="w-full relative overflow-hidden rounded-t-sm" style={{ height: animated ? `${Math.max(heightPct, count > 0 ? 4 : 0)}%` : '0%', transition: `height ${0.35 + i * 0.04}s cubic-bezier(0.16, 1, 0.3, 1)` }}>
+                                    <div className="absolute inset-0 rounded-t-sm" style={{ background: isHovered ? `linear-gradient(180deg, ${color}, ${color}cc)` : `linear-gradient(180deg, ${color}bb, ${color}88)`, boxShadow: isHovered ? `0 -4px 12px ${color}88` : 'none', transition: 'background 150ms ease' }} />
                                 </div>
                             </div>
                         );
                     })}
                 </div>
-                <div style={{ display: 'flex', gap: '4px', marginTop: 'var(--space-1)' }}>
-                    {buckets.map((_, i) => (<div key={i} style={{ flex: 1, textAlign: 'center', fontSize: '11px', fontWeight: hoveredBucket === i ? 900 : 600, color: hoveredBucket === i ? 'var(--color-brand)' : 'var(--color-text-muted)', fontVariantNumeric: 'tabular-nums', transition: 'color 150ms ease' }}>{i + 1}</div>))}
+                <div className="flex gap-1 mt-1">
+                    {buckets.map((_, i) => (<div key={i} className={`flex-1 text-center text-[11px] tabular-nums transition-colors duration-150 ${hoveredBucket === i ? 'font-black text-brand' : 'font-semibold text-muted'}`}>{i + 1}</div>))}
                 </div>
             </div>
-            <div style={{ display: 'flex', gap: 'var(--space-8)', paddingTop: 'var(--space-5)', borderTop: '1px solid var(--color-border)', flexWrap: 'wrap' }}>
+            <div className="flex flex-wrap gap-8 pt-5 border-t border-border">
                 {[
                     { label: 'Most common score', value: `${buckets.indexOf(Math.max(...buckets)) + 1}/10` },
                     { label: 'Scores of 8+',      value: `${((buckets.slice(7).reduce((a, b) => a + b, 0) / total) * 100).toFixed(0)}%` },
                     { label: 'Scores below 5',    value: `${((buckets.slice(0, 4).reduce((a, b) => a + b, 0) / total) * 100).toFixed(0)}%` },
                 ].map(({ label, value }) => (
                     <div key={label}>
-                        <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-1)' }}>{label}</p>
-                        <p style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--color-brand)', fontVariantNumeric: 'tabular-nums' }}>{value}</p>
+                        <p className="text-[11px] font-semibold text-muted uppercase tracking-[0.08em] mb-1">{label}</p>
+                        <p className="text-xl font-black text-brand tabular-nums">{value}</p>
                     </div>
                 ))}
             </div>
@@ -200,39 +201,37 @@ function RaterCard({ name, avg, count, rank, delay = 0 }) {
         return () => { clearTimeout(t1); clearTimeout(t2); };
     }, [delay]);
     const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-    const avatarColors = ['#b45309', '#d97706', '#f59e0b'];
-    const avatarBg = avatarColors[rank] || '#d97706';
+    const avatarColors = ['var(--color-brand)', 'var(--color-brand-light)', '#f59e0b'];
+    const avatarBg = avatarColors[rank] || 'var(--color-brand)';
     const barPct = (avg / 10) * 100;
-    const barColor = avg <= 5 ? '#dc2626' : avg <= 7 ? '#d97706' : '#16a34a';
+    const barColor = avg <= 5 ? 'var(--color-error)' : avg <= 7 ? 'var(--color-warning)' : 'var(--color-success)';
     const medals = ['🥇', '🥈', '🥉'];
     return (
-        <div style={{
-            background: 'var(--color-surface-2)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-xl)',
-            padding: 'var(--space-5)',
-            display: 'flex', alignItems: 'center', gap: 'var(--space-4)',
-            opacity: visible ? 1 : 0,
-            transform: visible ? 'translateX(0)' : 'translateX(-16px)',
-            transition: 'opacity 0.45s ease, transform 0.45s ease',
-        }}>
-            <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: `linear-gradient(135deg, ${avatarBg}dd, ${avatarBg}88)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: `0 2px 8px ${avatarBg}55`, border: `2px solid ${avatarBg}44` }}>
-                <span style={{ fontSize: '13px', fontWeight: 900, color: '#fff', letterSpacing: '0.02em' }}>{initials}</span>
+        <div 
+            className="bg-surface-2 border border-border rounded-xl p-5 flex items-center gap-4"
+            style={{
+                opacity: visible ? 1 : 0,
+                transform: visible ? 'translateX(0)' : 'translateX(-16px)',
+                transition: 'opacity 0.45s ease, transform 0.45s ease',
+            }}
+        >
+            <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ background: `linear-gradient(135deg, ${avatarBg}dd, ${avatarBg}88)`, boxShadow: `0 2px 8px ${avatarBg}55`, border: `2px solid ${avatarBg}44` }}>
+                <span className="text-[13px] font-black text-white tracking-[0.02em]">{initials}</span>
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
-                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                    <span style={{ fontSize: '11px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-full)', padding: '1px 7px', color: 'var(--color-text-muted)', fontWeight: 600, flexShrink: 0 }}>{count} ratings</span>
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm font-bold text-text truncate">{name}</span>
+                    <span className="text-[11px] bg-surface border border-border rounded-full px-2 py-[1px] text-muted font-semibold shrink-0">{count} ratings</span>
                 </div>
-                <div style={{ height: '10px', background: 'var(--color-surface)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: barAnimated ? `${barPct}%` : '0%', background: `linear-gradient(90deg, ${barColor}88, ${barColor})`, borderRadius: 'var(--radius-full)', transition: 'width 0.7s cubic-bezier(0.16, 1, 0.3, 1)' }} />
+                <div className="h-2.5 bg-surface rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: barAnimated ? `${barPct}%` : '0%', background: `linear-gradient(90deg, ${barColor}88, ${barColor})`, transition: 'width 0.7s cubic-bezier(0.16, 1, 0.3, 1)' }} />
                 </div>
-                <div style={{ marginTop: 'var(--space-1)', fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 600 }}>Avg score across all rated pubs</div>
+                <div className="mt-1 text-[11px] text-muted font-semibold">Avg score across all rated pubs</div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
-                <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>{medals[rank]}</span>
-                <span style={{ fontSize: 'var(--text-lg)', fontWeight: 900, fontVariantNumeric: 'tabular-nums', color: barColor }}>{avg.toFixed(1)}</span>
-                <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontWeight: 600 }}>/10</span>
+            <div className="flex flex-col items-center gap-0.5 shrink-0">
+                <span className="text-2xl leading-none">{medals[rank]}</span>
+                <span className="text-lg font-black tabular-nums" style={{ color: barColor }}>{avg.toFixed(1)}</span>
+                <span className="text-[10px] text-muted font-semibold">/10</span>
             </div>
         </div>
     );
@@ -245,24 +244,24 @@ function DivisivePubRow({ pub, index, animated }) {
     const rightPct = Math.max(2, 50 + spreadPct);
     const ranks = ['#1', '#2', '#3'];
     return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-            <span style={{ minWidth: '2rem', fontSize: 'var(--text-sm)', fontWeight: 900, color: index === 0 ? '#b45309' : 'var(--color-text-faint)' }}>{ranks[index]}</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-1)' }}>
-                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pub.name}</span>
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontWeight: 600, flexShrink: 0, marginLeft: 'var(--space-2)' }}>avg {pub.mean.toFixed(1)}</span>
+        <div className="flex items-center gap-3">
+            <span className={`min-w-[2rem] text-sm font-black ${index === 0 ? 'text-brand' : 'text-faint'}`}>{ranks[index]}</span>
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-bold text-text truncate">{pub.name}</span>
+                    <span className="text-xs text-muted font-semibold shrink-0 ml-2">avg {pub.mean.toFixed(1)}</span>
                 </div>
-                <div style={{ position: 'relative', height: '12px', background: 'var(--color-surface-2)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
-                    <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: animated ? `${leftPct}%` : '50%', background: 'linear-gradient(90deg, #dc262688, #dc2626cc)', borderRadius: 'var(--radius-full) 0 0 var(--radius-full)', transition: `width ${0.5 + index * 0.1}s cubic-bezier(0.16, 1, 0.3, 1)` }} />
-                    <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: animated ? `${100 - rightPct}%` : '50%', background: 'linear-gradient(90deg, #16a34acc, #16a34a88)', borderRadius: '0 var(--radius-full) var(--radius-full) 0', transition: `width ${0.5 + index * 0.1}s cubic-bezier(0.16, 1, 0.3, 1)` }} />
-                    <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '2px', background: 'var(--color-border)', transform: 'translateX(-50%)', zIndex: 1 }} />
+                <div className="relative h-3 bg-surface-2 rounded-full overflow-hidden">
+                    <div className="absolute left-0 top-0 bottom-0 rounded-l-full" style={{ width: animated ? `${leftPct}%` : '50%', background: 'linear-gradient(90deg, #dc262688, #dc2626cc)', transition: `width ${0.5 + index * 0.1}s cubic-bezier(0.16, 1, 0.3, 1)` }} />
+                    <div className="absolute right-0 top-0 bottom-0 rounded-r-full" style={{ width: animated ? `${100 - rightPct}%` : '50%', background: 'linear-gradient(90deg, #16a34acc, #16a34a88)', transition: `width ${0.5 + index * 0.1}s cubic-bezier(0.16, 1, 0.3, 1)` }} />
+                    <div className="absolute left-1/2 top-0 bottom-0 w-[2px] bg-border -translate-x-1/2 z-[1]" />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-                    <span style={{ fontSize: '10px', color: '#dc2626', fontWeight: 700 }}>👎 Harsh</span>
-                    <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700 }}>Generous 👍</span>
+                <div className="flex justify-between mt-1">
+                    <span className="text-[10px] text-[#dc2626] font-bold">👎 Harsh</span>
+                    <span className="text-[10px] text-[#16a34a] font-bold">Generous 👍</span>
                 </div>
             </div>
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, background: 'var(--color-brand-highlight)', color: 'var(--color-brand)', padding: 'var(--space-1) var(--space-2)', borderRadius: 'var(--radius-full)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>var {pub.variance.toFixed(1)}</span>
+            <span className="text-xs font-bold bg-brand-highlight text-brand px-2 py-1 rounded-full shrink-0 tabular-nums">var {pub.variance.toFixed(1)}</span>
         </div>
     );
 }
@@ -324,54 +323,54 @@ export default function InsightsPage({ pubs, scores, users, criteria }) {
 
     const getUser = uid => { const u = safeUsers[uid]; return u?.nickname || u?.displayName || u?.email || 'Unknown User'; };
 
-    const cardStyle = { background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)', padding: 'var(--space-6)', boxShadow: 'var(--shadow-md)' };
+    const cardStyle = "bg-surface border border-border rounded-xl p-6 shadow-md";
 
     return (
-        <div style={{ maxWidth: '72rem', margin: '0 auto' }} className="space-y-8 animate-fadeIn pb-20">
+        <div className="max-w-7xl mx-auto space-y-8 animate-fadeIn pb-20">
 
             {/* page header */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
+            <div className="flex items-end justify-between flex-wrap gap-4">
                 <div>
-                    <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}>Group Insights</h2>
-                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>Deep data analytics based on {analytics.totalRatings.toLocaleString()} individual data points.</p>
+                    <h2 className="text-xl font-black text-text font-display">Group Insights</h2>
+                    <p className="text-sm text-muted mt-1">Deep data analytics based on {analytics.totalRatings.toLocaleString()} individual data points.</p>
                 </div>
-                <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+                <div className="flex gap-3 flex-wrap">
                     {[
                         { label: 'Pubs Rated',     value: analytics.pubsRated,      color: '#d97706' },
                         { label: 'Active Members', value: analytics.activeMembers,  color: '#7c3aed' },
                     ].map(({ label, value, color }) => (
-                        <div key={label} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-3) var(--space-4)', textAlign: 'center', minWidth: '90px' }}>
-                            <p style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color, fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-display)' }}>{value}</p>
-                            <p style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</p>
+                        <div key={label} className="bg-surface border border-border rounded-lg px-4 py-3 text-center min-w-[90px]">
+                            <p className="text-lg font-black tabular-nums font-display" style={{ color }}>{value}</p>
+                            <p className="text-[10px] font-bold text-muted uppercase tracking-[0.08em]">{label}</p>
                         </div>
                     ))}
                 </div>
             </div>
 
             {/* STEP 1: KPI bar — 2 primary stats big, 2 in header above */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-5)' }}>
+            <div className="flex flex-wrap gap-5">
                 <KpiCard icon="🍺" label="Total Ratings" value={analytics.totalRatings} color="var(--color-brand)"  delay={0}   />
                 <KpiCard icon="⭐" label="Group Average" value={analytics.groupAverage} color="#059669" suffix="/10" delay={120} />
             </div>
 
             {/* STEP 2: Top pubs chart + Score Distribution side by side on large screens */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 28rem), 1fr))', gap: 'var(--space-6)' }}>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,28rem),1fr))] gap-6">
                 <TopPubsChart pubs={safePubs} scores={safeScores} criteria={safeCriteria} />
                 <ScoreDistribution pubs={safePubs} scores={safeScores} />
             </div>
 
             {/* STEP 3: Harshest Critics + Most Divisive side by side */}
-            <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 'var(--space-6)' }}>
-                <div style={cardStyle}>
-                    <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: 'var(--color-text)', marginBottom: 'var(--space-1)', fontFamily: 'var(--font-display)' }}>Harshest Critics</h3>
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-5)' }}>Members with the lowest average scores (min. 6 ratings).</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className={cardStyle}>
+                    <h3 className="text-lg font-black text-text mb-1 font-display">Harshest Critics</h3>
+                    <p className="text-xs text-muted mb-5">Members with the lowest average scores (min. 6 ratings).</p>
                     {analytics.harshCritics.length === 0 ? (
-                        <div style={{ padding: 'var(--space-8) 0', textAlign: 'center' }}>
-                            <p style={{ fontSize: '2rem', marginBottom: 'var(--space-2)' }}>🍺</p>
-                            <p style={{ color: 'var(--color-text-faint)', fontSize: 'var(--text-sm)' }}>Not enough data yet.</p>
+                        <div className="py-8 text-center">
+                            <p className="text-4xl mb-2">🍺</p>
+                            <p className="text-faint text-sm">Not enough data yet.</p>
                         </div>
                     ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                        <div className="flex flex-col gap-4">
                             {analytics.harshCritics.map((critic, i) => (
                                 <RaterCard key={critic.uid} name={getUser(critic.uid)} avg={critic.avg} count={critic.count} rank={i} delay={i * 120} />
                             ))}
@@ -379,16 +378,16 @@ export default function InsightsPage({ pubs, scores, users, criteria }) {
                     )}
                 </div>
 
-                <div style={cardStyle}>
-                    <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: 'var(--color-text)', marginBottom: 'var(--space-1)', fontFamily: 'var(--font-display)' }}>Most Divisive Pubs</h3>
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-5)' }}>Highest variance in ratings — love it or hate it.</p>
+                <div className={cardStyle}>
+                    <h3 className="text-lg font-black text-text mb-1 font-display">Most Divisive Pubs</h3>
+                    <p className="text-xs text-muted mb-5">Highest variance in ratings — love it or hate it.</p>
                     {analytics.divisivePubs.length === 0 ? (
-                        <div style={{ padding: 'var(--space-8) 0', textAlign: 'center' }}>
-                            <p style={{ fontSize: '2rem', marginBottom: 'var(--space-2)' }}>🤔</p>
-                            <p style={{ color: 'var(--color-text-faint)', fontSize: 'var(--text-sm)' }}>Not enough data yet.</p>
+                        <div className="py-8 text-center">
+                            <p className="text-4xl mb-2">🤔</p>
+                            <p className="text-faint text-sm">Not enough data yet.</p>
                         </div>
                     ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+                        <div className="flex flex-col gap-6">
                             {analytics.divisivePubs.map((pub, i) => (
                                 <DivisivePubRow key={pub.name} pub={pub} index={i} animated={divisiveAnimated} />
                             ))}
@@ -398,23 +397,23 @@ export default function InsightsPage({ pubs, scores, users, criteria }) {
             </div>
 
             {/* STEP 4: Category Champions */}
-            <div style={cardStyle}>
-                <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 900, color: 'var(--color-text)', marginBottom: 'var(--space-2)', fontFamily: 'var(--font-display)' }}>🏆 Category Champions</h3>
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-5)' }}>The best pub in each scoring category.</p>
+            <div className={cardStyle}>
+                <h3 className="text-lg font-black text-text mb-2 font-display">🏆 Category Champions</h3>
+                <p className="text-xs text-muted mb-5">The best pub in each scoring category.</p>
                 {Object.keys(analytics.categoryWinners).length === 0 ? (
-                    <div style={{ padding: 'var(--space-8) 0', textAlign: 'center' }}>
-                        <p style={{ fontSize: '2rem', marginBottom: 'var(--space-2)' }}>🏅</p>
-                        <p style={{ color: 'var(--color-text-faint)', fontSize: 'var(--text-sm)' }}>Not enough data yet.</p>
+                    <div className="py-8 text-center">
+                        <p className="text-4xl mb-2">🏅</p>
+                        <p className="text-faint text-sm">Not enough data yet.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style={{ gap: 'var(--space-4)' }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {Object.entries(analytics.categoryWinners).map(([critId, winner]) => {
                             const criterion = safeCriteria.find(c => c.id === critId);
                             return (
-                                <div key={critId} style={{ background: 'var(--color-brand-highlight)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-5)', border: '1px solid var(--color-brand-border)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                                    <p style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-brand)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{criterion?.name || critId}</p>
-                                    <p style={{ fontWeight: 900, color: 'var(--color-text)', fontSize: 'var(--text-base)', lineHeight: 1.3, flex: 1 }}>{winner.pubName}</p>
-                                    <p style={{ fontSize: 'var(--text-xl)', fontWeight: 900, fontVariantNumeric: 'tabular-nums', color: 'var(--color-brand)' }}>{winner.score.toFixed(1)}<span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--color-text-muted)' }}>/10</span></p>
+                                <div key={critId} className="bg-brand-highlight rounded-lg p-5 border border-brand-border flex flex-col gap-2">
+                                    <p className="text-xs font-bold text-brand uppercase tracking-[0.06em]">{criterion?.name || critId}</p>
+                                    <p className="font-black text-text text-base leading-snug flex-1">{winner.pubName}</p>
+                                    <p className="text-xl font-black tabular-nums text-brand">{winner.score.toFixed(1)}<span className="text-xs font-semibold text-muted">/10</span></p>
                                 </div>
                             );
                         })}

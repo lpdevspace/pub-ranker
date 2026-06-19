@@ -249,7 +249,21 @@ service cloud.firestore {
 
     match /venueClaims/{claimId} {
       allow create: if isSignedIn() && isNotBanned();
-      allow read, update, delete: if canEditConfig();
+      allow read: if isSignedIn() && (canEditConfig() || resource.data.requestedByUid == request.auth.uid);
+      allow update, delete: if canEditConfig();
+    }
+
+    match /deals/{dealId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isNotBanned()
+        && request.resource.data.pubId is string
+        && get(/databases/$(database)/documents/pubs/$(request.resource.data.pubId)).data.claimedBy is list
+        && request.auth.uid in get(/databases/$(database)/documents/pubs/$(request.resource.data.pubId)).data.claimedBy;
+      allow delete: if isSignedIn() && isNotBanned()
+        && resource.data.pubId is string
+        && get(/databases/$(database)/documents/pubs/$(resource.data.pubId)).data.claimedBy is list
+        && request.auth.uid in get(/databases/$(database)/documents/pubs/$(resource.data.pubId)).data.claimedBy;
     }
   }
 }
+

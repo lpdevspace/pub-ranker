@@ -13,8 +13,8 @@ function relativeTime(date) {
 }
 
 function scoreColor(v) {
-    if (v >= 8) return { bg: '#b4530918', text: '#b45309', border: '#b4530933' };
-    if (v >= 6) return { bg: '#d9770618', text: '#d97706', border: '#d9770633' };
+    if (v >= 8) return { bg: 'var(--color-brand-subtle)', text: 'var(--color-brand)', border: 'var(--color-brand-border)' };
+    if (v >= 6) return { bg: 'color-mix(in srgb, var(--color-brand) 15%, transparent)', text: 'color-mix(in srgb, var(--color-brand) 85%, transparent)', border: 'color-mix(in srgb, var(--color-brand) 30%, transparent)' };
     if (v >= 4) return { bg: '#6b728018', text: '#6b7280', border: '#6b728033' };
     return            { bg: '#dc262618', text: '#dc2626', border: '#dc262633' };
 }
@@ -121,11 +121,11 @@ function TopScoreHero({ activities, pubs, allUsers }) {
 
     return (
         <div style={{
-            background: 'linear-gradient(135deg, #b45309ee, #d97706dd)',
+            background: 'linear-gradient(135deg, var(--color-brand), var(--color-brand-hover))',
             borderRadius: 'var(--radius-xl)',
             padding: 'var(--space-4) var(--space-5)',
             display: 'flex', alignItems: 'center', gap: 'var(--space-4)',
-            boxShadow: '0 8px 24px #b4530933',
+            boxShadow: '0 8px 24px var(--color-brand-border)',
             position: 'relative', overflow: 'hidden',
         }}>
             <div style={{ position: 'absolute', right: '-2rem', top: '-2rem', width: '8rem', height: '8rem', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', pointerEvents: 'none' }} />

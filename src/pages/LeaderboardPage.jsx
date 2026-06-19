@@ -244,7 +244,7 @@ function MemberPodium({ members, onSelect }) {
                             {member.user?.avatarUrl ? (
                                 <img src={member.user.avatarUrl} alt={displayName} className="w-16 h-16 rounded-full object-cover" loading="lazy" width="64" height="64" />
                             ) : (
-                                <div className="w-16 h-16 rounded-full bg-amber-500 flex items-center justify-center text-white text-2xl font-black">
+                                <div className="w-16 h-16 rounded-full bg-brand flex items-center justify-center text-white text-2xl font-black">
                                     {displayName.charAt(0).toUpperCase()}
                                 </div>
                             )}
@@ -272,7 +272,7 @@ function PointsBreakdown({ ratedCount, writtenReviews, pubsAdded, crawlsCreated,
     const ppc = gamification.pointsPerCrawl  || 5;
 
     const segments = [
-        { label: 'Pubs visited', value: ratedCount * ppp,    color: 'bg-amber-500',  count: ratedCount,    unit: 'pubs'   },
+        { label: 'Pubs visited', value: ratedCount * ppp,    color: 'bg-brand',  count: ratedCount,    unit: 'pubs'   },
         { label: 'Reviews',      value: writtenReviews * ppr, color: 'bg-blue-400',   count: writtenReviews, unit: 'reviews' },
         { label: 'Pubs added',   value: pubsAdded * ppa,      color: 'bg-green-500',  count: pubsAdded,      unit: 'added'  },
         { label: 'Crawls made',  value: crawlsCreated * ppc,  color: 'bg-purple-400', count: crawlsCreated,  unit: 'crawls' },
@@ -332,17 +332,17 @@ function PublicProfileModal({ member, onClose, customBadges }) {
 
                 <div className="flex flex-col items-center mb-6">
                     {user?.avatarUrl ? (
-                        <img src={user.avatarUrl} alt="Avatar" className="w-24 h-24 rounded-full object-cover shadow-md border-4 border-amber-400 mb-3" onError={e => { e.target.style.display = 'none'; }} />
+                        <img src={user.avatarUrl} alt="Avatar" className="w-24 h-24 rounded-full object-cover shadow-md border-4 border-brand mb-3" onError={e => { e.target.style.display = 'none'; }} />
                     ) : (
-                        <div className="w-24 h-24 rounded-full bg-amber-600 flex items-center justify-center text-white text-4xl font-black shadow-md mb-3">
+                        <div className="w-24 h-24 rounded-full bg-brand flex items-center justify-center text-white text-4xl font-black shadow-md mb-3">
                             {displayName.charAt(0).toUpperCase()}
                         </div>
                     )}
                     <h3 className="text-2xl font-black text-gray-800 dark:text-white text-center">{displayName}</h3>
                     {user?.bio && <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center italic">"{user.bio}"</p>}
-                    <div className="mt-4 bg-amber-50 dark:bg-amber-900/20 px-4 py-2 rounded-full border border-amber-200 dark:border-amber-800">
-                        <span className="font-black text-amber-700 dark:text-amber-400">{totalPoints}</span>{' '}
-                        <span className="text-xs text-amber-600 dark:text-amber-500 font-bold uppercase tracking-wider">Total Points</span>
+                    <div className="mt-4 bg-brand-subtle dark:bg-brand-highlight/20 px-4 py-2 rounded-full border border-brand-border dark:border-brand-border">
+                        <span className="font-black text-brand">{totalPoints}</span>{' '}
+                        <span className="text-xs text-brand font-bold uppercase tracking-wider">Total Points</span>
                     </div>
                 </div>
 
@@ -359,9 +359,9 @@ function PublicProfileModal({ member, onClose, customBadges }) {
                     <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 text-center">Trophy Cabinet</h4>
                     <div className="grid grid-cols-3 gap-3">
                         {badges.map((badge, idx) => (
-                            <div key={idx} title={badge.desc} className={`flex flex-col items-center p-2 rounded-xl border text-center transition-all ${ badge.earned ? 'bg-gradient-to-br from-yellow-50 to-amber-100 border-yellow-200 dark:from-yellow-900/20 dark:to-amber-900/10 dark:border-yellow-700/50 shadow-sm' : 'bg-gray-50 border-gray-100 dark:bg-gray-800/50 dark:border-gray-700 opacity-50 grayscale' }`}>
+                            <div key={idx} title={badge.desc} className={`flex flex-col items-center p-2 rounded-xl border text-center transition-all ${ badge.earned ? 'bg-gradient-to-br from-brand-light to-brand-subtle border-brand-border dark:from-brand-highlight/30 dark:to-brand-highlight/10 dark:border-brand-border shadow-sm' : 'bg-gray-50 border-gray-100 dark:bg-gray-800/50 dark:border-gray-700 opacity-50 grayscale' }`}>
                                 <span className="text-2xl mb-1">{badge.emoji}</span>
-                                <span className={`text-[9px] font-black uppercase tracking-wider leading-tight ${ badge.earned ? 'text-yellow-800 dark:text-yellow-500' : 'text-gray-500 dark:text-gray-400' }`}>{badge.title}</span>
+                                <span className={`text-[9px] font-black uppercase tracking-wider leading-tight ${ badge.earned ? 'text-brand dark:text-brand-light' : 'text-gray-500 dark:text-gray-400' }`}>{badge.title}</span>
                             </div>
                         ))}
                     </div>
@@ -377,7 +377,7 @@ function PublicProfileModal({ member, onClose, customBadges }) {
                                         <span className="text-lg font-black text-gray-400">#{idx + 1}</span>
                                         <span className="font-bold text-gray-800 dark:text-white truncate">{tp.pub?.name || 'Unknown Pub'}</span>
                                     </div>
-                                    <span className="font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded text-sm border border-amber-200 dark:border-amber-800">{tp.avg.toFixed(1)}</span>
+                                    <span className="font-black text-brand bg-brand-subtle dark:bg-brand-highlight px-2 py-1 rounded text-sm border border-brand-border">{tp.avg.toFixed(1)}</span>
                                 </div>
                             ))}
                         </div>
@@ -491,7 +491,7 @@ export default function LeaderboardPage({ scores, users, pubs, criteria, db, gro
                         onClick={() => setActiveTab(key)}
                         className={`flex-1 py-2 text-sm font-black rounded-lg transition-all ${
                             activeTab === key
-                                ? 'bg-white dark:bg-gray-800 text-amber-600 dark:text-amber-400 shadow-sm'
+                                ? 'bg-white dark:bg-gray-800 text-brand shadow-sm'
                                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                         }`}
                     >
@@ -503,7 +503,7 @@ export default function LeaderboardPage({ scores, users, pubs, criteria, db, gro
             {/* ── PUBS TAB ── */}
             {activeTab === 'pubs' && (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fadeIn">
-                    <div className="bg-gradient-to-r from-amber-600 to-amber-500 p-6 text-white text-center">
+                    <div className="bg-gradient-to-r from-brand-dark to-brand p-6 text-white text-center">
                         <h3 className="text-2xl font-black">🏆 Hall of Fame</h3>
                         <p className="text-sm font-medium opacity-90">The absolute best pubs, ranked by average score.</p>
                     </div>
@@ -541,7 +541,7 @@ export default function LeaderboardPage({ scores, users, pubs, criteria, db, gro
                                             <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{pub.location || 'Unknown'}</p>
                                         </div>
                                         <div className="text-right flex-shrink-0">
-                                            <span className="block text-xl font-black text-amber-700 dark:text-amber-400">{pub.avgScore.toFixed(1)}</span>
+                                            <span className="block text-xl font-black text-brand">{pub.avgScore.toFixed(1)}</span>
                                             <span className="block text-[10px] text-gray-500 font-bold uppercase tracking-wider">{pub.ratingCount} Ratings</span>
                                         </div>
                                     </div>
@@ -555,7 +555,7 @@ export default function LeaderboardPage({ scores, users, pubs, criteria, db, gro
             {/* ── MEMBERS TAB ── */}
             {activeTab === 'members' && (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fadeIn">
-                    <div className="bg-gradient-to-r from-amber-700 to-amber-500 p-6 text-white text-center">
+                    <div className="bg-gradient-to-r from-brand-dark to-brand p-6 text-white text-center">
                         <h3 className="text-2xl font-black">🍻 Top Crawlers</h3>
                         <p className="text-sm font-medium opacity-90">Ranked by pubs visited, reviews written, and contributions.</p>
                     </div>
@@ -582,20 +582,20 @@ export default function LeaderboardPage({ scores, users, pubs, criteria, db, gro
                                         <div
                                             key={member.uid}
                                             onClick={() => setSelectedUserForProfile(member)}
-                                            className="flex items-start p-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 shadow-sm hover:border-amber-300 dark:hover:border-amber-600 hover:shadow-md transition cursor-pointer gap-3"
+                                            className="flex items-start p-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 shadow-sm hover:border-brand-border dark:hover:border-brand hover:shadow-md transition cursor-pointer gap-3"
                                         >
                                             <div className="w-8 flex-shrink-0 text-center font-black text-base text-gray-400 dark:text-gray-500 mt-1">#{index + 4}</div>
                                             {user?.avatarUrl ? (
                                                 <img src={user.avatarUrl} alt={displayName} className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-white dark:border-gray-600" loading="lazy" width="40" height="40" />
                                             ) : (
-                                                <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white font-black flex-shrink-0">
+                                                <div className="w-10 h-10 rounded-full bg-brand flex items-center justify-center text-white font-black flex-shrink-0">
                                                     {displayName.charAt(0).toUpperCase()}
                                                 </div>
                                             )}
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center justify-between mb-1">
                                                     <h4 className="text-base font-bold text-gray-800 dark:text-white truncate">{displayName}</h4>
-                                                    <span className="text-lg font-black text-amber-700 dark:text-amber-400 ml-3 flex-shrink-0">{totalPoints} <span className="text-[10px] font-bold text-gray-400">pts</span></span>
+                                                    <span className="text-lg font-black text-brand ml-3 flex-shrink-0">{totalPoints} <span className="text-[10px] font-bold text-gray-400">pts</span></span>
                                                 </div>
                                                 <PointsBreakdown
                                                     ratedCount={ratedCount}

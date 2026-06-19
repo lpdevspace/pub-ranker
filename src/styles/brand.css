@@ -22,12 +22,15 @@
   --color-text-faint:       #a8926e;
   --color-text-inverse:     #faf7f2;
 
-  /* Brand — Bitter Amber */
+  /* Brand — Bitter Amber (Dynamic color-mix formulas) */
   --color-brand:            var(--theme-color, #b45309);
-  --color-brand-hover:      #92400e;
-  --color-brand-active:     #78350f;
-  --color-brand-highlight:  #fde68a;
-  --color-brand-subtle:     #fef3c7;
+  --color-brand-hover:      color-mix(in srgb, var(--color-brand) 85%, #000);
+  --color-brand-active:     color-mix(in srgb, var(--color-brand) 70%, #000);
+  --color-brand-highlight:  color-mix(in srgb, var(--color-brand) 15%, #fff);
+  --color-brand-subtle:     color-mix(in srgb, var(--color-brand) 8%, #fff);
+  --color-brand-dark:       color-mix(in srgb, var(--color-brand) 75%, #000);
+  --color-brand-light:      color-mix(in srgb, var(--color-brand) 25%, #fff);
+  --color-brand-border:     color-mix(in srgb, var(--color-brand) 30%, transparent);
 
   /* Success — Hop Green */
   --color-success:          #16a34a;
@@ -98,10 +101,13 @@ html.dark {
   --color-text-inverse:     #141210;
 
   --color-brand:            var(--theme-color, #f59e0b);
-  --color-brand-hover:      #fbbf24;
-  --color-brand-active:     #fcd34d;
-  --color-brand-highlight:  #78350f;
-  --color-brand-subtle:     #451a03;
+  --color-brand-hover:      color-mix(in srgb, var(--color-brand) 85%, #fff);
+  --color-brand-active:     color-mix(in srgb, var(--color-brand) 70%, #fff);
+  --color-brand-highlight:  color-mix(in srgb, var(--color-brand) 25%, #000);
+  --color-brand-subtle:     color-mix(in srgb, var(--color-brand) 12%, #000);
+  --color-brand-dark:       color-mix(in srgb, var(--color-brand) 75%, #000);
+  --color-brand-light:      color-mix(in srgb, var(--color-brand) 25%, #000);
+  --color-brand-border:     color-mix(in srgb, var(--color-brand) 30%, transparent);
 
   --color-success:          #4ade80;
   --color-success-bg:       #052e16;
@@ -131,10 +137,10 @@ html.dark {
     --color-text-faint:       #6b5a42;
     --color-text-inverse:     #141210;
     --color-brand:            var(--theme-color, #f59e0b);
-    --color-brand-hover:      #fbbf24;
-    --color-brand-active:     #fcd34d;
-    --color-brand-highlight:  #78350f;
-    --color-brand-subtle:     #451a03;
+    --color-brand-hover:      color-mix(in srgb, var(--color-brand) 85%, #fff);
+    --color-brand-active:     color-mix(in srgb, var(--color-brand) 70%, #fff);
+    --color-brand-highlight:  color-mix(in srgb, var(--color-brand) 25%, #000);
+    --color-brand-subtle:     color-mix(in srgb, var(--color-brand) 12%, #000);
     --color-success:          #4ade80;
     --color-success-bg:       #052e16;
     --color-error:            #f87171;
@@ -332,7 +338,7 @@ h4, h5, h6 {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-sm);
-  transition: box-shadow var(--transition), transform var(--transition);
+  transition: box-shadow var(--transition), transform var(--transition), border-color var(--transition);
 }
 .card-warm:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 
@@ -350,3 +356,25 @@ h4, h5, h6 {
   opacity: 0.025;
   mix-blend-mode: multiply;
 }
+
+/* Horizontal scroll area without ugly scrollbars */
+.scroll-x-clean {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scroll-x-clean::-webkit-scrollbar {
+  display: none;
+}
+
+/* Glassmorphism accent style */
+.card-glass {
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-md);
+}
+

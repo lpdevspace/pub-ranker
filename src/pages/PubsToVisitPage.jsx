@@ -173,31 +173,20 @@ function AddPubModal({ groupRef, db, user, onClose, onAdded }) {
     };
 
     return (
-        <div style={{
-            position: 'fixed', inset: 0, zIndex: 1000,
-            background: 'oklch(from var(--color-text) l c h / 0.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 'var(--space-4)',
-        }} onClick={onClose}>
-            <div style={{
-                background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)',
-                boxShadow: 'var(--shadow-lg)', width: '100%', maxWidth: '520px',
-                border: '1px solid var(--color-border)', padding: 'var(--space-6)',
-            }} onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn" onClick={onClose}>
+            <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg border border-border/50 p-6" onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-5)' }}>
+                <div className="flex justify-between items-center mb-5">
                     <div>
-                        <h2 style={{ fontSize: 'var(--text-lg)', fontFamily: 'var(--font-display)', fontWeight: 600, color: 'var(--color-text)' }}>
+                        <h2 className="text-lg font-display font-bold text-text">
                             🍺 Add to Hit List
                         </h2>
-                        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>
+                        <p className="text-xs text-muted mt-1">
                             Search for a pub and we'll pull in the details from Google.
                         </p>
                     </div>
-                    <button onClick={onClose} aria-label="Close" style={{ color: 'var(--color-text-muted)', padding: 'var(--space-2)', borderRadius: 'var(--radius-md)', lineHeight: 1 }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-surface-offset)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <button onClick={onClose} aria-label="Close" className="text-muted p-2 rounded-md hover:bg-surface-offset transition-colors leading-none">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
                     </button>
                 </div>
@@ -205,10 +194,10 @@ function AddPubModal({ groupRef, db, user, onClose, onAdded }) {
                 {!manualMode ? (
                     <>
                         {/* Search input */}
-                        <div style={{ position: 'relative' }} ref={dropdownRef}>
-                            <div style={{ position: 'relative' }}>
+                        <div className="relative" ref={dropdownRef}>
+                            <div className="relative">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                                    style={{ position: 'absolute', left: 'var(--space-4)', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', pointerEvents: 'none' }}>
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
                                     <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                                 </svg>
                                 <input
@@ -217,23 +206,15 @@ function AddPubModal({ groupRef, db, user, onClose, onAdded }) {
                                     placeholder="Search for a pub…"
                                     value={query}
                                     onChange={e => { setQuery(e.target.value); setSelected(null); search(e.target.value); }}
-                                    style={{
-                                        width: '100%', padding: 'var(--space-3) var(--space-4) var(--space-3) var(--space-10)',
-                                        border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)',
-                                        background: 'var(--color-bg)', color: 'var(--color-text)',
-                                        fontSize: 'var(--text-sm)', fontFamily: 'var(--font-body)',
-                                        outline: 'none', transition: 'border-color var(--transition-interactive)',
-                                    }}
-                                    onFocus={e => e.target.style.borderColor = 'var(--color-brand)'}
-                                    onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
+                                    className="w-full py-3 pr-4 pl-10 border-2 border-border rounded-lg bg-bg text-text text-sm font-body outline-none transition-colors focus:border-brand"
                                 />
                                 {searchLoading && (
-                                    <div style={{ position: 'absolute', right: 'var(--space-4)', top: '50%', transform: 'translateY(-50%)' }}>
-                                        <div style={{ width: '16px', height: '16px', border: '2px solid var(--color-border)', borderTopColor: 'var(--color-brand)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                                        <div className="w-4 h-4 border-2 border-border border-t-brand rounded-full animate-spin" />
                                     </div>
                                 )}
                                 {selected && !searchLoading && (
-                                    <div style={{ position: 'absolute', right: 'var(--space-4)', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-success)' }}>
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-success">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                                     </div>
                                 )}
@@ -241,31 +222,19 @@ function AddPubModal({ groupRef, db, user, onClose, onAdded }) {
 
                             {/* Dropdown suggestions */}
                             {suggestions.length > 0 && (
-                                <div style={{
-                                    position: 'absolute', top: 'calc(100% + var(--space-1))', left: 0, right: 0, zIndex: 50,
-                                    background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-                                    borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)', overflow: 'hidden',
-                                }}>
+                                <div className="absolute top-[calc(100%+0.25rem)] left-0 right-0 z-50 bg-surface border border-border rounded-lg shadow-lg overflow-hidden">
                                     {suggestions.map((s, i) => {
                                         const { main, secondary } = getSuggestionLabel(s);
                                         return (
                                             <button
                                                 key={i}
                                                 onClick={() => handleSelect(s)}
-                                                style={{
-                                                    width: '100%', textAlign: 'left', padding: 'var(--space-3) var(--space-4)',
-                                                    background: 'transparent', border: 'none', cursor: 'pointer',
-                                                    borderBottom: i < suggestions.length - 1 ? '1px solid var(--color-divider)' : 'none',
-                                                    display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)',
-                                                    transition: 'background var(--transition-interactive)',
-                                                }}
-                                                onMouseEnter={e => e.currentTarget.style.background = 'var(--color-surface-offset)'}
-                                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                className={`w-full text-left px-4 py-3 bg-transparent border-none cursor-pointer flex items-start gap-3 transition-colors hover:bg-surface-offset ${i < suggestions.length - 1 ? 'border-b border-divider' : ''}`}
                                             >
-                                                <span style={{ marginTop: '2px', flexShrink: 0 }}>📍</span>
+                                                <span className="mt-0.5 shrink-0">📍</span>
                                                 <div>
-                                                    <p style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-body)' }}>{main}</p>
-                                                    {secondary && <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '2px' }}>{secondary}</p>}
+                                                    <p className="text-sm font-bold text-text font-body">{main}</p>
+                                                    {secondary && <p className="text-xs text-muted mt-0.5">{secondary}</p>}
                                                 </div>
                                             </button>
                                         );
@@ -276,77 +245,65 @@ function AddPubModal({ groupRef, db, user, onClose, onAdded }) {
 
                         {/* Selected place preview */}
                         {selected && (
-                            <div style={{
-                                marginTop: 'var(--space-4)', padding: 'var(--space-4)',
-                                background: 'var(--color-surface-offset)', borderRadius: 'var(--radius-lg)',
-                                border: '1px solid var(--color-border)', display: 'flex', gap: 'var(--space-3)', alignItems: 'center',
-                            }}>
+                            <div className="mt-4 p-4 bg-surface-offset rounded-lg border border-border flex gap-3 items-center">
                                 {(() => {
                                     let photoUrl = '';
                                     try { photoUrl = selected.photos?.[0]?.getURI({ maxWidth: 80 }) || ''; } catch (_) {}
                                     return photoUrl
                                         ? <img src={photoUrl} alt={selected.displayName} loading="lazy" width="56" height="56"
-                                            style={{ width: '3.5rem', height: '3.5rem', borderRadius: 'var(--radius-md)', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--color-border)' }} />
-                                        : <div style={{ width: '3.5rem', height: '3.5rem', borderRadius: 'var(--radius-md)', background: 'var(--color-surface-dynamic)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0 }}>🍺</div>;
+                                            className="w-14 h-14 rounded-md object-cover shrink-0 border border-border" />
+                                        : <div className="w-14 h-14 rounded-md bg-surface-dynamic flex items-center justify-center text-2xl shrink-0">🍺</div>;
                                 })()}
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <p style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)', fontFamily: 'var(--font-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selected.displayName}</p>
-                                    {selected.formattedAddress && <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {selected.formattedAddress}</p>}
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-text font-body truncate">{selected.displayName}</p>
+                                    {selected.formattedAddress && <p className="text-xs text-muted mt-0.5 truncate">📍 {selected.formattedAddress}</p>}
                                 </div>
-                                <div style={{ color: 'var(--color-success)', flexShrink: 0 }}>
+                                <div className="text-success shrink-0">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                                 </div>
                             </div>
                         )}
 
                         <button onClick={() => setManualMode(true)}
-                            style={{ marginTop: 'var(--space-3)', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'var(--font-body)', padding: 0 }}>
+                            className="mt-3 text-xs text-muted bg-transparent border-none cursor-pointer underline font-body p-0 hover:text-text transition-colors">
                             Can't find it? Add manually
                         </button>
                     </>
                 ) : (
                     // Manual fallback form
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    <div className="flex flex-col gap-3">
                         <div>
-                            <label style={{ display: 'block', fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--font-body)' }}>Pub Name *</label>
+                            <label className="block text-xs font-bold text-muted mb-2 uppercase tracking-wide font-body">Pub Name *</label>
                             <input type="text" placeholder="e.g. The Red Lion" value={manualName} onChange={e => setManualName(e.target.value)}
-                                style={{ width: '100%', padding: 'var(--space-3) var(--space-4)', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: 'var(--text-sm)', fontFamily: 'var(--font-body)', outline: 'none' }}
-                                onFocus={e => e.target.style.borderColor = 'var(--color-brand)'}
-                                onBlur={e => e.target.style.borderColor = 'var(--color-border)'} />
+                                className="w-full py-3 px-4 border-2 border-border rounded-lg bg-bg text-text text-sm font-body outline-none transition-colors focus:border-brand" />
                         </div>
                         <div>
-                            <label style={{ display: 'block', fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: 'var(--space-2)', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--font-body)' }}>Location / Address</label>
+                            <label className="block text-xs font-bold text-muted mb-2 uppercase tracking-wide font-body">Location / Address</label>
                             <input type="text" placeholder="e.g. Telford, Shropshire" value={manualLocation} onChange={e => setManualLocation(e.target.value)}
-                                style={{ width: '100%', padding: 'var(--space-3) var(--space-4)', border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)', background: 'var(--color-bg)', color: 'var(--color-text)', fontSize: 'var(--text-sm)', fontFamily: 'var(--font-body)', outline: 'none' }}
-                                onFocus={e => e.target.style.borderColor = 'var(--color-brand)'}
-                                onBlur={e => e.target.style.borderColor = 'var(--color-border)'} />
+                                className="w-full py-3 px-4 border-2 border-border rounded-lg bg-bg text-text text-sm font-body outline-none transition-colors focus:border-brand" />
                         </div>
                         <button onClick={() => setManualMode(false)}
-                            style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'var(--font-body)', padding: 0, textAlign: 'left' }}>
+                            className="text-xs text-muted bg-transparent border-none cursor-pointer underline font-body p-0 text-left hover:text-text transition-colors">
                             ← Back to search
                         </button>
                     </div>
                 )}
 
-                {error && <p style={{ marginTop: 'var(--space-3)', fontSize: 'var(--text-xs)', color: 'var(--color-error)', fontWeight: 600 }}>{error}</p>}
+                {error && <p className="mt-3 text-xs text-error font-bold">{error}</p>}
 
                 {/* Footer actions */}
-                <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-6)', justifyContent: 'flex-end' }}>
+                <div className="flex gap-3 mt-6 justify-end">
                     <button onClick={onClose} disabled={saving}
-                        style={{ padding: 'var(--space-3) var(--space-5)', borderRadius: 'var(--radius-lg)', border: '1.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text)', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-surface-offset)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        className="px-5 py-3 rounded-lg border border-border bg-transparent text-text text-sm font-bold font-body cursor-pointer hover:bg-surface-offset transition-colors">
                         Cancel
                     </button>
                     <button onClick={handleAdd} disabled={saving || (!selected && !manualMode) || (manualMode && !manualName.trim())}
-                        style={{
-                            padding: 'var(--space-3) var(--space-6)', borderRadius: 'var(--radius-lg)', border: 'none',
-                            background: (saving || (!selected && !manualMode) || (manualMode && !manualName.trim())) ? 'var(--color-surface-dynamic)' : 'var(--color-brand)',
-                            color: (saving || (!selected && !manualMode) || (manualMode && !manualName.trim())) ? 'var(--color-text-faint)' : '#fff',
-                            fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: 'var(--font-body)', cursor: saving ? 'wait' : 'pointer',
-                            transition: 'all var(--transition-interactive)',
-                        }}>
-                        {saving ? 'Adding…' : '🎯 Add to Hit List'}
+                        className={`px-6 py-3 rounded-lg border-none text-white text-sm font-bold font-body transition-colors ${(saving || (!selected && !manualMode) || (manualMode && !manualName.trim())) ? 'bg-surface-dynamic text-faint cursor-not-allowed' : 'bg-brand cursor-pointer hover:bg-brand-dark'}`}>
+                        {saving ? (
+                            <div className="flex items-center gap-2">
+                                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />Adding…
+                            </div>
+                        ) : '🎯 Add to Hit List'}
                     </button>
                 </div>
             </div>
@@ -356,30 +313,19 @@ function AddPubModal({ groupRef, db, user, onClose, onAdded }) {
 }
 
 // ─── ConfirmModal ─────────────────────────────────────────────────────────────
-function ConfirmModal({ title, message, confirmLabel, confirmColor = 'var(--color-error)', onConfirm, onCancel }) {
+function ConfirmModal({ title, message, confirmLabel, isDestructive, onConfirm, onCancel }) {
     return (
-        <div style={{
-            position: 'fixed', inset: 0, zIndex: 1100,
-            background: 'oklch(from var(--color-text) l c h / 0.5)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 'var(--space-4)',
-        }} onClick={onCancel}>
-            <div style={{
-                background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)',
-                boxShadow: 'var(--shadow-lg)', width: '100%', maxWidth: '400px',
-                border: '1px solid var(--color-border)', padding: 'var(--space-6)',
-            }} onClick={e => e.stopPropagation()}>
-                <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-text)', marginBottom: 'var(--space-2)' }}>{title}</h3>
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>{message}</p>
-                <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-5)', justifyContent: 'flex-end' }}>
+        <div className="fixed inset-0 z-[1100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn" onClick={onCancel}>
+            <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm border border-border/50 p-6" onClick={e => e.stopPropagation()}>
+                <h3 className="text-base font-bold font-body text-base mb-2">{title}</h3>
+                <p className="text-sm text-muted leading-relaxed">{message}</p>
+                <div className="flex gap-3 mt-5 justify-end">
                     <button onClick={onCancel}
-                        style={{ padding: 'var(--space-2) var(--space-4)', borderRadius: 'var(--radius-lg)', border: '1.5px solid var(--color-border)', background: 'transparent', color: 'var(--color-text)', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'var(--font-body)', cursor: 'pointer' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-surface-offset)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        className="px-4 py-2 rounded-lg border border-border bg-transparent text-base text-sm font-semibold font-body hover:bg-surface-offset transition-colors">
                         Cancel
                     </button>
                     <button onClick={onConfirm}
-                        style={{ padding: 'var(--space-2) var(--space-5)', borderRadius: 'var(--radius-lg)', border: 'none', background: confirmColor, color: '#fff', fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: 'var(--font-body)', cursor: 'pointer' }}>
+                        className={`px-5 py-2 rounded-lg text-white text-sm font-bold font-body transition-colors ${isDestructive ? 'bg-error hover:opacity-80' : 'bg-success hover:opacity-80'}`}>
                         {confirmLabel}
                     </button>
                 </div>
@@ -394,16 +340,9 @@ function Toast({ message, type = 'success', onDismiss }) {
         const t = setTimeout(onDismiss, 3500);
         return () => clearTimeout(t);
     }, [onDismiss]);
-    const bg = type === 'success' ? 'var(--color-success)' : type === 'error' ? 'var(--color-error)' : 'var(--color-text)';
+    const bgClass = type === 'success' ? 'bg-success text-white' : type === 'error' ? 'bg-error text-white' : 'bg-surface-dynamic text-base';
     return (
-        <div style={{
-            position: 'fixed', bottom: 'var(--space-6)', left: '50%', transform: 'translateX(-50%)',
-            zIndex: 2000, background: bg, color: '#fff',
-            padding: 'var(--space-3) var(--space-6)', borderRadius: 'var(--radius-full)',
-            boxShadow: 'var(--shadow-lg)', fontSize: 'var(--text-sm)', fontWeight: 700,
-            fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', pointerEvents: 'none',
-            animation: 'toastIn 0.25s cubic-bezier(0.16,1,0.3,1)',
-        }}>
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[2000] px-6 py-3 rounded-full shadow-lg text-sm font-bold font-body whitespace-nowrap pointer-events-none animate-[toastIn_0.25s_cubic-bezier(0.16,1,0.3,1)] ${bgClass}`}>
             {message}
             <style>{`@keyframes toastIn { from { opacity:0; transform:translateX(-50%) translateY(12px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }`}</style>
         </div>
@@ -435,36 +374,19 @@ function PubCard({ pub, canDelete, allUsers, onMarkVisited, onDelete }) {
 
     return (
         <>
-            <div style={{
-                background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-sm)',
-                overflow: 'hidden', display: 'flex', flexDirection: 'column',
-                transition: 'all var(--transition-interactive)',
-            }}
-                onMouseEnter={e => { e.currentTarget.style.boxShadow = 'var(--shadow-md)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; e.currentTarget.style.transform = 'none'; }}
-            >
+            <div className="card-glass overflow-hidden flex flex-col transition-transform hover:-translate-y-0.5 hover:shadow-md">
                 {/* Photo */}
-                <div style={{ height: '11rem', background: 'var(--color-surface-offset)', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
+                <div className="h-44 bg-surface-offset relative overflow-hidden shrink-0">
                     {pub.photoURL
                         ? <img src={pub.photoURL} alt={pub.name} loading="lazy" width="400" height="176"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            className="w-full h-full object-cover"
                             onError={e => { e.target.style.display = 'none'; }} />
-                        : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem', opacity: 0.3 }}>🍺</div>
+                        : <div className="w-full h-full flex items-center justify-center text-5xl opacity-30">🍺</div>
                     }
                     {/* Google Maps link */}
                     {pub.googleLink && (
                         <a href={pub.googleLink} target="_blank" rel="noopener noreferrer"
-                            style={{
-                                position: 'absolute', top: 'var(--space-2)', right: 'var(--space-2)',
-                                background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
-                                borderRadius: 'var(--radius-md)', padding: 'var(--space-1) var(--space-2)',
-                                display: 'flex', alignItems: 'center', gap: 'var(--space-1)',
-                                fontSize: 'var(--text-xs)', fontWeight: 700, color: '#fff',
-                                textDecoration: 'none', transition: 'background var(--transition-interactive)',
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.8)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.55)'}
+                            className="absolute top-2 right-2 bg-black/55 backdrop-blur-sm rounded-md px-2 py-1 flex items-center gap-1 text-xs font-bold text-white no-underline transition-colors hover:bg-black/80"
                         >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                             Maps
@@ -474,16 +396,7 @@ function PubCard({ pub, canDelete, allUsers, onMarkVisited, onDelete }) {
                     {canDelete && (
                         <button onClick={() => setConfirmDelete(true)}
                             aria-label="Remove from hit list"
-                            style={{
-                                position: 'absolute', top: 'var(--space-2)', left: 'var(--space-2)',
-                                background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
-                                borderRadius: 'var(--radius-md)', padding: 'var(--space-1) var(--space-2)',
-                                color: '#fff', fontSize: 'var(--text-xs)', fontWeight: 700,
-                                display: 'flex', alignItems: 'center', gap: 'var(--space-1)',
-                                border: 'none', cursor: 'pointer', transition: 'background var(--transition-interactive)',
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(161,44,123,0.8)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0.55)'}
+                            className="absolute top-2 left-2 bg-black/55 backdrop-blur-sm rounded-md px-2 py-1 text-white text-xs font-bold flex items-center gap-1 border-none cursor-pointer transition-colors hover:bg-error/80"
                         >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                             Remove
@@ -492,39 +405,29 @@ function PubCard({ pub, canDelete, allUsers, onMarkVisited, onDelete }) {
                 </div>
 
                 {/* Body */}
-                <div style={{ padding: 'var(--space-4)', flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                    <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-text)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pub.name}</h3>
+                <div className="p-4 flex-1 flex flex-col gap-2">
+                    <h3 className="text-base font-bold font-body text-base leading-tight truncate">{pub.name}</h3>
                     {pub.location && (
-                        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <p className="text-xs text-muted truncate">
                             📍 {pub.location}
                         </p>
                     )}
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)', marginTop: 'auto', paddingTop: 'var(--space-2)' }}>
-                        Added by <strong style={{ color: 'var(--color-text-muted)' }}>{addedByName}</strong> · {relativeTime(pub.createdAt)}
+                    <p className="text-xs text-faint mt-auto pt-2">
+                        Added by <strong className="text-muted">{addedByName}</strong> · {relativeTime(pub.createdAt)}
                     </p>
                 </div>
 
                 {/* Mark as Visited CTA */}
-                <div style={{ padding: 'var(--space-3) var(--space-4)', borderTop: '1px solid var(--color-divider)' }}>
+                <div className="p-3 border-t border-divider">
                     <button
                         onClick={() => setConfirmVisit(true)}
                         disabled={visiting}
-                        style={{
-                            width: '100%', padding: 'var(--space-3)', borderRadius: 'var(--radius-lg)',
-                            border: '1.5px solid var(--color-brand)',
-                            background: 'transparent', color: 'var(--color-brand)',
-                            fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: 'var(--font-body)',
-                            cursor: visiting ? 'wait' : 'pointer',
-                            transition: 'all var(--transition-interactive)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)',
-                        }}
-                        onMouseEnter={e => { if (!visiting) { e.currentTarget.style.background = 'var(--color-brand)'; e.currentTarget.style.color = '#fff'; } }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-brand)'; }}
+                        className="w-full p-3 rounded-lg border-2 border-brand bg-transparent text-brand text-sm font-bold font-body cursor-pointer transition-colors flex items-center justify-center gap-2 hover:bg-brand hover:text-white disabled:opacity-50 disabled:cursor-wait"
                     >
                         {visiting ? (
-                            <><div style={{ width: '14px', height: '14px', border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />Moving…</>
+                            <><div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />Moving…</>
                         ) : (
-                            <>✅ We've Been Here — Move to Pub List</>
+                            <>✅ We've Been Here</>
                         )}
                     </button>
                 </div>
@@ -535,7 +438,7 @@ function PubCard({ pub, canDelete, allUsers, onMarkVisited, onDelete }) {
                     title="Mark as visited?"
                     message={`This will move "${pub.name}" to the Pub List where it can be rated by the group.`}
                     confirmLabel="✅ Yes, we've been!"
-                    confirmColor="var(--color-success)"
+                    isDestructive={false}
                     onConfirm={handleVisit}
                     onCancel={() => setConfirmVisit(false)}
                 />
@@ -545,12 +448,11 @@ function PubCard({ pub, canDelete, allUsers, onMarkVisited, onDelete }) {
                     title="Remove from Hit List?"
                     message={`"${pub.name}" will be removed from the hit list entirely. This can't be undone.`}
                     confirmLabel="Remove"
-                    confirmColor="var(--color-error)"
+                    isDestructive={true}
                     onConfirm={handleDelete}
                     onCancel={() => setConfirmDelete(false)}
                 />
             )}
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </>
     );
 }
@@ -606,15 +508,15 @@ export default function PubsToVisitPage({ pubs = [], groupRef, db, user, allUser
     };
 
     return (
-        <div style={{ padding: 'var(--space-6)', maxWidth: 'var(--content-wide)', margin: '0 auto' }}>
+        <div className="p-6 max-w-[1200px] mx-auto">
 
             {/* ── Page header ── */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)', marginBottom: 'var(--space-6)', flexWrap: 'wrap' }}>
+            <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
                 <div>
-                    <h1 style={{ fontSize: 'var(--text-xl)', fontFamily: 'var(--font-display)', fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.2 }}>
+                    <h1 className="text-xl font-display font-bold text-text leading-tight">
                         🎯 Hit List
                     </h1>
-                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>
+                    <p className="text-sm text-muted mt-1">
                         {hitList.length === 0 && !search
                             ? 'No pubs on the list yet — add the first one!'
                             : `${hitList.length} pub${hitList.length !== 1 ? 's' : ''} to visit`}
@@ -622,16 +524,7 @@ export default function PubsToVisitPage({ pubs = [], groupRef, db, user, allUser
                 </div>
                 <button
                     onClick={() => setShowAddModal(true)}
-                    style={{
-                        display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
-                        padding: 'var(--space-3) var(--space-5)', borderRadius: 'var(--radius-lg)',
-                        border: 'none', background: 'var(--color-brand)', color: '#fff',
-                        fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: 'var(--font-body)',
-                        cursor: 'pointer', boxShadow: 'var(--shadow-sm)',
-                        transition: 'all var(--transition-interactive)',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-brand-dark, #0c4e54)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-brand)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}
+                    className="flex items-center gap-2 px-5 py-3 rounded-lg border-none bg-brand text-white text-sm font-bold font-body cursor-pointer shadow-sm transition-all hover:bg-brand-dark hover:shadow-md"
                 >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     Add a Pub
@@ -639,34 +532,20 @@ export default function PubsToVisitPage({ pubs = [], groupRef, db, user, allUser
             </div>
 
             {/* ── Search + Sort bar ── */}
-            <div style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-6)', flexWrap: 'wrap' }}>
-                <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+            <div className="flex gap-3 mb-6 flex-wrap">
+                <div className="relative flex-1 min-w-[200px]">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                        style={{ position: 'absolute', left: 'var(--space-3)', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', pointerEvents: 'none' }}>
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
                         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                     </svg>
                     <input
                         type="text" placeholder="Search hit list…" value={search} onChange={e => setSearch(e.target.value)}
-                        style={{
-                            width: '100%', padding: 'var(--space-3) var(--space-4) var(--space-3) 2.25rem',
-                            border: '1.5px solid var(--color-border)', borderRadius: 'var(--radius-lg)',
-                            background: 'var(--color-surface)', color: 'var(--color-text)',
-                            fontSize: 'var(--text-sm)', fontFamily: 'var(--font-body)', outline: 'none',
-                            transition: 'border-color var(--transition-interactive)',
-                        }}
-                        onFocus={e => e.target.style.borderColor = 'var(--color-brand)'}
-                        onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
+                        className="w-full py-3 pr-4 pl-9 border-2 border-border rounded-lg bg-surface text-text text-sm font-body outline-none transition-colors focus:border-brand"
                     />
                 </div>
                 <select value={sort} onChange={e => setSort(e.target.value)}
-                    style={{
-                        padding: 'var(--space-3) var(--space-4)', borderRadius: 'var(--radius-lg)',
-                        border: '1.5px solid var(--color-border)', background: 'var(--color-surface)',
-                        color: 'var(--color-text)', fontSize: 'var(--text-sm)', fontFamily: 'var(--font-body)',
-                        cursor: 'pointer', outline: 'none',
-                    }}
-                    onFocus={e => e.target.style.borderColor = 'var(--color-brand)'}
-                    onBlur={e => e.target.style.borderColor = 'var(--color-border)'}>
+                    className="px-4 py-3 rounded-lg border-2 border-border bg-surface text-text text-sm font-body cursor-pointer outline-none transition-colors focus:border-brand appearance-none"
+                >
                     <option value="newest">Newest first</option>
                     <option value="az">A → Z</option>
                 </select>
@@ -674,11 +553,7 @@ export default function PubsToVisitPage({ pubs = [], groupRef, db, user, allUser
 
             {/* ── Cards grid ── */}
             {hitList.length > 0 ? (
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))',
-                    gap: 'var(--space-5)',
-                }}>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(280px,100%),1fr))] gap-5">
                     {hitList.map(pub => (
                         <PubCard
                             key={pub.id}
@@ -691,26 +566,21 @@ export default function PubsToVisitPage({ pubs = [], groupRef, db, user, allUser
                     ))}
                 </div>
             ) : (
-                <div style={{ textAlign: 'center', padding: 'var(--space-20) var(--space-8)' }}>
+                <div className="text-center py-20 px-8">
                     {search ? (
                         <>
-                            <div style={{ fontSize: '3rem', marginBottom: 'var(--space-4)', opacity: 0.4 }}>🔍</div>
-                            <p style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--color-text)', marginBottom: 'var(--space-2)' }}>No results for "{search}"</p>
-                            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Try a different name or clear the search.</p>
+                            <div className="text-5xl mb-4 opacity-40">🔍</div>
+                            <p className="text-base font-bold text-text mb-2">No results for "{search}"</p>
+                            <p className="text-sm text-muted">Try a different name or clear the search.</p>
                         </>
                     ) : (
                         <>
-                            <div style={{ fontSize: '3.5rem', marginBottom: 'var(--space-4)' }}>🎯</div>
-                            <p style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--color-text)', marginBottom: 'var(--space-2)' }}>The hit list is empty!</p>
-                            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', maxWidth: '32ch', margin: '0 auto var(--space-6)' }}>Start building your group's bucket list of pubs to visit.</p>
+                            <div className="text-6xl mb-4">🎯</div>
+                            <p className="text-base font-bold text-text mb-2">The hit list is empty!</p>
+                            <p className="text-sm text-muted max-w-[32ch] mx-auto mb-6">Start building your group's bucket list of pubs to visit.</p>
                             <button
                                 onClick={() => setShowAddModal(true)}
-                                style={{
-                                    display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)',
-                                    padding: 'var(--space-3) var(--space-6)', borderRadius: 'var(--radius-lg)',
-                                    border: 'none', background: 'var(--color-brand)', color: '#fff',
-                                    fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: 'var(--font-body)', cursor: 'pointer',
-                                }}
+                                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border-none bg-brand text-white text-sm font-bold font-body cursor-pointer hover:bg-brand-dark transition-colors"
                             >
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                                 Add the first pub

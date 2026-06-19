@@ -72,12 +72,12 @@ export default function CheckInButton({ user, pubs = [], groupId, db }) {
                     bottom-20 right-4
                     md:bottom-6 md:right-6
                     w-14 h-14 rounded-full
-                    bg-amber-600 hover:bg-amber-700 active:scale-95
+                    bg-brand hover:bg-brand-hover active:bg-brand-active active:scale-95
                     text-white shadow-xl
                     flex items-center justify-center
                     text-2xl
                     transition-all duration-200
-                    border-2 border-amber-500
+                    border-2 border-brand
                 "
             >
                 📍
@@ -129,7 +129,7 @@ export default function CheckInButton({ user, pubs = [], groupId, db }) {
                                     onChange={e => setSearch(e.target.value)}
                                     placeholder="Search visited pubs…"
                                     autoFocus
-                                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition"
+                                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand transition"
                                 />
                             </div>
                         </div>
@@ -150,7 +150,7 @@ export default function CheckInButton({ user, pubs = [], groupId, db }) {
                                             transition-all text-left
                                             ${
                                                 selected?.id === pub.id
-                                                    ? 'bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-500'
+                                                    ? 'bg-brand-subtle dark:bg-brand-highlight border-2 border-brand'
                                                     : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-2 border-transparent'
                                             }
                                         `}
@@ -164,7 +164,7 @@ export default function CheckInButton({ user, pubs = [], groupId, db }) {
                                                 width="40" height="40"
                                             />
                                         ) : (
-                                            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-lg flex-shrink-0">
+                                            <div className="w-10 h-10 rounded-full bg-brand-subtle dark:bg-brand-highlight flex items-center justify-center text-lg flex-shrink-0">
                                                 🍺
                                             </div>
                                         )}
@@ -175,7 +175,7 @@ export default function CheckInButton({ user, pubs = [], groupId, db }) {
                                             )}
                                         </div>
                                         {selected?.id === pub.id && (
-                                            <span className="text-amber-600 dark:text-amber-400 text-lg flex-shrink-0">✓</span>
+                                            <span className="text-brand text-lg flex-shrink-0">✓</span>
                                         )}
                                     </button>
                                 ))
@@ -190,12 +190,12 @@ export default function CheckInButton({ user, pubs = [], groupId, db }) {
                                 onChange={e => setNote(e.target.value)}
                                 maxLength={120}
                                 placeholder="Add a note… (optional)"
-                                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 transition"
+                                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand transition"
                             />
                             <button
                                 onClick={handleSubmit}
                                 disabled={!selected || saving}
-                                className="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm transition shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="w-full py-3 rounded-xl bg-brand hover:bg-brand-hover active:bg-brand-active text-white font-bold text-sm transition shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 {saving ? 'Checking in…' : selected ? `Check in at ${selected.name}` : 'Select a pub first'}
                             </button>

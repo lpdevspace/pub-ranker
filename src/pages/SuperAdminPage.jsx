@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { firebase, storage } from '../firebase';
 import imageCompression from 'browser-image-compression';
 import ConfirmModal from '../components/ConfirmModal';
@@ -31,8 +31,116 @@ function ToastContainer({ toasts }) {
     );
 }
 
+// ---------------------------------------------------------------------------
+// Navigation groups & icons configurations
+// ---------------------------------------------------------------------------
+const SUPER_NAV_GROUPS = [
+    {
+        label: 'System Management',
+        items: [
+            { id: 'overview', icon: 'dashboard', label: 'Overview Dashboard' },
+            { id: 'users', icon: 'users', label: 'User Directory', adminOnly: true },
+            { id: 'roles', icon: 'roles', label: 'Custom Roles', superAdminOnly: true },
+            { id: 'gamification', icon: 'gamification', label: 'Gamification Engine', adminOnly: true },
+        ],
+    },
+    {
+        label: 'Global Directory',
+        items: [
+            { id: 'pubs', icon: 'pubs', label: 'Master Pubs', adminOnly: true },
+            { id: 'claims', icon: 'claims', label: 'Venue Claims', adminOnly: true, showBadge: 'claimsCount' },
+            { id: 'tags', icon: 'tags', label: 'Global Tags', adminOnly: true },
+        ],
+    },
+    {
+        label: 'Community Operations',
+        items: [
+            { id: 'moderation', icon: 'moderation', label: 'Moderation Queue', showBadge: 'reportsCount' },
+            { id: 'feedback', icon: 'feedback', label: 'Feedback Inbox', showBadge: 'feedbackCount' },
+        ],
+    },
+];
+
+function SuperAdminNavIcon({ type }) {
+    switch (type) {
+        case 'dashboard':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-amber-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <rect x="3" y="3" width="7" height="9" rx="1" />
+                    <rect x="14" y="3" width="7" height="5" rx="1" />
+                    <rect x="14" y="12" width="7" height="9" rx="1" />
+                    <rect x="3" y="16" width="7" height="5" rx="1" />
+                </svg>
+            );
+        case 'users':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+            );
+        case 'roles':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-purple-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    <path d="M9 11l2 2 4-4" />
+                </svg>
+            );
+        case 'gamification':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <line x1="6" y1="12" x2="10" y2="12" /><line x1="8" y1="10" x2="8" y2="14" />
+                    <line x1="15" y1="13" x2="15.01" y2="13" /><line x1="18" y1="11" x2="18.01" y2="11" />
+                    <rect x="2" y="6" width="20" height="12" rx="3" />
+                </svg>
+            );
+        case 'pubs':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-rose-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+                    <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
+                    <line x1="6" y1="1.5" x2="6" y2="4.5" />
+                    <line x1="10" y1="1.5" x2="10" y2="4.5" />
+                    <line x1="14" y1="1.5" x2="14" y2="4.5" />
+                </svg>
+            );
+        case 'claims':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-teal-505" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path d="M3 21h18M3 7v14M21 7v14M12 3v4M8 11h2M8 15h2M14 11h2M14 15h2" />
+                </svg>
+            );
+        case 'tags':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-emerald-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                    <line x1="7" y1="7" x2="7.01" y2="7" />
+                </svg>
+            );
+        case 'moderation':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-red-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+            );
+        case 'feedback':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-cyan-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+            );
+        default:
+            return <span>⚙️</span>;
+    }
+}
+
 export default function SuperAdminPage({ db, userProfile, user }) {
     const [activeTab, setActiveTab] = useState('overview');
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const [stats, setStats] = useState({ users: 0, groups: 0, pubs: 0 });
     const [groupsList, setGroupsList] = useState([]);
@@ -698,17 +806,83 @@ export default function SuperAdminPage({ db, userProfile, user }) {
         link.click();
     };
 
+    const activeLabel = useMemo(() => {
+        for (const group of SUPER_NAV_GROUPS) {
+            const item = group.items.find(i => i.id === activeTab);
+            if (item) return item.label;
+        }
+        return activeTab;
+    }, [activeTab]);
+
     if (!isModerator) return <div className="p-8 text-center text-red-500 font-bold text-xl mt-12">🛑 Access Denied. Staff Only.</div>;
     if (loading) return <div className="p-8 text-center animate-pulse dark:text-gray-300 mt-12">Fetching secure metrics...</div>;
 
-    let availableTabs = ['overview', 'moderation', 'feedback'];
-    if (isAdmin) availableTabs.push('pubs', 'claims', 'tags', 'users', 'gamification');
-    if (isTrueSuperAdmin) availableTabs.push('roles');
-
     const sortedPubsForDropdown = [...pubsList].sort((a, b) => a.name.localeCompare(b.name));
 
+
+    const SidebarContent = () => (
+        <nav className="p-4 space-y-5">
+            <div className="px-3 py-2 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-200/60 dark:border-gray-700 select-none">
+                <span className="text-[9px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500">Access Role</span>
+                <p className="text-xs font-bold text-brand truncate leading-tight mt-0.5">
+                    {isTrueSuperAdmin ? '👑 Super Admin' : isAdmin ? '🛡️ Admin' : '🛠️ Moderator'}
+                </p>
+            </div>
+
+            {SUPER_NAV_GROUPS.map(group => {
+                const visibleItems = group.items.filter(item => {
+                    if (item.superAdminOnly) return isTrueSuperAdmin;
+                    if (item.adminOnly) return isAdmin;
+                    return true;
+                });
+                if (visibleItems.length === 0) return null;
+
+                return (
+                    <div key={group.label} className="space-y-1">
+                        <p className="px-3 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-550 select-none">
+                            {group.label}
+                        </p>
+                        <div className="flex flex-col gap-0.5">
+                            {visibleItems.map(item => {
+                                const isActive = activeTab === item.id;
+                                return (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => {
+                                            setActiveTab(item.id);
+                                            setSidebarOpen(false);
+                                        }}
+                                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                            isActive
+                                                ? 'bg-brand/10 dark:bg-brand-highlight/20 text-brand'
+                                                : 'text-gray-600 dark:text-gray-405 hover:bg-gray-50 dark:hover:bg-gray-750 hover:text-gray-900 dark:hover:text-white'
+                                        }`}
+                                    >
+                                        <SuperAdminNavIcon type={item.icon} />
+                                        <span className="truncate">{item.label}</span>
+                                        {item.showBadge === 'claimsCount' && venueClaimsList.length > 0 && (
+                                            <span className="ml-auto bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-pulse">{venueClaimsList.length}</span>
+                                        )}
+                                        {item.showBadge === 'reportsCount' && reportsList.length > 0 && (
+                                            <span className="ml-auto bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-pulse">{reportsList.length}</span>
+                                        )}
+                                        {item.showBadge === 'feedbackCount' && feedbackList.filter(f => !f.resolved).length > 0 && (
+                                            <span className="ml-auto bg-brand text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                                                {feedbackList.filter(f => !f.resolved).length}
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            })}
+        </nav>
+    );
+
     return (
-        <div className="space-y-6 animate-fadeIn relative pb-20">
+        <div className="w-full">
             <ToastContainer toasts={toasts} />
             {confirmState && (
                 <ConfirmModal
@@ -720,7 +894,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
             {managingGroup && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-2xl max-w-2xl w-full border border-gray-200 dark:border-gray-700 relative max-h-[90vh] flex flex-col">
-                        <button onClick={() => setManagingGroup(null)} className="absolute top-4 right-4 w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white transition">✕</button>
+                        <button onClick={() => setManagingGroup(null)} className="absolute top-4 right-4 w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white transition cursor-pointer">✕</button>
                         <h3 className="text-2xl font-black text-gray-800 dark:text-white mb-1 pr-10 truncate">{managingGroup.groupName}</h3>
                         <p className="text-sm text-gray-500 mb-6 font-bold uppercase tracking-wider">Member Management</p>
                         <div className="overflow-y-auto flex-1 pr-2 space-y-3">
@@ -729,9 +903,9 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                 const isOwner = managingGroup.ownerUid === uid;
                                 const isManager = managingGroup.managers?.includes(uid);
                                 return (
-                                    <div key={uid} className="flex flex-col sm:flex-row justify-between sm:items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-600 gap-3 transition-colors hover:bg-white dark:hover:bg-gray-700">
+                                    <div key={uid} className="flex flex-col sm:flex-row justify-between sm:items-center bg-gray-50 dark:bg-gray-700/50 p-3 rounded-xl border border-gray-200 dark:border-gray-600 gap-3 transition-colors hover:bg-white dark:hover:bg-gray-700">
                                         <div>
-                                            <p className="font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                                            <p className="font-bold text-gray-805 dark:text-white flex items-center gap-2">
                                                 {u.displayName}
                                                 {isOwner ? <span className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-wider">Owner</span>
                                                  : isManager ? <span className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-wider">Manager</span>
@@ -741,9 +915,9 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                         </div>
                                         {!isOwner ? (
                                             <div className="flex flex-wrap gap-2">
-                                                <button onClick={() => handlePromoteToOwner(managingGroup.id, uid)} className="text-[10px] bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:hover:bg-purple-900/40 px-2 py-1.5 rounded font-bold uppercase transition">Make Owner</button>
-                                                <button onClick={() => handleToggleManager(managingGroup.id, uid, isManager)} className="text-[10px] bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 px-2 py-1.5 rounded font-bold uppercase transition">{isManager ? 'Revoke Manager' : 'Make Manager'}</button>
-                                                <button onClick={() => handleRemoveMember(managingGroup.id, uid)} className="text-[10px] bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 px-2 py-1.5 rounded font-bold uppercase transition">Remove</button>
+                                                <button onClick={() => handlePromoteToOwner(managingGroup.id, uid)} className="text-[10px] bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:hover:bg-purple-900/40 px-2.5 py-1.5 rounded-xl font-bold uppercase transition cursor-pointer">Make Owner</button>
+                                                <button onClick={() => handleToggleManager(managingGroup.id, uid, isManager)} className="text-[10px] bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 px-2.5 py-1.5 rounded-xl font-bold uppercase transition cursor-pointer">{isManager ? 'Revoke Manager' : 'Make Manager'}</button>
+                                                <button onClick={() => handleRemoveMember(managingGroup.id, uid)} className="text-[10px] bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40 px-2.5 py-1.5 rounded-xl font-bold uppercase transition cursor-pointer">Remove</button>
                                             </div>
                                         ) : (
                                             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider italic">Cannot modify owner</span>
@@ -757,578 +931,1122 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                 </div>
             )}
 
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            {/* Page Header */}
+            <div className="mb-6 flex justify-between items-end">
                 <div>
-                    <h2 className="text-3xl font-bold text-gray-800 dark:text-white transition-colors">Staff Dashboard</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Access Level: {isTrueSuperAdmin ? '👑 Super Admin' : isAdmin ? '🛡️ Admin' : '🛠️ Moderator'}</p>
-                </div>
-                <div className="flex flex-wrap bg-gray-200 dark:bg-gray-700 p-1 rounded-lg gap-1">
-                    {availableTabs.map(tab => (
-                        <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-md text-sm font-semibold capitalize transition-all ${activeTab === tab ? 'bg-white dark:bg-gray-800 text-brand shadow' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}>
-                            {tab === 'moderation' && (reportsList.length > 0 ? '🚨 ' : '🛡️ ')}
-                            {tab === 'claims' && '🏢 '}
-                            {tab === 'gamification' && '🕹️ '}
-                            {tab === 'tags' && '🏷️ '}
-                            {tab === 'feedback' && feedbackList.filter(f => !f.resolved).length > 0 && '🔴 '}
-                            {tab}
-                            {tab === 'claims' && venueClaimsList.length > 0 && (
-                                <span className="ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">{venueClaimsList.length}</span>
-                            )}
-                        </button>
-                    ))}
+                    <h2 className="text-3xl font-black text-gray-850 dark:text-white leading-tight">Global Management</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Global configuration, community safety queues, feedback, and user database control.</p>
                 </div>
             </div>
 
-            {isTrueSuperAdmin && (
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-red-600 flex justify-between items-center">
-                    <div>
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-white">Maintenance Mode</h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Instantly lock all non-admin users out of the app.</p>
-                    </div>
-                    <button onClick={handleToggleMaintenance} className={`px-6 py-2 rounded font-bold text-white transition-all ${isMaintenanceMode ? 'bg-red-600 hover:bg-red-700 animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.6)]' : 'bg-gray-400 hover:bg-gray-500'}`}>
-                        {isMaintenanceMode ? '🛑 ACTIVE: App Locked' : 'Enable Lockout'}
-                    </button>
+            {/* Mobile: top bar with hamburger */}
+            <div className="flex items-center gap-3 mb-4 md:hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-2.5 rounded-2xl shadow-sm">
+                <button
+                    onClick={() => setSidebarOpen(o => !o)}
+                    className="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-750 text-gray-650 dark:text-gray-300 transition cursor-pointer border border-gray-200 dark:border-gray-655"
+                    aria-label="Toggle admin menu"
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <line x1="3" y1="6"  x2="21" y2="6"  />
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
+                </button>
+                <span className="text-xs font-bold text-gray-750 dark:text-gray-200 uppercase tracking-wider">{activeLabel}</span>
+            </div>
+
+            {/* Mobile: slide-down sidebar */}
+            {sidebarOpen && (
+                <div className="md:hidden mb-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden animate-fadeIn">
+                    <SidebarContent />
                 </div>
             )}
 
-            {/* OVERVIEW TAB */}
-            {activeTab === 'overview' && (
-                <div className="space-y-6 animate-fadeIn">
-                    {isAdmin && (
-                        <>
-                            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">🚀 App Config & Feature Flags</h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-600">
-                                        <div><p className="font-bold text-gray-800 dark:text-gray-200">Enable Comments</p></div>
-                                        <input type="checkbox" checked={featureFlags.enableComments || false} onChange={() => handleToggleFlag('enableComments')} className="w-5 h-5 cursor-pointer accent-brand" />
+            {/* Main Shell Grid Layout */}
+            <div className="flex flex-col md:flex-row gap-6 items-start">
+                
+                {/* Desktop Sidebar */}
+                <aside className="hidden md:block w-56 shrink-0 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm sticky top-20 overflow-hidden">
+                    <SidebarContent />
+                </aside>
+
+                {/* Sub-view Content Container */}
+                <div className="flex-1 min-w-0 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 min-h-[520px] w-full">
+                    
+                    {/* OVERVIEW TAB */}
+                    {activeTab === 'overview' && (
+                        <div className="space-y-6 animate-fadeIn">
+                            
+                            {/* Maintenance Warning lockout alert banner */}
+                            {isTrueSuperAdmin && (
+                                <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-red-200 dark:border-red-900/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3.5 bg-red-50/10">
+                                    <div>
+                                        <h4 className="text-sm font-bold text-gray-800 dark:text-white">Emergency Lockdown Mode</h4>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">Instantly lock all non-admin users out of the active app sessions.</p>
                                     </div>
-                                    <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-600">
-                                        <div><p className="font-bold text-gray-800 dark:text-gray-200">Enable Reactions</p></div>
-                                        <input type="checkbox" checked={featureFlags.enableReactions || false} onChange={() => handleToggleFlag('enableReactions')} className="w-5 h-5 cursor-pointer accent-brand" />
+                                    <button
+                                        onClick={handleToggleMaintenance}
+                                        className={`px-5 py-2.5 rounded-xl font-bold text-xs text-white transition-all cursor-pointer ${
+                                            isMaintenanceMode
+                                                ? 'bg-red-600 hover:bg-red-700 animate-pulse shadow-[0_0_15px_rgba(220,38,38,0.6)]'
+                                                : 'bg-gray-400 hover:bg-gray-500'
+                                        }`}
+                                    >
+                                        {isMaintenanceMode ? '🛑 Active: Lock Enabled' : 'Enable Maintenance Lock'}
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Analytics KPI Widgets Grid */}
+                            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                                {/* Total Users */}
+                                <div className="bg-white dark:bg-gray-805 p-4 rounded-2xl border border-gray-200/60 dark:border-gray-750 shadow-sm flex flex-col justify-between hover:border-blue-500/20 transition-colors">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-gray-450 dark:text-gray-500 uppercase tracking-wider">Total Users</span>
+                                        <p className="text-3xl font-black text-gray-850 dark:text-white mt-1 tabular-nums">{stats.users}</p>
                                     </div>
-                                    <div className="flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-900/50">
+                                    {isAdmin && <button onClick={() => setActiveTab('users')} className="text-xs font-bold text-brand hover:underline mt-2 text-left cursor-pointer">Manage Users →</button>}
+                                </div>
+                                {/* Total Groups */}
+                                <div className="bg-white dark:bg-gray-850 p-4 rounded-2xl border border-gray-200/60 dark:border-gray-750 shadow-sm flex flex-col justify-between hover:border-purple-500/20 transition-colors">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-gray-450 dark:text-gray-500 uppercase tracking-wider">Active Groups</span>
+                                        <p className="text-3xl font-black text-gray-850 dark:text-white mt-1 tabular-nums">{stats.groups}</p>
+                                    </div>
+                                    <span className="text-xs text-gray-400 dark:text-gray-550 mt-2 select-none">Database Synced</span>
+                                </div>
+                                {/* Total Pubs */}
+                                <div className="bg-white dark:bg-gray-850 p-4 rounded-2xl border border-gray-200/60 dark:border-gray-750 shadow-sm flex flex-col justify-between hover:border-rose-500/20 transition-colors">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-gray-450 dark:text-gray-550 uppercase tracking-wider">Master Pubs</span>
+                                        <p className="text-3xl font-black text-gray-850 dark:text-white mt-1 tabular-nums">{stats.pubs}</p>
+                                    </div>
+                                    {isAdmin && <button onClick={() => setActiveTab('pubs')} className="text-xs font-bold text-brand hover:underline mt-2 text-left cursor-pointer">Pub Directory →</button>}
+                                </div>
+                                {/* Claims Queue */}
+                                <div className="bg-white dark:bg-gray-850 p-4 rounded-2xl border border-gray-200/60 dark:border-gray-750 shadow-sm flex flex-col justify-between hover:border-teal-505/20 transition-colors">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-gray-450 dark:text-gray-550 uppercase tracking-wider">Claims Pending</span>
+                                        <p className={`text-3xl font-black mt-1 tabular-nums ${venueClaimsList.length > 0 ? 'text-teal-650 dark:text-teal-400' : 'text-gray-850 dark:text-white'}`}>{venueClaimsList.length}</p>
+                                    </div>
+                                    {isAdmin ? (
+                                        <button onClick={() => setActiveTab('claims')} className="text-xs font-bold text-brand hover:underline mt-2 text-left cursor-pointer">Review Queue →</button>
+                                    ) : (
+                                        <span className="text-xs text-gray-400 dark:text-gray-550 mt-2">Staff Only</span>
+                                    )}
+                                </div>
+                                {/* Reports Queue */}
+                                <div className="bg-white dark:bg-gray-855 p-4 rounded-2xl border border-gray-200/60 dark:border-gray-750 shadow-sm flex flex-col justify-between hover:border-red-500/20 transition-colors">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-gray-450 dark:text-gray-550 uppercase tracking-wider">Open Reports</span>
+                                        <p className={`text-3xl font-black mt-1 tabular-nums ${reportsList.length > 0 ? 'text-red-650 dark:text-red-400 animate-pulse' : 'text-gray-850 dark:text-white'}`}>{reportsList.length}</p>
+                                    </div>
+                                    <button onClick={() => setActiveTab('moderation')} className="text-xs font-bold text-brand hover:underline mt-2 text-left cursor-pointer">Reports Queue →</button>
+                                </div>
+                                {/* Feedback Inbox */}
+                                <div className="bg-white dark:bg-gray-850 p-4 rounded-2xl border border-gray-200/60 dark:border-gray-750 shadow-sm flex flex-col justify-between hover:border-cyan-500/20 transition-colors">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-gray-450 dark:text-gray-550 uppercase tracking-wider">Inbox Message</span>
+                                        <p className={`text-3xl font-black mt-1 tabular-nums ${feedbackList.filter(f => !f.resolved).length > 0 ? 'text-cyan-650 dark:text-cyan-400' : 'text-gray-850 dark:text-white'}`}>{feedbackList.filter(f => !f.resolved).length}</p>
+                                    </div>
+                                    <button onClick={() => setActiveTab('feedback')} className="text-xs font-bold text-brand hover:underline mt-2 text-left cursor-pointer">Open Inbox →</button>
+                                </div>
+                            </div>
+
+                            {/* Middle section configurations grid */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                {/* System Configuration & Flags */}
+                                {isAdmin && (
+                                    <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col gap-4">
                                         <div>
-                                            <p className="font-bold text-red-800 dark:text-red-300">Disable Google API</p>
-                                            <p className="text-[10px] text-red-600 dark:text-red-400">Kill-switch for API billing</p>
+                                            <h4 className="text-sm font-bold text-gray-800 dark:text-white">App Configuration</h4>
+                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Toggle Global Feature Flags</p>
                                         </div>
-                                        <input type="checkbox" checked={featureFlags.disableGoogleAPI || false} onChange={() => handleToggleFlag('disableGoogleAPI')} className="w-5 h-5 cursor-pointer accent-red-600" />
+                                        <div className="space-y-2 flex-1">
+                                            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-750/30 rounded-xl border border-gray-150 dark:border-gray-750">
+                                                <p className="text-xs font-bold text-gray-805 dark:text-gray-200">Enable Comments</p>
+                                                <input type="checkbox" checked={featureFlags.enableComments || false} onChange={() => handleToggleFlag('enableComments')} className="w-4 h-4 cursor-pointer accent-brand" />
+                                            </div>
+                                            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-750/30 rounded-xl border border-gray-150 dark:border-gray-750">
+                                                <p className="text-xs font-bold text-gray-805 dark:text-gray-200">Enable Reactions</p>
+                                                <input type="checkbox" checked={featureFlags.enableReactions || false} onChange={() => handleToggleFlag('enableReactions')} className="w-4 h-4 cursor-pointer accent-brand" />
+                                            </div>
+                                            <div className="flex justify-between items-center p-3 bg-red-50/40 dark:bg-red-950/20 rounded-xl border border-red-100 dark:border-red-900/40">
+                                                <div>
+                                                    <p className="text-xs font-bold text-red-800 dark:text-red-300">Disable Google API</p>
+                                                    <p className="text-[9px] text-red-650 dark:text-red-400 leading-tight">Kill-switch for API billing</p>
+                                                </div>
+                                                <input type="checkbox" checked={featureFlags.disableGoogleAPI || false} onChange={() => handleToggleFlag('disableGoogleAPI')} className="w-4 h-4 cursor-pointer accent-red-600" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Global Announcement */}
+                                {isAdmin && (
+                                    <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between gap-3">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-gray-800 dark:text-white">Announcement Broadcast</h4>
+                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Global User Alert Banner</p>
+                                        </div>
+                                        <textarea
+                                            value={announcement}
+                                            onChange={(e) => setAnnouncement(e.target.value)}
+                                            placeholder="Type an announcement to display to all users..."
+                                            className="flex-1 w-full p-3 text-xs border dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-750 dark:text-white resize-none min-h-[90px] outline-none"
+                                        />
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={handlePublishAnnouncement}
+                                                disabled={isPublishing || !announcement.trim()}
+                                                className="flex-1 py-2 bg-brand text-white font-bold text-xs rounded-xl hover:opacity-85 disabled:opacity-50 transition cursor-pointer"
+                                            >
+                                                Broadcast Alert
+                                            </button>
+                                            <button
+                                                onClick={handleClearAnnouncement}
+                                                disabled={isPublishing || !announcement}
+                                                className="px-3.5 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-650 text-gray-700 dark:text-gray-300 font-bold text-xs rounded-xl disabled:opacity-50 transition cursor-pointer"
+                                            >
+                                                Clear
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Default Criteria Configuration */}
+                                {isAdmin && (
+                                    <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between gap-3">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-gray-800 dark:text-white">Default Group Criteria</h4>
+                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Applied to newly created groups</p>
+                                        </div>
+                                        
+                                        <div className="flex-1 overflow-y-auto max-h-[120px] space-y-1.5 pr-1 my-1">
+                                            {defaultCriteria.length === 0 ? (
+                                                <p className="text-xs text-gray-500 italic">No defaults set.</p>
+                                            ) : (
+                                                defaultCriteria.map((crit, idx) => (
+                                                    <div key={idx} className="flex justify-between items-center bg-gray-50 dark:bg-gray-750 p-2 rounded-lg border border-gray-200/50 dark:border-gray-700">
+                                                        <div>
+                                                            <span className="font-bold text-xs text-gray-850 dark:text-white mr-2">{crit.name}</span>
+                                                            <span className="text-[9px] uppercase font-bold tracking-wider bg-blue-100 dark:bg-blue-900/30 text-blue-805 dark:text-blue-300 px-1.5 py-0.5 rounded">
+                                                                {crit.type}
+                                                            </span>
+                                                        </div>
+                                                        <button onClick={() => handleDeleteDefaultCriteria(idx)} className="text-red-500 hover:text-red-750 font-bold text-[10px] uppercase tracking-wider cursor-pointer">
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+
+                                        <form onSubmit={handleAddDefaultCriteria} className="flex gap-1.5 mt-1">
+                                            <input
+                                                type="text"
+                                                value={newDefCritName}
+                                                onChange={e => setNewDefCritName(e.target.value)}
+                                                placeholder="e.g. Price"
+                                                className="flex-1 px-3 py-2 text-xs border dark:border-gray-600 rounded-xl bg-gray-55 dark:bg-gray-750 dark:text-white focus:ring-2 focus:ring-brand outline-none"
+                                                required
+                                            />
+                                            <select
+                                                value={newDefCritType}
+                                                onChange={e => setNewDefCritType(e.target.value)}
+                                                className="px-2.5 py-2 text-xs border dark:border-gray-600 rounded-xl bg-gray-55 dark:bg-gray-755 dark:text-white outline-none cursor-pointer"
+                                            >
+                                                <option value="scale">Scale</option>
+                                                <option value="price">Price</option>
+                                                <option value="yes-no">Y/N</option>
+                                                <option value="text">Review</option>
+                                            </select>
+                                            <button type="submit" className="bg-brand text-white px-3 py-2 text-xs rounded-xl font-bold hover:opacity-85 transition cursor-pointer">
+                                                Add
+                                            </button>
+                                        </form>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Active Groups System Database Table */}
+                            {isAdmin && (
+                                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/20 gap-3">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-gray-800 dark:text-white">Active Groups System Database</h4>
+                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Global Group List</p>
+                                        </div>
+                                        <button
+                                            onClick={handleCleanupOrphanedGroups}
+                                            className="bg-orange-500 hover:bg-orange-600 text-white px-3.5 py-2 rounded-xl font-bold text-xs transition shadow-sm flex items-center gap-1.5 cursor-pointer"
+                                        >
+                                            🧹 Deep Clean Orphaned Groups
+                                        </button>
+                                    </div>
+                                    <div className="overflow-x-auto max-h-[320px] p-2">
+                                        <table className="w-full text-left border-collapse text-xs">
+                                            <thead className="bg-gray-50 dark:bg-gray-750 text-gray-555 dark:text-gray-400 sticky top-0 font-bold border-b border-gray-200 dark:border-gray-700">
+                                                <tr>
+                                                    <th className="p-4">Group Name</th>
+                                                    <th className="p-4 text-center">Members</th>
+                                                    <th className="p-4">Owner UID</th>
+                                                    <th className="p-4 text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-150 dark:divide-gray-750 text-gray-750 dark:text-gray-200">
+                                                {groupsList.map(g => (
+                                                    <tr key={g.id} className="hover:bg-gray-50 dark:hover:bg-gray-750/30 transition-colors">
+                                                        <td className="p-4 font-bold">{g.groupName}</td>
+                                                        <td className="p-4 text-center">
+                                                            <span className={`py-1 px-2.5 rounded-full font-semibold text-[10px] ${g.members?.length === 0 ? 'bg-red-100 text-red-800' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-805 dark:text-blue-300'}`}>
+                                                                {g.members?.length || 0}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4 font-mono text-[10px] text-gray-400 truncate max-w-[130px]">{g.ownerUid}</td>
+                                                        <td className="p-4 text-right">
+                                                            <div className="flex justify-end gap-1.5">
+                                                                {(!g.members || !g.members.includes(user?.uid)) && (
+                                                                    <button onClick={() => handleJoinGroup(g.id, g.groupName)} className="text-[10px] bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 hover:bg-green-100/60 dark:hover:bg-green-900/40 px-2.5 py-1.5 rounded-xl font-bold uppercase transition cursor-pointer">
+                                                                        Join
+                                                                    </button>
+                                                                )}
+                                                                <button onClick={() => setManagingGroup(g)} className="text-[10px] bg-brand/10 dark:bg-brand-highlight/20 text-brand hover:bg-brand/20 px-2.5 py-1.5 rounded-xl font-bold uppercase transition cursor-pointer">
+                                                                    Manage Members
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2 flex items-center gap-2">⚙️ Global Default Criteria</h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">These criteria will be automatically added to any brand new group when it is created.</p>
-                                <form onSubmit={handleAddDefaultCriteria} className="flex flex-col sm:flex-row gap-2 mb-4">
-                                    <input type="text" value={newDefCritName} onChange={e => setNewDefCritName(e.target.value)} placeholder="e.g. Pint Price" className="flex-1 px-3 py-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-brand outline-none" />
-                                    <select value={newDefCritType} onChange={e => setNewDefCritType(e.target.value)} className="px-3 py-2 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 dark:text-white outline-none cursor-pointer">
-                                        <option value="scale">Scale (1-10)</option>
-                                        <option value="price">Price (£-£££)</option>
-                                        <option value="yes-no">Yes/No</option>
-                                        <option value="text">Written Review</option>
-                                    </select>
-                                    <button type="submit" className="bg-brand text-white px-6 py-2 rounded-lg font-bold hover:opacity-80 transition">Add Default</button>
-                                </form>
-                                <div className="space-y-2">
-                                    {defaultCriteria.length === 0 ? <p className="text-sm text-gray-500 italic">No defaults set.</p> : defaultCriteria.map((crit, idx) => (
-                                        <div key={idx} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
-                                            <div><span className="font-bold text-gray-800 dark:text-white mr-2">{crit.name}</span><span className="text-[10px] uppercase font-bold tracking-wider bg-blue-100 text-blue-800 px-2 py-0.5 rounded">{crit.type}</span></div>
-                                            <button onClick={() => handleDeleteDefaultCriteria(idx)} className="text-red-500 hover:text-red-700 font-bold text-xs uppercase tracking-wider">Delete</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-yellow-500">
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">Global Announcement Broadcast</h3>
-                                <textarea value={announcement} onChange={(e) => setAnnouncement(e.target.value)} placeholder="Type an announcement to display to all users..." className="w-full p-3 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-yellow-500 bg-gray-50 dark:bg-gray-700 dark:text-white mb-3 resize-none h-20" />
-                                <div className="flex gap-3">
-                                    <button onClick={handlePublishAnnouncement} disabled={isPublishing || !announcement.trim()} className="bg-yellow-500 text-white px-4 py-2 rounded font-semibold hover:bg-yellow-600 disabled:opacity-50">Publish to All Users</button>
-                                    <button onClick={handleClearAnnouncement} disabled={isPublishing || !announcement} className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded font-semibold hover:bg-gray-300 disabled:opacity-50">Clear Banner</button>
-                                </div>
-                            </div>
-                        </>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-gradient-to-br from-blue-500 to-blue-700 text-white p-6 rounded-lg shadow-lg">
-                            <h3 className="text-sm font-medium uppercase tracking-wider opacity-80">Total Users</h3>
-                            <p className="text-4xl font-black mt-1">{stats.users}</p>
-                        </div>
-                        <div className="bg-gradient-to-br from-purple-500 to-purple-700 text-white p-6 rounded-lg shadow-lg">
-                            <h3 className="text-sm font-medium uppercase tracking-wider opacity-80">Total Groups</h3>
-                            <p className="text-4xl font-black mt-1">{stats.groups}</p>
-                        </div>
-                        <div className="bg-gradient-to-br from-green-500 to-green-700 text-white p-6 rounded-lg shadow-lg">
-                            <h3 className="text-sm font-medium uppercase tracking-wider opacity-80">Total Pubs</h3>
-                            <p className="text-4xl font-black mt-1">{stats.pubs}</p>
-                        </div>
-                    </div>
-
-                    {isAdmin && (
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-                            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-white">Active Groups</h3>
-                                <button onClick={handleCleanupOrphanedGroups} className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1.5 rounded-lg font-bold text-xs transition shadow-sm flex items-center gap-1.5">🧹 Delete Orphaned Groups</button>
-                            </div>
-                            <div className="overflow-x-auto max-h-96">
-                                <table className="w-full text-left border-collapse text-sm">
-                                    <thead className="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 sticky top-0">
-                                        <tr><th className="p-3">Group Name</th><th className="p-3 text-center">Members</th><th className="p-3">Owner ID</th><th className="p-3 text-right">Admin Action</th></tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-gray-800 dark:text-gray-200">
-                                        {groupsList.map(g => (
-                                            <tr key={g.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                                <td className="p-3 font-bold">{g.groupName}</td>
-                                                <td className="p-3 text-center"><span className={`py-1 px-2 rounded-full font-semibold text-xs ${g.members?.length === 0 ? 'bg-red-100 text-red-800' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'}`}>{g.members?.length || 0}</span></td>
-                                                <td className="p-3 font-mono text-xs text-gray-500 truncate max-w-[150px]">{g.ownerUid}</td>
-                                                <td className="p-3 text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        {(!g.members || !g.members.includes(user?.uid)) && (
-                                                            <button onClick={() => handleJoinGroup(g.id, g.groupName)} className="text-[10px] bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1.5 rounded font-bold uppercase transition shadow-sm">Join</button>
-                                                        )}
-                                                        <button onClick={() => setManagingGroup(g)} className="text-[10px] bg-brand text-white hover:opacity-80 px-3 py-1.5 rounded font-bold uppercase transition shadow-sm">Manage Members</button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* CLAIMS TAB */}
-            {activeTab === 'claims' && isAdmin && (
-                <div className="space-y-6 animate-fadeIn">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                        <div className="p-6 bg-gradient-to-r from-gray-900 to-gray-800 border-b border-gray-700">
-                            <h3 className="text-xl font-black text-white flex items-center gap-2">🏢 Venue Verification Queue</h3>
-                            <p className="text-sm text-gray-400 mt-1">Pub managers requesting ownership of their venue profile.</p>
-                        </div>
-                        <div className="overflow-x-auto max-h-[600px] p-4">
-                            {venueClaimsList.length === 0 ? (
-                                <div className="text-center py-12"><span className="text-5xl block mb-3 opacity-50">📬</span><p className="text-gray-500 dark:text-gray-400 font-medium">No pending venue claims. You're all caught up!</p></div>
-                            ) : (
-                                <table className="w-full text-left border-collapse text-sm">
-                                    <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400">
-                                        <tr><th className="p-4 rounded-tl-lg">Venue Requested</th><th className="p-4">Contact Email Provided</th><th className="p-4">Date</th><th className="p-4 text-right rounded-tr-lg">Action</th></tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                                        {venueClaimsList.map(claim => (
-                                            <tr key={claim.id} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
-                                                <td className="p-4 font-bold text-gray-900 dark:text-white text-lg">{claim.pubName}</td>
-                                                <td className="p-4"><a href={`mailto:${claim.contactEmail}`} className="text-blue-600 dark:text-blue-400 hover:underline font-medium">{claim.contactEmail}</a><p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider">User ID: {claim.requestedByUid.substring(0, 8)}...</p></td>
-                                                <td className="p-4 text-gray-500">{claim.requestedAt && typeof claim.requestedAt.toDate === 'function' ? new Date(claim.requestedAt.toDate()).toLocaleDateString() : 'Recent'}</td>
-                                                <td className="p-4 text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        <button onClick={() => handleRejectClaim(claim.id)} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-lg font-bold transition">Reject</button>
-                                                        <button onClick={() => handleApproveClaim(claim)} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold shadow-sm transition">Verify & Hand Over</button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
                             )}
                         </div>
-                    </div>
-                </div>
-            )}
+                    )}
 
-            {/* TAGS TAB */}
-            {activeTab === 'tags' && isAdmin && (
-                <div className="space-y-6 animate-fadeIn">
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-                        <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2 flex items-center gap-2">🏷️ Global Pub Tags</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Manage the master list of tags users can assign to pubs. Upload icons for them too.</p>
-                        <form onSubmit={handleSaveTag} className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600 mb-8">
-                            <div className="flex flex-col md:flex-row gap-4 items-end">
-                                <div className="flex-1 w-full">
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Tag Name</label>
-                                    <input type="text" value={editingTag ? editingTag.name : newTagName} onChange={e => editingTag ? setEditingTag({ ...editingTag, name: e.target.value }) : setNewTagName(e.target.value)} placeholder="e.g. Beer Garden" className="w-full px-4 py-3 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-brand outline-none" required />
+                    {/* CLAIMS TAB */}
+                    {activeTab === 'claims' && isAdmin && (
+                        <div className="space-y-6 animate-fadeIn">
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                                <div className="p-5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/20">
+                                    <h4 className="text-sm font-bold text-gray-800 dark:text-white">Venue Verification Queue</h4>
+                                    <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Managers requesting ownership of venue profiles</p>
                                 </div>
-                                <div className="w-full md:w-auto">
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Tag Icon</label>
-                                    <div className="flex items-center gap-3">
-                                        <label className="flex flex-col items-center justify-center w-12 h-12 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-brand cursor-pointer bg-white dark:bg-gray-800 transition overflow-hidden">
-                                            {isUploadingTagIcon ? <span className="text-brand animate-spin text-xl">🌀</span>
-                                             : (editingTag ? editingTag.iconUrl : newTagIcon) ? <img src={editingTag ? editingTag.iconUrl : newTagIcon} alt="Icon" className="w-full h-full object-cover" />
-                                             : <span className="text-xl">📸</span>}
-                                            <input type="file" accept="image/*" onChange={handleTagImageUpload} className="hidden" disabled={isUploadingTagIcon} />
-                                        </label>
-                                        {(editingTag ? editingTag.iconUrl : newTagIcon) && (
-                                            <button type="button" onClick={() => editingTag ? setEditingTag({ ...editingTag, iconUrl: '' }) : setNewTagIcon('')} className="text-red-500 text-xs font-bold hover:underline">Remove</button>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="w-full md:w-auto flex gap-2">
-                                    <button type="submit" disabled={isSavingTag || isUploadingTagIcon} className="w-full md:w-auto px-6 py-3 bg-brand text-white font-bold rounded-lg hover:opacity-80 transition disabled:opacity-50">{isSavingTag ? 'Saving...' : editingTag ? 'Update Tag' : 'Create Tag'}</button>
-                                    {editingTag && <button type="button" onClick={() => setEditingTag(null)} className="px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 font-bold rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition">Cancel</button>}
+                                <div className="overflow-x-auto p-2">
+                                    {venueClaimsList.length === 0 ? (
+                                        <div className="text-center py-16">
+                                            <span className="text-4xl block mb-2 opacity-50">📬</span>
+                                            <p className="text-gray-550 dark:text-gray-400 text-sm font-bold">No pending claims. You're all caught up!</p>
+                                        </div>
+                                    ) : (
+                                        <table className="w-full text-left border-collapse text-xs">
+                                            <thead className="bg-gray-50 dark:bg-gray-755 text-gray-500 dark:text-gray-400 font-bold border-b border-gray-200 dark:border-gray-700">
+                                                <tr>
+                                                    <th className="p-4 rounded-tl-xl">Venue Requested</th>
+                                                    <th className="p-4">Contact Details</th>
+                                                    <th className="p-4">Requested At</th>
+                                                    <th className="p-4 text-right rounded-tr-xl">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-150 dark:divide-gray-750 text-gray-755 dark:text-gray-200">
+                                                {venueClaimsList.map(claim => (
+                                                    <tr key={claim.id} className="hover:bg-gray-50 dark:hover:bg-gray-750/30 transition-colors">
+                                                        <td className="p-4">
+                                                            <p className="font-bold text-sm text-gray-855 dark:text-white">{claim.pubName}</p>
+                                                            <p className="text-[9px] text-gray-400 mt-0.5 font-mono select-all">Pub ID: {claim.pubId}</p>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <a href={`mailto:${claim.contactEmail}`} className="text-brand hover:underline font-semibold text-xs block">{claim.contactEmail}</a>
+                                                            <span className="text-[9px] text-gray-400 mt-1 block uppercase tracking-wider">Uid: {claim.requestedByUid.substring(0, 8)}...</span>
+                                                        </td>
+                                                        <td className="p-4 text-gray-505">
+                                                            {claim.requestedAt && typeof claim.requestedAt.toDate === 'function'
+                                                                ? new Date(claim.requestedAt.toDate()).toLocaleDateString('en-GB')
+                                                                : 'Recent'}
+                                                        </td>
+                                                        <td className="p-4 text-right">
+                                                            <div className="flex justify-end gap-1.5">
+                                                                <button onClick={() => handleRejectClaim(claim.id)} className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-955/20 dark:hover:bg-red-900/40 rounded-xl font-bold text-[10px] uppercase transition cursor-pointer">
+                                                                    Reject
+                                                                </button>
+                                                                <button onClick={() => handleApproveClaim(claim)} className="px-3.5 py-1.5 bg-green-650 hover:bg-green-700 text-white rounded-xl font-bold text-[10px] uppercase transition shadow-sm cursor-pointer">
+                                                                    Verify & Hand Over
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                     </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
                                 </div>
                             </div>
-                        </form>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {tagsList.length === 0 ? <p className="text-gray-500 italic col-span-full text-center py-6">No global tags created yet.</p>
-                             : tagsList.map(tag => (
-                                <div key={tag.id} className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 shadow-sm group hover:border-brand transition">
-                                    <div className="flex items-center gap-3">
-                                        {tag.iconUrl ? <img src={tag.iconUrl} alt={tag.name} className="w-8 h-8 rounded-full object-cover shadow-sm border border-gray-100 dark:border-gray-700" /> : <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs">🏷️</div>}
-                                        <span className="font-bold text-gray-800 dark:text-gray-200 text-sm truncate max-w-[100px]" title={tag.name}>{tag.name}</span>
-                                    </div>
-                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => setEditingTag(tag)} className="text-blue-500 hover:text-blue-700 text-xs bg-blue-50 dark:bg-blue-900/30 p-1.5 rounded">✏️</button>
-                                        <button onClick={() => handleDeleteTag(tag.id)} className="text-red-500 hover:text-red-700 text-xs bg-red-50 dark:bg-red-900/30 p-1.5 rounded">✕</button>
-                                    </div>
-                                </div>
-                            ))}
                         </div>
-                    </div>
-                </div>
-            )}
+                    )}
 
-            {/* ROLES TAB */}
-            {activeTab === 'roles' && isTrueSuperAdmin && (
-                <div className="space-y-6 animate-fadeIn">
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-                        <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Create Custom Roles</h3>
-                        <p className="text-sm text-gray-500 mb-6">Build specific permission groups (e.g. "Half Admin") and assign them to users in the User Directory.</p>
-                        <form onSubmit={handleSaveNewRole} className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-200 dark:border-gray-600 mb-8">
-                            <input type="text" value={newRoleName} onChange={e => setNewRoleName(e.target.value)} placeholder="Role Name (e.g. Content Mod)" className="w-full px-4 py-2 border dark:border-gray-600 rounded-lg mb-4 bg-white dark:bg-gray-800 dark:text-white" required />
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                {Object.keys(defaultPermissions).map(perm => (
-                                    <label key={perm} className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 cursor-pointer hover:border-brand transition">
-                                        <input type="checkbox" checked={editingRolePermissions[perm]} onChange={e => setEditingRolePermissions({ ...editingRolePermissions, [perm]: e.target.checked })} className="w-5 h-5 accent-brand" />
-                                        <span className="font-semibold text-gray-700 dark:text-gray-200">{perm}</span>
-                                    </label>
-                                ))}
-                            </div>
-                            <button type="submit" className="w-full py-2 bg-brand text-white font-bold rounded-lg hover:opacity-80">Save New Role</button>
-                        </form>
-                        <h4 className="font-bold text-gray-800 dark:text-white mb-4">Existing Roles</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {Object.entries(roles).map(([id, role]) => (
-                                <div key={id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 shadow-sm relative">
-                                    <button onClick={() => handleDeleteRole(id)} className="absolute top-3 right-3 text-red-500 hover:text-red-700 font-bold">✕</button>
-                                    <h5 className="font-black text-lg text-brand mb-2">{role.name}</h5>
-                                    <ul className="text-xs space-y-1">
-                                        {Object.entries(role.perms).map(([p, val]) => (
-                                            <li key={p} className={val ? 'text-green-600 dark:text-green-400 font-bold' : 'text-gray-400 line-through'}>{val ? '✔️' : '❌'} {p}</li>
-                                        ))}
-                                    </ul>
+                    {/* TAGS TAB */}
+                    {activeTab === 'tags' && isAdmin && (
+                        <div className="space-y-6 animate-fadeIn">
+                            <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-800 dark:text-white">Global Pub Tags</h4>
+                                    <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Master directory of tags users can assign to venues</p>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* USERS TAB */}
-            {activeTab === 'users' && isAdmin && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden animate-fadeIn">
-                    <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-white">User Directory</h3>
-                        <button onClick={handleExportUsersCSV} className="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-lg font-bold text-xs transition shadow-sm flex items-center gap-1.5">📊 Export to CSV</button>
-                    </div>
-                    <div className="overflow-x-auto max-h-[600px]">
-                        <table className="w-full text-left border-collapse text-sm">
-                            <thead className="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 sticky top-0">
-                                <tr><th className="p-3">Name</th><th className="p-3">Email</th><th className="p-3 text-center">Role</th><th className="p-3 text-center">Status</th><th className="p-3 text-right">Actions</th></tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-gray-800 dark:text-gray-200">
-                                {usersList.map(u => (
-                                    <tr key={u.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 ${u.isBanned ? 'opacity-60 bg-red-50 dark:bg-red-900/10' : ''}`}>
-                                        <td className="p-3 font-bold flex items-center gap-2">{u.avatarUrl && <img src={u.avatarUrl} className="w-6 h-6 rounded-full" alt="avatar" />}{u.displayName || 'Unknown'}</td>
-                                        <td className="p-3 text-gray-500 dark:text-gray-400">{u.email}</td>
-                                        <td className="p-3 text-center">
-                                            {u.isSuperAdmin ? <span className="bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 text-[10px] uppercase px-2 py-1 rounded font-black tracking-wider">SuperAdmin</span>
-                                             : u.assignedRole && roles[u.assignedRole] ? <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-[10px] uppercase px-2 py-1 rounded font-black tracking-wider">{roles[u.assignedRole].name}</span>
-                                             : u.isAdmin ? <span className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 text-[10px] uppercase px-2 py-1 rounded font-black tracking-wider">Admin (Legacy)</span>
-                                             : u.isModerator ? <span className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 text-[10px] uppercase px-2 py-1 rounded font-black tracking-wider">Mod (Legacy)</span>
-                                             : <span className="text-gray-400 text-xs font-semibold">User</span>}
-                                        </td>
-                                        <td className="p-3 text-center">{u.isBanned ? <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-bold">BANNED</span> : <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold">ACTIVE</span>}</td>
-                                        <td className="p-3 text-right">
-                                            <div className="flex justify-end gap-2 items-center">
-                                                {isTrueSuperAdmin && !u.isSuperAdmin && (
-                                                    <select value={u.assignedRole || 'none'} onChange={(e) => handleAssignUserRole(u.id, e.target.value)} className="px-2 py-1.5 border dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-xs font-bold mr-2 cursor-pointer outline-none">
-                                                        <option value="none">Standard User</option>
-                                                        {Object.entries(roles).map(([id, role]) => <option key={id} value={id}>{role.name}</option>)}
-                                                    </select>
-                                                )}
-                                                {!u.isSuperAdmin && (
-                                                    <button onClick={() => handleToggleBan(u)} className={`font-semibold text-xs px-3 py-1.5 rounded text-white ${u.isBanned ? 'bg-gray-500 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700 shadow-sm transform hover:scale-105 transition-all'}`}>
-                                                        {u.isBanned ? 'Restore' : 'BAN'}
+                                
+                                <form onSubmit={handleSaveTag} className="bg-gray-50 dark:bg-gray-700/30 p-4 rounded-xl border border-gray-200 dark:border-gray-750 my-5">
+                                    <div className="flex flex-col md:flex-row gap-4 items-end">
+                                        <div className="flex-1 w-full">
+                                            <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">Tag Name</label>
+                                            <input
+                                                type="text"
+                                                value={editingTag ? editingTag.name : newTagName}
+                                                onChange={e => editingTag ? setEditingTag({ ...editingTag, name: e.target.value }) : setNewTagName(e.target.value)}
+                                                placeholder="e.g. Beer Garden"
+                                                className="w-full px-3 py-2 text-xs border dark:border-gray-600 rounded-xl bg-white dark:bg-gray-850 dark:text-white focus:ring-2 focus:ring-brand outline-none"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="w-full md:w-auto">
+                                            <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-550 uppercase tracking-wider mb-1.5">Tag Icon Image</label>
+                                            <div className="flex items-center gap-3">
+                                                <label className="flex flex-col items-center justify-center w-10 h-10 rounded-xl border border-dashed border-gray-300 dark:border-gray-650 hover:border-brand cursor-pointer bg-white dark:bg-gray-800 transition overflow-hidden">
+                                                    {isUploadingTagIcon ? (
+                                                        <span className="text-brand animate-spin text-xs">🌀</span>
+                                                    ) : (editingTag ? editingTag.iconUrl : newTagIcon) ? (
+                                                        <img src={editingTag ? editingTag.iconUrl : newTagIcon} alt="Icon" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <span className="text-xs">📸</span>
+                                                    )}
+                                                    <input type="file" accept="image/*" onChange={handleTagImageUpload} className="hidden" disabled={isUploadingTagIcon} />
+                                                </label>
+                                                {(editingTag ? editingTag.iconUrl : newTagIcon) && (
+                                                    <button type="button" onClick={() => editingTag ? setEditingTag({ ...editingTag, iconUrl: '' }) : setNewTagIcon('')} className="text-red-500 text-[10px] font-bold uppercase tracking-wider hover:underline cursor-pointer">
+                                                        Delete
                                                     </button>
                                                 )}
                                             </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
-            {/* GAMIFICATION TAB */}
-            {activeTab === 'gamification' && isAdmin && (
-                <div className="space-y-6 animate-fadeIn">
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2 flex items-center gap-2">🕹️ Gamification Engine</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Alter how leaderboards are scored and create custom unlockable awards.</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-4">
-                                <h4 className="font-bold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2">Point System</h4>
-                                {[['pointsPerPub','Points per Pub Rated'],['pointsPerReview','Points per Written Review'],['pointsPerAdd','Points per Pub Added'],['pointsPerCrawl','Points per Pub Crawl Created']].map(([key, label]) => (
-                                    <div key={key} className="flex items-center justify-between">
-                                        <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">{label}</span>
-                                        <input type="number" value={gamification[key]} onChange={e => setGamification({ ...gamification, [key]: e.target.value })} className="w-20 px-3 py-1 border rounded bg-gray-50 dark:bg-gray-700 dark:text-white text-center font-bold" />
+                                        </div>
+                                        <div className="w-full md:w-auto flex gap-1.5">
+                                            <button
+                                                type="submit"
+                                                disabled={isSavingTag || isUploadingTagIcon}
+                                                className="w-full md:w-auto px-4 py-2 bg-brand text-white font-bold text-xs rounded-xl hover:opacity-85 transition disabled:opacity-50 cursor-pointer"
+                                            >
+                                                {isSavingTag ? 'Saving...' : editingTag ? 'Update Tag' : 'Create Tag'}
+                                            </button>
+                                            {editingTag && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setEditingTag(null)}
+                                                    className="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold text-xs rounded-xl hover:bg-gray-250 dark:hover:bg-gray-650 transition cursor-pointer"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
-                                ))}
-                                <button onClick={handleSavePointRules} disabled={isSavingGamification} className="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50">Save Point Rules</button>
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2 mb-4">Custom Awards</h4>
-                                <form onSubmit={handleAddBadge} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-200 dark:border-gray-600 mb-4 space-y-3">
-                                    <div className="flex gap-2">
-                                        <input type="text" value={newBadge.emoji} onChange={e => setNewBadge({ ...newBadge, emoji: e.target.value })} className="w-12 text-center px-2 py-1 border rounded bg-white dark:bg-gray-800 dark:text-white" placeholder="🏆" maxLength="2" required />
-                                        <input type="text" value={newBadge.title} onChange={e => setNewBadge({ ...newBadge, title: e.target.value })} className="flex-1 px-3 py-1 border rounded bg-white dark:bg-gray-800 dark:text-white text-sm" placeholder="Badge Title" required />
-                                    </div>
-                                    <input type="text" value={newBadge.desc} onChange={e => setNewBadge({ ...newBadge, desc: e.target.value })} className="w-full px-3 py-1 border rounded bg-white dark:bg-gray-800 dark:text-white text-xs" placeholder="Short description..." required />
-                                    <div className="flex gap-2 items-center">
-                                        <span className="text-xs text-gray-500 font-bold">Unlocks when:</span>
-                                        <select value={newBadge.metric} onChange={e => setNewBadge({ ...newBadge, metric: e.target.value })} className="flex-1 text-xs px-2 py-1 border rounded bg-white dark:bg-gray-800 dark:text-white">
-                                            <option value="rated">Pubs Rated</option>
-                                            <option value="reviews">Reviews Written</option>
-                                            <option value="added">Pubs Added</option>
-                                            <option value="tens">Perfect 10s Given</option>
-                                            <option value="crawls">Crawls Created</option>
-                                        </select>
-                                        <span className="text-xs text-gray-500 font-bold">&gt;=</span>
-                                        <input type="number" value={newBadge.threshold} onChange={e => setNewBadge({ ...newBadge, threshold: e.target.value })} className="w-16 px-2 py-1 border rounded bg-white dark:bg-gray-800 dark:text-white text-center text-xs font-bold" min="1" required />
-                                    </div>
-                                    <button type="submit" className="w-full bg-brand text-white font-bold py-1.5 rounded text-sm hover:opacity-80">Add Award</button>
                                 </form>
-                                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                                    {(!gamification.badges || gamification.badges.length === 0) ? <p className="text-xs text-gray-500 italic text-center">No custom awards created yet.</p>
-                                     : gamification.badges.map((b, idx) => (
-                                        <div key={idx} className="flex justify-between items-center bg-white dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-700 shadow-sm">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xl">{b.emoji}</span>
-                                                <div><p className="text-xs font-bold text-gray-800 dark:text-white leading-none">{b.title}</p><p className="text-[9px] text-gray-500 uppercase tracking-wider mt-0.5">{b.metric} &gt;= {b.threshold}</p></div>
-                                            </div>
-                                            <button onClick={() => handleDeleteBadge(idx)} className="text-red-500 hover:text-red-700 text-lg">✕</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* PUBS TAB */}
-            {activeTab === 'pubs' && isAdmin && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden animate-fadeIn">
-                    <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-white">Global Pub Directory</h3>
-                        <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-3 py-1 rounded-full font-bold">{pubsList.filter(p => p.isLocked).length} Verified Pubs</span>
-                    </div>
-                    <div className="overflow-x-auto max-h-[600px]">
-                        <table className="w-full text-left border-collapse text-sm">
-                            <thead className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 sticky top-0 z-10">
-                                <tr><th className="p-3">Status</th><th className="p-3">Photo</th><th className="p-3">Pub Name</th><th className="p-3">Location</th><th className="p-3 text-right">Actions</th></tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-gray-800 dark:text-gray-200">
-                                {pubsList.map(pub => {
-                                    const managerCount = Array.isArray(pub.claimedBy) ? pub.claimedBy.length : (pub.claimedBy ? 1 : 0);
-                                    return (
-                                        <tr key={pub.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${pub.isLocked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
-                                            <td className="p-3 text-center">{pub.isLocked ? <span className="text-xl" title="Verified & Locked">🔒</span> : <span className="text-xl opacity-20" title="Unlocked">🔓</span>}</td>
-                                            <td className="p-3 w-16">{pub.photoURL ? <img src={pub.photoURL} alt="pub" className="w-10 h-10 rounded object-cover shadow-sm" /> : <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded flex items-center justify-center text-xl">🍺</div>}</td>
-                                            <td className="p-3 font-bold">{pub.name}{managerCount > 0 && <span className="block text-[9px] text-brand uppercase tracking-wider">{managerCount} Manager{managerCount > 1 ? 's' : ''}</span>}</td>
-                                            <td className="p-3 text-gray-500 dark:text-gray-400">{pub.location || 'Unknown'}</td>
-                                            <td className="p-3 text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    <button onClick={() => handleTogglePubLock(pub)} className={`font-bold text-xs px-3 py-1.5 rounded transition shadow-sm ${pub.isLocked ? 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600' : 'bg-brand text-white hover:opacity-80'}`}>{pub.isLocked ? 'Unverify' : 'Verify'}</button>
-                                                    <button onClick={() => handleDeletePub(pub.id)} className="text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 font-bold text-xs px-3 py-1.5 rounded transition shadow-sm">Delete</button>
+                                
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+                                    {tagsList.length === 0 ? (
+                                        <p className="text-gray-500 italic col-span-full text-center py-6 text-xs">No global tags created yet.</p>
+                                    ) : (
+                                        tagsList.map(tag => (
+                                            <div key={tag.id} className="flex items-center justify-between p-3 border border-gray-250 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-850 shadow-sm group hover:border-brand transition">
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    {tag.iconUrl ? (
+                                                        <img src={tag.iconUrl} alt={tag.name} className="w-7 h-7 rounded-full object-cover shadow-sm border border-gray-100 dark:border-gray-700 flex-shrink-0" />
+                                                    ) : (
+                                                        <div className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-750 flex items-center justify-center text-xs flex-shrink-0">🏷️</div>
+                                                    )}
+                                                    <span className="font-bold text-gray-800 dark:text-gray-200 text-xs truncate" title={tag.name}>
+                                                        {tag.name}
+                                                    </span>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
-            {/* MODERATION TAB */}
-            {activeTab === 'moderation' && (
-                <div className="space-y-8 animate-fadeIn">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-red-200 dark:border-red-900/50 overflow-hidden">
-                        <div className="p-5 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-900/30 flex justify-between items-center">
-                            <div>
-                                <h3 className="text-xl font-black text-red-800 dark:text-red-300 flex items-center gap-2">🚨 User Reports Queue</h3>
-                                <p className="text-sm text-red-600 dark:text-red-400 mt-1">Pubs and reviews reported by the community for violating guidelines.</p>
-                            </div>
-                            <span className="bg-red-600 text-white font-black px-3 py-1 rounded-full">{reportsList.length}</span>
-                        </div>
-                        <div className="overflow-x-auto max-h-96">
-                            {reportsList.length === 0 ? <div className="p-8 text-center text-gray-500 font-medium">No pending reports! The community is safe.</div> : (
-                                <table className="w-full text-left border-collapse text-sm">
-                                    <thead className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 sticky top-0">
-                                        <tr><th className="p-4 w-24">Type</th><th className="p-4">Reported Content</th><th className="p-4">Date</th><th className="p-4 text-right">Action</th></tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-gray-800 dark:text-gray-200">
-                                        {reportsList.map(report => (
-                                            <tr key={report.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                                <td className="p-4"><span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider ${report.type === 'pub' ? 'bg-orange-100 text-orange-800' : report.type === 'comment' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>{report.type}</span></td>
-                                                <td className="p-4 font-medium italic">"{report.targetName}"</td>
-                                                <td className="p-4 text-xs text-gray-500">{report.createdAt && typeof report.createdAt.toDate === 'function' ? new Date(report.createdAt.toDate()).toLocaleDateString() : 'Recent'}</td>
-                                                <td className="p-4 text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        <button onClick={() => handleResolveReport(report.id)} className="text-xs bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 px-3 py-1.5 rounded-lg font-bold transition">Dismiss</button>
-                                                        <button onClick={() => handleDeleteReportedContent(report)} className="text-xs bg-red-600 text-white hover:bg-red-700 px-3 py-1.5 rounded-lg font-bold transition shadow-sm">Delete Content</button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-purple-200 dark:border-purple-900/50 overflow-hidden">
-                        <div className="p-5 bg-purple-50 dark:bg-purple-900/20 border-b border-purple-100 dark:border-purple-900/30">
-                            <h3 className="text-xl font-black text-purple-800 dark:text-purple-300 flex items-center gap-2">🌍 Public Leaderboard Review</h3>
-                            <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">Review groups that have opted into the public directory.</p>
-                        </div>
-                        <div className="overflow-x-auto max-h-96">
-                            <table className="w-full text-left border-collapse text-sm">
-                                <thead className="bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 sticky top-0">
-                                    <tr><th className="p-4">Group Name</th><th className="p-4">City</th><th className="p-4">Members</th><th className="p-4 text-right">Action</th></tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700 text-gray-800 dark:text-gray-200">
-                                    {groupsList.filter(g => g.isPublic).length === 0 ? (
-                                        <tr><td colSpan="4" className="p-8 text-center text-gray-500 font-medium">No public groups found.</td></tr>
-                                    ) : groupsList.filter(g => g.isPublic).map(g => (
-                                        <tr key={g.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                            <td className="p-4 font-bold text-lg">{g.groupName}</td>
-                                            <td className="p-4 text-gray-500">{g.city || 'Global'}</td>
-                                            <td className="p-4"><span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 py-1 px-3 rounded-full font-bold text-xs">{g.members?.length || 0}</span></td>
-                                            <td className="p-4 text-right"><button onClick={() => handleRevokePublicStatus(g.id)} className="text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 px-3 py-1.5 rounded-lg font-bold text-xs transition">Revoke Public Status</button></td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-blue-200 dark:border-blue-900/50 overflow-hidden">
-                        <div className="p-5 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-900/30">
-                            <h3 className="text-xl font-black text-blue-800 dark:text-blue-300 flex items-center gap-2">📸 Photo Moderation Queue</h3>
-                            <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">Scan uploaded pub photos for guideline violations. Most recent uploads shown first.</p>
-                        </div>
-                        <div className="p-6">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                                {pubsList.filter(p => p.photoURL && !p.photoURL.includes('googleusercontent')).length === 0 ? (
-                                    <div className="col-span-full py-12 text-center text-gray-500 font-medium">No user-uploaded photos to moderate.</div>
-                                ) : pubsList.filter(p => p.photoURL && !p.photoURL.includes('googleusercontent')).slice(0, 40).map(pub => (
-                                    <div key={pub.id} className="relative group rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
-                                        <img src={pub.photoURL} alt={pub.name} className="w-full h-48 object-cover group-hover:scale-105 transition duration-300" />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-4 flex flex-col justify-end">
-                                                                                    <p className="text-white font-bold truncate">{pub.name}</p>
-                                            <p className="text-gray-300 text-xs truncate">{pub.location || 'Unknown'}</p>
-                                        </div>
-                                        <button onClick={() => handleDeletePhoto(pub.id)} className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-lg font-bold shadow-lg hover:bg-red-700 transition opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0" title="Delete Photo">🗑️ Scrub</button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {isAdmin && (
-                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-orange-200 dark:border-orange-900/50 overflow-hidden">
-                            <div className="p-5 bg-orange-50 dark:bg-orange-900/20 border-b border-orange-100 dark:border-orange-900/30">
-                                <h3 className="text-xl font-black text-orange-800 dark:text-orange-300 flex items-center gap-2">👯‍♂️ Merge Duplicate Pubs</h3>
-                                <p className="text-sm text-orange-600 dark:text-orange-400 mt-1">Combine duplicated pubs into a single master record. All ratings, comments, and hit-list votes will be seamlessly transferred across all groups.</p>
-                            </div>
-                            <div className="p-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">1. The Master Pub (Keep)</label>
-                                        <select value={mergePrimary} onChange={(e) => setMergePrimary(e.target.value)} className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-orange-500 cursor-pointer outline-none">
-                                            <option value="">-- Select Primary Pub --</option>
-                                            {sortedPubsForDropdown.map(p => (
-                                                <option key={`p-${p.id}`} value={p.id}>{p.name} ({p.location || 'Unknown'})</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">2. The Duplicate (Merge & Delete)</label>
-                                        <select value={mergeDuplicate} onChange={(e) => setMergeDuplicate(e.target.value)} className="w-full px-4 py-3 border border-red-200 dark:border-red-900/50 rounded-xl bg-red-50 dark:bg-red-900/20 dark:text-white focus:ring-2 focus:ring-red-500 cursor-pointer outline-none">
-                                            <option value="">-- Select Duplicate Pub --</option>
-                                            {sortedPubsForDropdown.map(p => (
-                                                <option key={`d-${p.id}`} value={p.id}>{p.name} ({p.location || 'Unknown'})</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button onClick={() => setEditingTag(tag)} className="text-blue-505 hover:text-blue-700 text-[10px] bg-blue-50 dark:bg-blue-900/30 p-1 rounded cursor-pointer" title="Edit">✏️</button>
+                                                    <button onClick={() => handleDeleteTag(tag.id)} className="text-red-500 hover:text-red-700 text-[10px] bg-red-50 dark:bg-red-900/30 p-1 rounded cursor-pointer" title="Delete">✕</button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
-                                <div className="mt-6 flex justify-end">
-                                    <button onClick={handleMergePubs} disabled={isMerging || !mergePrimary || !mergeDuplicate} className="px-8 py-3 bg-orange-600 text-white font-black rounded-xl hover:bg-orange-700 transition disabled:opacity-50 flex items-center gap-2 shadow-md">
-                                        {isMerging ? "🔄 Merging Databases..." : "🛠️ Execute Merge"}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ROLES TAB */}
+                    {activeTab === 'roles' && isTrueSuperAdmin && (
+                        <div className="space-y-6 animate-fadeIn">
+                            <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-800 dark:text-white">Create Custom Roles</h4>
+                                    <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Define permission levels for staff accounts</p>
+                                </div>
+                                
+                                <form onSubmit={handleSaveNewRole} className="bg-gray-50 dark:bg-gray-707 p-4 rounded-xl border border-gray-200 dark:border-gray-755 my-5">
+                                    <div className="mb-4">
+                                        <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Role Name</label>
+                                        <input
+                                            type="text"
+                                            value={newRoleName}
+                                            onChange={e => setNewRoleName(e.target.value)}
+                                            placeholder="e.g. Content Moderator"
+                                            className="w-full px-3 py-2 text-xs border dark:border-gray-600 rounded-xl bg-white dark:bg-gray-850 dark:text-white focus:ring-2 focus:ring-brand outline-none"
+                                            required
+                                        />
+                                    </div>
+                                    
+                                    <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Granted Permissions</label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                                        {Object.keys(defaultPermissions).map(perm => (
+                                            <label key={perm} className="flex items-center gap-2.5 p-3 bg-white dark:bg-gray-850 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:border-brand/40 transition select-none">
+                                                <input type="checkbox" checked={editingRolePermissions[perm]} onChange={e => setEditingRolePermissions({ ...editingRolePermissions, [perm]: e.target.checked })} className="w-4 h-4 accent-brand cursor-pointer" />
+                                                <span className="font-semibold text-xs text-gray-700 dark:text-gray-200 capitalize">
+                                                    {perm.replace('can', 'Can ')}
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    
+                                    <button type="submit" className="w-full py-2.5 bg-brand text-white font-bold text-xs rounded-xl hover:opacity-85 transition cursor-pointer">
+                                        Save Custom Role
+                                    </button>
+                                </form>
+                                
+                                <h4 className="font-bold text-xs text-gray-800 dark:text-white mb-3">Active Roles Database</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {Object.entries(roles).map(([id, role]) => (
+                                        <div key={id} className="p-4 border border-gray-250 dark:border-gray-700 rounded-xl bg-gray-55 dark:bg-gray-850/50 shadow-sm relative group">
+                                            {!['admin', 'mod'].includes(id) && (
+                                                <button onClick={() => handleDeleteRole(id)} className="absolute top-3 right-3 text-red-500 hover:text-red-700 text-xs font-bold transition cursor-pointer" title="Delete Role">
+                                                    ✕
+                                                </button>
+                                            )}
+                                            <h5 className="font-black text-sm text-brand mb-2.5 uppercase tracking-wider">{role.name}</h5>
+                                            <ul className="text-[10px] space-y-1.5">
+                                                {Object.entries(role.perms).map(([p, val]) => (
+                                                    <li key={p} className="flex items-center gap-1.5">
+                                                        {val ? (
+                                                            <span className="text-green-500 font-bold">✓</span>
+                                                        ) : (
+                                                            <span className="text-gray-400 dark:text-gray-600 line-through">✗</span>
+                                                        )}
+                                                        <span className={`capitalize ${val ? 'text-gray-805 dark:text-gray-200 font-medium' : 'text-gray-400 dark:text-gray-600 line-through font-normal'}`}>
+                                                            {p.replace('can', 'can ')}
+                                                        </span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* USERS TAB */}
+                    {activeTab === 'users' && isAdmin && (
+                        <div className="space-y-6 animate-fadeIn">
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/20 gap-3">
+                                    <div>
+                                        <h4 className="text-sm font-bold text-gray-800 dark:text-white">Registered User Directory</h4>
+                                        <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Database search & accounts manager</p>
+                                    </div>
+                                    <button
+                                        onClick={handleExportUsersCSV}
+                                        className="bg-green-600 hover:bg-green-700 text-white px-3.5 py-2 rounded-xl font-bold text-xs transition shadow-sm flex items-center gap-1.5 cursor-pointer"
+                                    >
+                                        📊 Export Directory to CSV
                                     </button>
                                 </div>
+                                
+                                <div className="overflow-x-auto max-h-[600px] p-2">
+                                    <table className="w-full text-left border-collapse text-xs">
+                                        <thead className="bg-gray-105 dark:bg-gray-750 text-gray-550 dark:text-gray-400 sticky top-0 font-bold border-b border-gray-200 dark:border-gray-700">
+                                            <tr>
+                                                <th className="p-4">User Identity</th>
+                                                <th className="p-4">Contact Email</th>
+                                                <th className="p-4 text-center">System Role</th>
+                                                <th className="p-4 text-center">Status</th>
+                                                <th className="p-4 text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-150 dark:divide-gray-750 text-gray-750 dark:text-gray-200">
+                                            {usersList.map(u => (
+                                                <tr key={u.id} className={`hover:bg-gray-50/70 dark:hover:bg-gray-755/30 transition-colors ${u.isBanned ? 'opacity-65 bg-red-50/20 dark:bg-red-950/5' : ''}`}>
+                                                    <td className="p-4 font-bold flex items-center gap-2">
+                                                        {u.avatarUrl ? (
+                                                            <img src={u.avatarUrl} className="w-7 h-7 rounded-full object-cover shadow-sm border border-gray-200 dark:border-gray-700" alt="avatar" />
+                                                        ) : (
+                                                            <div className="w-7 h-7 rounded-full bg-brand-subtle dark:bg-brand-highlight/20 text-brand flex items-center justify-center font-bold text-[10px]">
+                                                                {(u.displayName || 'U').charAt(0).toUpperCase()}
+                                                            </div>
+                                                        )}
+                                                        <div>
+                                                            <p className="font-bold text-gray-855 dark:text-white">{u.displayName || 'Unknown User'}</p>
+                                                            <p className="text-[9px] text-gray-450 font-mono mt-0.5">UID: {u.id}</p>
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4 font-medium text-gray-500 dark:text-gray-400 select-all">{u.email}</td>
+                                                    <td className="p-4 text-center">
+                                                        {u.isBanned ? (
+                                                            <span className="bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-[9px] px-2 py-0.5 rounded-md font-black tracking-wider">
+                                                                BANNED
+                                                            </span>
+                                                        ) : u.isSuperAdmin ? (
+                                                            <span className="bg-purple-100 dark:bg-purple-950/40 text-purple-750 dark:text-purple-300 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
+                                                                SuperAdmin
+                                                            </span>
+                                                        ) : u.assignedRole && roles[u.assignedRole] ? (
+                                                            <span className="bg-blue-105 dark:bg-blue-950/40 text-blue-750 dark:text-blue-300 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
+                                                                {roles[u.assignedRole].name}
+                                                            </span>
+                                                        ) : u.isAdmin ? (
+                                                            <span className="bg-gray-100 dark:bg-gray-750 text-gray-800 dark:text-gray-305 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
+                                                                Admin (Legacy)
+                                                            </span>
+                                                        ) : u.isModerator ? (
+                                                            <span className="bg-gray-100 dark:bg-gray-750 text-gray-800 dark:text-gray-305 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
+                                                                Mod (Legacy)
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-gray-400 text-[10px] font-bold">Standard User</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-4 text-center">
+                                                        {u.isBanned ? (
+                                                            <span className="bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-350 text-[9px] px-2.5 py-0.5 rounded-full font-black tracking-wider">
+                                                                BANNED
+                                                            </span>
+                                                        ) : (
+                                                            <span className="bg-green-105 dark:bg-green-955/40 text-green-700 dark:text-green-300 text-[9px] px-2.5 py-0.5 rounded-full font-black tracking-wider">
+                                                                ACTIVE
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-4 text-right">
+                                                        <div className="flex justify-end gap-1.5 items-center">
+                                                            {isTrueSuperAdmin && !u.isSuperAdmin && (
+                                                                <select
+                                                                    value={u.assignedRole || 'none'}
+                                                                    onChange={(e) => handleAssignUserRole(u.id, e.target.value)}
+                                                                    className="px-2.5 py-1.5 border dark:border-gray-600 rounded-xl bg-white dark:bg-gray-750 text-[10px] font-black cursor-pointer outline-none shadow-sm"
+                                                                >
+                                                                    <option value="none">Standard User</option>
+                                                                    {Object.entries(roles).map(([id, role]) => (
+                                                                        <option key={id} value={id}>{role.name}</option>
+                                                                    ))}
+                                                                </select>
+                                                            )}
+                                                            {!u.isSuperAdmin && (
+                                                                <button
+                                                                    onClick={() => handleToggleBan(u)}
+                                                                    className={`font-bold text-[10px] uppercase px-3 py-1.5 rounded-xl text-white transition-all cursor-pointer ${
+                                                                        u.isBanned
+                                                                            ? 'bg-gray-500 hover:bg-gray-600'
+                                                                            : 'bg-red-650 hover:bg-red-700 shadow-sm'
+                                                                    }`}
+                                                                >
+                                                                    {u.isBanned ? 'Restore' : 'Ban'}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* GAMIFICATION TAB */}
+                    {activeTab === 'gamification' && isAdmin && (
+                        <div className="space-y-6 animate-fadeIn">
+                            <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-800 dark:text-white">Global Gamification Engine</h4>
+                                    <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Control scoring metrics & milestone achievement awards</p>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 my-5">
+                                    {/* Points system */}
+                                    <div className="space-y-4">
+                                        <h5 className="font-bold text-xs text-gray-750 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2 uppercase tracking-wider">Scoring Configurations</h5>
+                                        {[['pointsPerPub','Points per Pub Scored'],['pointsPerReview','Points per Written Review'],['pointsPerAdd','Points per Pub Created'],['pointsPerCrawl','Points per Crawl Started']].map(([key, label]) => (
+                                            <div key={key} className="flex items-center justify-between bg-gray-55 dark:bg-gray-750/30 p-2.5 rounded-xl border border-gray-150 dark:border-gray-700">
+                                                <span className="text-xs font-bold text-gray-600 dark:text-gray-400">{label}</span>
+                                                <input
+                                                    type="number"
+                                                    value={gamification[key]}
+                                                    onChange={e => setGamification({ ...gamification, [key]: e.target.value })}
+                                                    className="w-16 px-2 py-1 text-xs border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-850 dark:text-white text-center font-bold outline-none"
+                                                />
+                                            </div>
+                                        ))}
+                                        <button
+                                            onClick={handleSavePointRules}
+                                            disabled={isSavingGamification}
+                                            className="w-full bg-brand text-white font-bold py-2 rounded-xl text-xs hover:opacity-85 transition disabled:opacity-50 cursor-pointer"
+                                        >
+                                            {isSavingGamification ? 'Saving...' : 'Update Points Engine'}
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Badges system */}
+                                    <div>
+                                        <h5 className="font-bold text-xs text-gray-755 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2 mb-4 uppercase tracking-wider">Achievement Badges</h5>
+                                        
+                                        <form onSubmit={handleAddBadge} className="bg-gray-55 dark:bg-gray-750/40 p-3 rounded-xl border border-gray-200 dark:border-gray-750 mb-4 space-y-2">
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={newBadge.emoji}
+                                                    onChange={e => setNewBadge({ ...newBadge, emoji: e.target.value })}
+                                                    className="w-10 text-center px-2 py-1.5 text-xs border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-white"
+                                                    placeholder="🏆"
+                                                    maxLength="2"
+                                                    required
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={newBadge.title}
+                                                    onChange={e => setNewBadge({ ...newBadge, title: e.target.value })}
+                                                    className="flex-1 px-3 py-1.5 text-xs border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-white font-bold"
+                                                    placeholder="Badge Name (e.g. Pub Legend)"
+                                                    required
+                                                />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={newBadge.desc}
+                                                onChange={e => setNewBadge({ ...newBadge, desc: e.target.value })}
+                                                className="w-full px-3 py-1.5 text-xs border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-white"
+                                                placeholder="Short description of badge achievement..."
+                                                required
+                                            />
+                                            <div className="flex gap-1.5 items-center">
+                                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Unlocks when:</span>
+                                                <select
+                                                    value={newBadge.metric}
+                                                    onChange={e => setNewBadge({ ...newBadge, metric: e.target.value })}
+                                                    className="flex-1 text-[10px] px-2 py-1 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-white font-bold cursor-pointer"
+                                                >
+                                                    <option value="rated">Pubs Rated</option>
+                                                    <option value="reviews">Reviews Written</option>
+                                                    <option value="added">Pubs Added</option>
+                                                    <option value="tens">Perfect 10s Given</option>
+                                                    <option value="crawls">Crawls Created</option>
+                                                </select>
+                                                <span className="text-xs text-gray-405 font-black">&gt;=</span>
+                                                <input
+                                                    type="number"
+                                                    value={newBadge.threshold}
+                                                    onChange={e => setNewBadge({ ...newBadge, threshold: e.target.value })}
+                                                    className="w-12 px-2 py-1 text-xs border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-850 dark:text-white text-center font-bold"
+                                                    min="1"
+                                                    required
+                                                />
+                                            </div>
+                                            <button type="submit" className="w-full bg-brand text-white font-bold py-1.5 rounded-lg text-xs hover:opacity-85 transition cursor-pointer">
+                                                Add Badge Reward
+                                            </button>
+                                        </form>
+                                        
+                                        <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+                                            {(!gamification.badges || gamification.badges.length === 0) ? (
+                                                <p className="text-xs text-gray-500 italic text-center py-4">No custom award badges created yet.</p>
+                                            ) : (
+                                                gamification.badges.map((b, idx) => (
+                                                    <div key={idx} className="flex justify-between items-center bg-gray-50 dark:bg-gray-850 p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                                                        <div className="flex items-center gap-2.5 min-w-0">
+                                                            <span className="text-xl select-none">{b.emoji}</span>
+                                                            <div className="min-w-0">
+                                                                <p className="text-xs font-bold text-gray-805 dark:text-white leading-tight truncate">{b.title}</p>
+                                                                <p className="text-[9px] text-gray-400 uppercase tracking-wider mt-0.5 truncate font-medium">
+                                                                    {b.desc} ({b.metric} &gt;= {b.threshold})
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={() => handleDeleteBadge(idx)} className="text-red-500 hover:text-red-700 text-sm font-bold px-2 cursor-pointer" title="Delete">
+                                                            ✕
+                                                        </button>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* PUBS TAB */}
+                    {activeTab === 'pubs' && isAdmin && (
+                        <div className="space-y-6 animate-fadeIn">
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/20 gap-3">
+                                    <div>
+                                        <h4 className="text-sm font-bold text-gray-800 dark:text-white">Global Master Pub Directory</h4>
+                                        <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Global list of all venues and claim verification status</p>
+                                    </div>
+                                    <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-3 py-1 rounded-full font-bold select-none">
+                                        {pubsList.filter(p => p.isLocked).length} Verified Pubs
+                                    </span>
+                                </div>
+                                
+                                <div className="overflow-x-auto max-h-[600px] p-2">
+                                    <table className="w-full text-left border-collapse text-xs">
+                                        <thead className="bg-gray-105 dark:bg-gray-750 text-gray-550 dark:text-gray-400 sticky top-0 font-bold border-b border-gray-200 dark:border-gray-700">
+                                            <tr>
+                                                <th className="p-4 w-12 text-center">Status</th>
+                                                <th className="p-4 w-14">Photo</th>
+                                                <th className="p-4">Venue Details</th>
+                                                <th className="p-4">Location</th>
+                                                <th className="p-4 text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-150 dark:divide-gray-750 text-gray-755 dark:text-gray-200">
+                                            {pubsList.map(pub => {
+                                                const managerCount = Array.isArray(pub.claimedBy) ? pub.claimedBy.length : (pub.claimedBy ? 1 : 0);
+                                                return (
+                                                    <tr key={pub.id} className={`hover:bg-gray-55 dark:hover:bg-gray-755/30 transition-colors ${pub.isLocked ? 'bg-blue-50/10 dark:bg-blue-950/5' : ''}`}>
+                                                        <td className="p-4 text-center">
+                                                            {pub.isLocked ? (
+                                                                <span className="text-lg" title="Verified & Locked">🔒</span>
+                                                            ) : (
+                                                                <span className="text-lg opacity-20" title="Unlocked">🔓</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-4">
+                                                            {pub.photoURL ? (
+                                                                <img src={pub.photoURL} alt="pub" className="w-9 h-9 rounded-lg object-cover shadow-sm border border-gray-250 dark:border-gray-700" />
+                                                            ) : (
+                                                                <div className="w-9 h-9 bg-gray-100 dark:bg-gray-750 rounded-lg flex items-center justify-center text-lg select-none">🍺</div>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <p className="font-bold text-gray-855 dark:text-white">{pub.name}</p>
+                                                            {managerCount > 0 ? (
+                                                                <span className="inline-block bg-brand-subtle dark:bg-brand-highlight/20 text-brand text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded mt-0.5">
+                                                                    {managerCount} Manager{managerCount > 1 ? 's' : ''}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-[9px] text-gray-400 italic">No assigned managers</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-4 text-gray-500 font-medium">{pub.location || 'Unknown location'}</td>
+                                                        <td className="p-4 text-right">
+                                                            <div className="flex justify-end gap-1.5">
+                                                                <button
+                                                                    onClick={() => handleTogglePubLock(pub)}
+                                                                    className={`font-bold text-[10px] uppercase px-3 py-1.5 rounded-xl transition shadow-sm cursor-pointer ${
+                                                                        pub.isLocked
+                                                                            ? 'bg-gray-200 text-gray-700 hover:bg-gray-250 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-650'
+                                                                            : 'bg-brand text-white hover:opacity-85'
+                                                                    }`}
+                                                                >
+                                                                    {pub.isLocked ? 'Unverify' : 'Verify'}
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeletePub(pub.id)}
+                                                                    className="text-red-705 bg-red-50 hover:bg-red-100 dark:bg-red-955/20 dark:hover:bg-red-900/40 font-bold text-[10px] uppercase px-3 py-1.5 rounded-xl transition shadow-sm cursor-pointer"
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODERATION TAB */}
+                    {activeTab === 'moderation' && (
+                        <div className="space-y-8 animate-fadeIn">
+                            {/* Reports Queue */}
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-red-200 dark:border-red-900/30 shadow-sm overflow-hidden">
+                                <div className="flex justify-between items-center p-5 border-b border-red-250 dark:border-red-900/40 bg-red-50/30 dark:bg-red-955/10">
+                                    <div>
+                                        <h4 className="text-sm font-bold text-red-800 dark:text-red-305">Community Reports Queue</h4>
+                                        <p className="text-[10px] text-red-650 dark:text-red-400 mt-0.5">Content flagged by users for review</p>
+                                    </div>
+                                    <span className="bg-red-600 text-white font-black text-xs px-2.5 py-1 rounded-full">
+                                        {reportsList.length}
+                                    </span>
+                                </div>
+                                
+                                <div className="overflow-x-auto max-h-80 p-2">
+                                    {reportsList.length === 0 ? (
+                                        <div className="text-center py-12 text-gray-500 font-bold text-xs">
+                                            No pending flags! The community is clear.
+                                        </div>
+                                    ) : (
+                                        <table className="w-full text-left border-collapse text-xs">
+                                            <thead className="bg-gray-50 dark:bg-gray-755 text-gray-550 dark:text-gray-405 font-bold border-b border-gray-205 dark:border-gray-700">
+                                                <tr>
+                                                    <th className="p-4 w-20">Type</th>
+                                                    <th className="p-4">Reported Content</th>
+                                                    <th className="p-4">Reported At</th>
+                                                    <th className="p-4 text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-150 dark:divide-gray-755 text-gray-755 dark:text-gray-200">
+                                                {reportsList.map(report => (
+                                                    <tr key={report.id} className="hover:bg-gray-50 dark:hover:bg-gray-750/30 transition-colors">
+                                                        <td className="p-4">
+                                                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
+                                                                report.type === 'pub' ? 'bg-orange-105 text-orange-800' : report.type === 'comment' ? 'bg-purple-105 text-purple-800' : 'bg-blue-105 text-blue-800'
+                                                            }`}>
+                                                                {report.type}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4 font-medium italic text-gray-805 dark:text-gray-200">
+                                                            "{report.targetName}"
+                                                        </td>
+                                                        <td className="p-4 text-gray-405">
+                                                            {report.createdAt && typeof report.createdAt.toDate === 'function'
+                                                                ? new Date(report.createdAt.toDate()).toLocaleDateString('en-GB')
+                                                                : 'Recent'}
+                                                        </td>
+                                                        <td className="p-4 text-right">
+                                                            <div className="flex justify-end gap-1.5">
+                                                                <button onClick={() => handleResolveReport(report.id)} className="text-[10px] uppercase bg-gray-200 hover:bg-gray-250 dark:bg-gray-700 dark:hover:bg-gray-650 px-2.5 py-1.5 rounded-xl font-bold transition cursor-pointer">
+                                                                    Dismiss
+                                                                </button>
+                                                                <button onClick={() => handleDeleteReportedContent(report)} className="text-[10px] uppercase bg-red-650 text-white hover:bg-red-700 px-2.5 py-1.5 rounded-xl font-bold transition shadow-sm cursor-pointer">
+                                                                    Delete Content
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Public Leaderboard review */}
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-purple-200 dark:border-purple-900/30 shadow-sm overflow-hidden">
+                                <div className="p-5 border-b border-purple-200 dark:border-purple-900/40 bg-purple-55/20 dark:bg-purple-955/10">
+                                    <h4 className="text-sm font-bold text-purple-855 dark:text-purple-305">Public Leaderboard Status</h4>
+                                    <p className="text-[10px] text-purple-655 dark:text-purple-400 mt-0.5">Groups opted into the public city leaderboard</p>
+                                </div>
+                                
+                                <div className="overflow-x-auto max-h-80 p-2">
+                                    <table className="w-full text-left border-collapse text-xs">
+                                        <thead className="bg-gray-55 dark:bg-gray-750 text-gray-555 dark:text-gray-400 font-bold border-b border-gray-250 dark:border-gray-700">
+                                            <tr>
+                                                <th className="p-4">Group Name</th>
+                                                <th className="p-4">City</th>
+                                                <th className="p-4">Members</th>
+                                                <th className="p-4 text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-150 dark:divide-gray-755 text-gray-755 dark:text-gray-200">
+                                            {groupsList.filter(g => g.isPublic).length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="4" className="p-8 text-center text-gray-500 font-bold">
+                                                        No public leaderboard listings.
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                groupsList.filter(g => g.isPublic).map(g => (
+                                                    <tr key={g.id} className="hover:bg-gray-55 dark:hover:bg-gray-750/30 transition-colors">
+                                                        <td className="p-4 font-bold text-sm">{g.groupName}</td>
+                                                        <td className="p-4 font-medium text-gray-500">{g.city || 'Global'}</td>
+                                                        <td className="p-4">
+                                                            <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-805 dark:text-blue-300 py-0.5 px-2.5 rounded-full font-bold text-[10px]">
+                                                                {g.members?.length || 0} members
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4 text-right">
+                                                            <button onClick={() => handleRevokePublicStatus(g.id)} className="text-red-750 bg-red-50 hover:bg-red-100 dark:bg-red-955/20 dark:hover:bg-red-900/40 px-3 py-1.5 rounded-xl font-bold text-[10px] uppercase transition cursor-pointer">
+                                                                Revoke Public Status
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* Photo Moderation Queue */}
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-blue-200 dark:border-blue-900/30 shadow-sm overflow-hidden">
+                                <div className="p-5 border-b border-blue-200 dark:border-blue-900/40 bg-blue-55/20 dark:bg-blue-955/10">
+                                    <h4 className="text-sm font-bold text-blue-805 dark:text-blue-305">Photo Moderation Feed</h4>
+                                    <p className="text-[10px] text-blue-655 dark:text-blue-400 mt-0.5">Scrub user uploaded imagery violating guidelines</p>
+                                </div>
+                                
+                                <div className="p-5">
+                                    {pubsList.filter(p => p.photoURL && !p.photoURL.includes('googleusercontent')).length === 0 ? (
+                                        <div className="py-8 text-center text-gray-505 font-bold text-xs">
+                                            No user-uploaded photos to moderate.
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                            {pubsList.filter(p => p.photoURL && !p.photoURL.includes('googleusercontent')).slice(0, 20).map(pub => (
+                                                <div key={pub.id} className="relative group rounded-xl overflow-hidden border border-gray-250 dark:border-gray-705 shadow-sm">
+                                                    <img src={pub.photoURL} alt={pub.name} className="w-full h-32 object-cover group-hover:scale-105 transition duration-300 select-none" />
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent p-3 flex flex-col justify-end">
+                                                        <p className="text-white font-bold text-[11px] truncate leading-none mb-1">{pub.name}</p>
+                                                        <p className="text-gray-300 text-[9px] truncate">{pub.location || 'Unknown'}</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleDeletePhoto(pub.id)}
+                                                        className="absolute top-2 right-2 bg-red-650 text-white p-1.5 rounded-lg text-xs font-bold shadow-lg hover:bg-red-700 transition opacity-0 group-hover:opacity-100 transform translate-y-1 group-hover:translate-y-0 cursor-pointer"
+                                                        title="Scrub Image"
+                                                    >
+                                                        🗑️
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Merge duplicates */}
+                            {isAdmin && (
+                                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-orange-200 dark:border-orange-900/30 shadow-sm overflow-hidden">
+                                    <div className="p-5 border-b border-orange-200 dark:border-orange-900/40 bg-orange-55/20 dark:bg-orange-955/10">
+                                        <h4 className="text-sm font-bold text-orange-855 dark:text-orange-305">Merge Duplicate Venues</h4>
+                                        <p className="text-[10px] text-orange-655 dark:text-orange-400 mt-0.5">Combine duplicate entries and transfer reviews globally</p>
+                                    </div>
+                                    
+                                    <div className="p-5 space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">1. Master Venue (Keep)</label>
+                                                <select
+                                                    value={mergePrimary}
+                                                    onChange={(e) => setMergePrimary(e.target.value)}
+                                                    className="w-full px-3 py-2 text-xs border border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-750 dark:text-white focus:ring-2 focus:ring-brand cursor-pointer outline-none"
+                                                >
+                                                    <option value="">-- Choose Master Venue --</option>
+                                                    {sortedPubsForDropdown.map(p => (
+                                                        <option key={`p-${p.id}`} value={p.id}>{p.name} ({p.location || 'Unknown'})</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">2. Duplicate Venue (Purge & Merge)</label>
+                                                <select
+                                                    value={mergeDuplicate}
+                                                    onChange={(e) => setMergeDuplicate(e.target.value)}
+                                                    className="w-full px-3 py-2 text-xs border border-red-200 dark:border-red-900/50 rounded-xl bg-red-50/30 dark:bg-red-955/10 dark:text-white focus:ring-2 focus:ring-red-505 cursor-pointer outline-none"
+                                                >
+                                                    <option value="">-- Choose Duplicate Venue --</option>
+                                                    {sortedPubsForDropdown.map(p => (
+                                                        <option key={`d-${p.id}`} value={p.id}>{p.name} ({p.location || 'Unknown'})</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-end pt-2">
+                                            <button
+                                                onClick={handleMergePubs}
+                                                disabled={isMerging || !mergePrimary || !mergeDuplicate}
+                                                className="px-6 py-2.5 bg-orange-655 text-white font-black text-xs rounded-xl hover:bg-orange-700 transition disabled:opacity-50 flex items-center gap-1.5 shadow-md cursor-pointer"
+                                            >
+                                                {isMerging ? "Merging Databases..." : "Execute Database Merge"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* FEEDBACK TAB */}
+                    {activeTab === 'feedback' && (
+                        <div className="space-y-6 animate-fadeIn">
+                            <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                                <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
+                                    <div>
+                                        <h4 className="text-sm font-bold text-gray-800 dark:text-white">Feedback & Bug Reports Inbox</h4>
+                                        <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Submitted via feedback form</p>
+                                    </div>
+                                    <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-3 py-1 rounded-full font-bold">
+                                        {feedbackList.length} Messages
+                                    </span>
+                                </div>
+
+                                {feedbackList.length === 0 ? (
+                                    <div className="text-center py-16 text-gray-505 italic text-xs font-bold">
+                                        No feedback reports in your inbox.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {feedbackList.map(item => (
+                                            <div
+                                                key={item.id}
+                                                className={`p-4 rounded-xl border-l-4 transition-all shadow-sm ${
+                                                    item.resolved
+                                                        ? 'bg-gray-50/50 dark:bg-gray-850/50 border-gray-300 dark:border-gray-700 opacity-60'
+                                                        : 'bg-white dark:bg-gray-850 border-brand'
+                                                }`}
+                                            >
+                                                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
+                                                            item.type === 'bug' ? 'bg-red-105 text-red-800 dark:bg-red-955/40 dark:text-red-300' : item.type === 'feature' ? 'bg-purple-105 text-purple-800 dark:bg-purple-955/40 dark:text-purple-305' : 'bg-blue-105 text-blue-800 dark:bg-blue-955/40 dark:text-blue-305'
+                                                        }`}>
+                                                            {item.type}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-450 dark:text-gray-400">
+                                                            Sender: <strong className="text-gray-705 dark:text-gray-200">{item.userName}</strong> ({item.userEmail})
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex gap-1.5 self-end sm:self-auto">
+                                                        <button
+                                                            onClick={() => handleResolveFeedback(item.id, item.resolved)}
+                                                            className={`text-[9px] uppercase font-black px-2.5 py-1.5 rounded-lg transition cursor-pointer ${
+                                                                item.resolved
+                                                                    ? 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+                                                                    : 'text-green-800 bg-green-50 hover:bg-green-100 dark:text-green-400 dark:bg-green-950/20'
+                                                            }`}
+                                                        >
+                                                            {item.resolved ? 'Reopen' : '✓ Resolve'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteFeedback(item.id)}
+                                                            className="text-[9px] uppercase font-black text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <p className="text-gray-800 dark:text-gray-250 text-xs font-semibold whitespace-pre-wrap leading-relaxed">
+                                                    {item.message}
+                                                </p>
+                                                <p className="text-[9px] text-gray-400 mt-3 font-medium">
+                                                    {item.createdAt && typeof item.createdAt.toDate === 'function'
+                                                        ? new Date(item.createdAt.toDate()).toLocaleString('en-GB')
+                                                        : 'Recent'}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
                 </div>
-            )}
-
-            {/* --- FEEDBACK TAB --- */}
-            {activeTab === 'feedback' && (
-                <div className="space-y-4 animate-fadeIn">
-                    <div className="flex justify-between items-center mb-2">
-                        <h3 className="text-xl font-bold text-gray-800 dark:text-white">Feedback Inbox</h3>
-                        <span className="text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-3 py-1 rounded-full font-bold">{feedbackList.length} Messages</span>
-                    </div>
-                    
-                    {feedbackList.length === 0 ? (
-                        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow text-center text-gray-500 dark:text-gray-400">No feedback submitted yet!</div>
-                    ) : (
-                        <div className="grid grid-cols-1 gap-4">
-                            {feedbackList.map(item => (
-                                <div key={item.id} className={`p-4 rounded-lg shadow-sm border-l-4 transition-colors ${item.resolved ? 'bg-gray-50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600 opacity-70' : 'bg-white dark:bg-gray-800 border-blue-500'}`}>
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div>
-                                            <span className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded ${item.type === 'bug' ? 'bg-red-100 text-red-800' : item.type === 'feature' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
-                                                {item.type}
-                                            </span>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                                                From: {item.userName} ({item.userEmail})
-                                            </span>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => handleResolveFeedback(item.id, item.resolved)} className={`text-xs font-semibold px-2 py-1 rounded ${item.resolved ? 'text-gray-600 bg-gray-200 hover:bg-gray-300' : 'text-green-800 bg-green-100 hover:bg-green-200'}`}>
-                                                {item.resolved ? 'Mark Unresolved' : '✔️ Resolve'}
-                                            </button>
-                                            <button onClick={() => handleDeleteFeedback(item.id)} className="text-xs text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1 rounded font-semibold">Delete</button>
-                                        </div>
-                                    </div>
-                                    <p className="text-gray-800 dark:text-gray-200 font-medium whitespace-pre-wrap">{item.message}</p>
-                                    <p className="text-xs text-gray-400 mt-2">{item.createdAt && typeof item.createdAt.toDate === 'function' ? new Date(item.createdAt.toDate()).toLocaleString() : 'Recent'}</p>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
+            </div>
         </div>
     );
 }

@@ -9,8 +9,8 @@ function avatarColor(index) {
     return palette[index % palette.length];
 }
 function tierLabel(avg) {
-    if (avg >= 9)   return { label: 'Legendary', color: '#b45309' };
-    if (avg >= 7.5) return { label: 'Great',     color: '#d97706' };
+    if (avg >= 9)   return { label: 'Legendary', color: 'var(--color-brand)' };
+    if (avg >= 7.5) return { label: 'Great',     color: 'color-mix(in srgb, var(--color-brand) 75%, #000)' };
     if (avg >= 6)   return { label: 'Good',       color: '#f59e0b' };
     if (avg >= 4)   return { label: 'Decent',     color: '#6b7280' };
     return               { label: 'Poor',       color: '#dc2626' };
@@ -19,7 +19,7 @@ function tierLabel(avg) {
 /* ── podium card ────────────────────────────────────────────────── */
 const PODIUM_HEIGHTS = ['7rem', '5rem', '5.5rem'];
 const MEDALS         = ['🥇', '🥈', '🥉'];
-const PODIUM_COLORS  = ['#b45309', '#d97706', '#92400e'];
+const PODIUM_COLORS  = ['var(--color-brand)', 'var(--color-brand-light)', '#92400e'];
 
 function PodiumCard({ pub, rank, animated }) {
     const tier = tierLabel(pub.avg);
@@ -232,7 +232,7 @@ export default function IndividualRankingsPage({ pubs, scores, users, criteria, 
                                     <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
                                         {[
                                             { label: 'Personal Avg', value: personalAvg.toFixed(2), suffix: '/10', color: accentColor },
-                                            { label: 'Best',         value: bestPub?.avg.toFixed(1), suffix: '', color: '#b45309',   sub: bestPub?.name },
+                                            { label: 'Best',         value: bestPub?.avg.toFixed(1), suffix: '', color: 'var(--color-brand)',   sub: bestPub?.name },
                                             { label: 'Worst',        value: worstPub?.avg.toFixed(1), suffix: '', color: '#dc2626',  sub: worstPub?.name },
                                             { label: '7.5+ Pubs',    value: topTierCount,              suffix: '', color: '#059669' },
                                         ].map(({ label, value, suffix, color, sub }) => (
@@ -260,7 +260,7 @@ export default function IndividualRankingsPage({ pubs, scores, users, criteria, 
                                         </div>
                                         {/* tier legend */}
                                         <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', marginTop: 'var(--space-5)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--color-border)' }}>
-                                            {[{ color: '#b45309', label: 'Legendary 9+' }, { color: '#d97706', label: 'Great 7.5+' }, { color: '#f59e0b', label: 'Good 6+' }, { color: '#6b7280', label: 'Decent 4+' }].map(({ color, label }) => (
+                                            {[{ color: 'var(--color-brand)', label: 'Legendary 9+' }, { color: 'color-mix(in srgb, var(--color-brand) 75%, #000)', label: 'Great 7.5+' }, { color: '#f59e0b', label: 'Good 6+' }, { color: '#6b7280', label: 'Decent 4+' }].map(({ color, label }) => (
                                                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                                     <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: color }} />
                                                     <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontWeight: 600 }}>{label}</span>

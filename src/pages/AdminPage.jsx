@@ -14,40 +14,279 @@ import AuditTab       from '../components/admin/AuditTab';
 
 const NAV_GROUPS = [
     {
-        label: 'Group',
+        label: 'Command Center',
         items: [
-            { id: 'settings', icon: '⚙️',  label: 'Settings' },
-            { id: 'invites',  icon: '📨',  label: 'Invites' },
+            { id: 'overview', icon: 'dashboard', label: 'Overview' },
+        ],
+    },
+    {
+        label: 'Settings',
+        items: [
+            { id: 'settings', icon: 'settings',  label: 'Settings' },
+            { id: 'invites',  icon: 'invites',  label: 'Invites' },
         ],
     },
     {
         label: 'Members',
         items: [
-            { id: 'members',  icon: '👥',  label: 'Members', showBadge: true },
+            { id: 'members',  icon: 'members',  label: 'Members', showBadge: true },
         ],
     },
     {
-        label: 'Content',
+        label: 'Content Directory',
         items: [
-            { id: 'pubs',     icon: '🍻',  label: 'Pubs' },
-            { id: 'criteria', icon: '📋',  label: 'Criteria' },
-            { id: 'weights',  icon: '⚖️',  label: 'Weights' },
+            { id: 'pubs',     icon: 'pubs',  label: 'Pubs' },
+            { id: 'criteria', icon: 'criteria',  label: 'Criteria' },
+            { id: 'weights',  icon: 'weights',  label: 'Weights' },
         ],
     },
     {
-        label: 'Reports',
+        label: 'Security Logs',
         items: [
-            { id: 'audit', icon: '🕵️', label: 'Audit Logs' },
+            { id: 'audit', icon: 'audit', label: 'Audit Logs' },
         ],
     },
 ];
+
+function AdminNavIcon({ type }) {
+    switch (type) {
+        case 'dashboard':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-amber-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <rect x="3" y="3" width="7" height="9" rx="1" />
+                    <rect x="14" y="3" width="7" height="5" rx="1" />
+                    <rect x="14" y="12" width="7" height="9" rx="1" />
+                    <rect x="3" y="16" width="7" height="5" rx="1" />
+                </svg>
+            );
+        case 'settings':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+            );
+        case 'invites':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-cyan-550" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                </svg>
+            );
+        case 'members':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+            );
+        case 'pubs':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-rose-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+                    <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
+                    <line x1="6" y1="1.5" x2="6" y2="4.5" />
+                    <line x1="10" y1="1.5" x2="10" y2="4.5" />
+                    <line x1="14" y1="1.5" x2="14" y2="4.5" />
+                </svg>
+            );
+        case 'criteria':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-emerald-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <polyline points="9 11 12 14 22 4" />
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                </svg>
+            );
+        case 'weights':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-purple-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
+                    <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
+                    <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
+                    <line x1="1" y1="14" x2="7" y2="14" />
+                    <line x1="9" y1="8" x2="15" y2="8" />
+                    <line x1="17" y1="16" x2="23" y2="16" />
+                </svg>
+            );
+        case 'audit':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-orange-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <line x1="9" y1="9" x2="15" y2="9" />
+                    <line x1="9" y1="13" x2="15" y2="13" />
+                    <line x1="9" y1="17" x2="13" y2="17" />
+                </svg>
+            );
+        default:
+            return <span>⚙️</span>;
+    }
+}
+
+function formatTimestamp(ts) {
+    if (!ts) return '—';
+    const date = ts.toDate ? ts.toDate() : new Date(ts);
+    return date.toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function OverviewTab({
+    currentGroup,
+    membersCount,
+    pubsCount,
+    pendingCount,
+    inviteUrl,
+    inviteCode,
+    copyMessage,
+    handleCopyInvite,
+    handleDownloadQr,
+    auditLogs,
+    loadingLogs,
+    getUserLabel,
+    setActiveTab,
+}) {
+    return (
+        <div className="space-y-6">
+            {/* Group identity header card */}
+            <div className="relative rounded-2xl overflow-hidden border border-gray-250 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800">
+                {currentGroup.coverPhoto ? (
+                    <div className="h-28 w-full relative">
+                        <img src={currentGroup.coverPhoto} alt="Group Cover" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    </div>
+                ) : (
+                    <div className="h-20 w-full bg-gradient-to-r from-brand/80 to-brand dark:from-brand-dark dark:to-brand" />
+                )}
+                <div className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative">
+                    <div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-brand bg-brand-subtle dark:bg-brand-highlight/30 px-2.5 py-0.5 rounded-full select-none">Admin Panel</span>
+                        <h3 className="text-2xl font-black text-gray-850 dark:text-white mt-1.5">{currentGroup.groupName}</h3>
+                        {currentGroup.city && <p className="text-xs text-gray-455 dark:text-gray-400 mt-0.5">📍 Based in {currentGroup.city}</p>}
+                    </div>
+                    <button
+                        onClick={() => setActiveTab('settings')}
+                        className="px-4 py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-650 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 rounded-xl font-bold text-xs transition shadow-sm cursor-pointer"
+                    >
+                        ⚙️ Customize Group
+                    </button>
+                </div>
+            </div>
+
+            {/* Dashboard stats cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200/60 dark:border-gray-700 shadow-sm flex flex-col justify-between gap-3 hover:border-brand-border/20 transition-colors">
+                    <div>
+                        <span className="text-[10px] font-bold text-gray-450 dark:text-gray-500 uppercase tracking-wider">Group Directory</span>
+                        <p className="text-3xl font-black text-gray-850 dark:text-white mt-1">{pubsCount}</p>
+                    </div>
+                    <button onClick={() => setActiveTab('pubs')} className="text-xs font-bold text-brand hover:underline text-left cursor-pointer">Manage Pubs →</button>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200/60 dark:border-gray-700 shadow-sm flex flex-col justify-between gap-3 hover:border-brand-border/20 transition-colors">
+                    <div>
+                        <span className="text-[10px] font-bold text-gray-450 dark:text-gray-500 uppercase tracking-wider">Active Members</span>
+                        <p className="text-3xl font-black text-gray-850 dark:text-white mt-1">{membersCount}</p>
+                    </div>
+                    <button onClick={() => setActiveTab('members')} className="text-xs font-bold text-brand hover:underline text-left cursor-pointer">Manage Members →</button>
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200/60 dark:border-gray-700 shadow-sm flex flex-col justify-between gap-3 hover:border-brand-border/20 transition-colors">
+                    <div>
+                        <span className="text-[10px] font-bold text-gray-450 dark:text-gray-500 uppercase tracking-wider">Join Requests</span>
+                        <p className={`text-3xl font-black mt-1 ${pendingCount > 0 ? 'text-amber-605 dark:text-amber-500' : 'text-gray-850 dark:text-white'}`}>{pendingCount}</p>
+                    </div>
+                    {pendingCount > 0 ? (
+                        <button onClick={() => setActiveTab('members')} className="text-xs font-black text-amber-605 dark:text-amber-500 animate-pulse hover:underline text-left cursor-pointer">Review Pending →</button>
+                    ) : (
+                        <span className="text-xs text-gray-400 dark:text-gray-500 italic">No approvals pending</span>
+                    )}
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200/60 dark:border-gray-700 shadow-sm flex flex-col justify-between gap-3 hover:border-brand-border/20 transition-colors">
+                    <div>
+                        <span className="text-[10px] font-bold text-gray-455 dark:text-gray-500 uppercase tracking-wider">Privacy Mode</span>
+                        <p className="text-base font-bold text-gray-850 dark:text-white mt-2">
+                            {currentGroup.isPublic ? '🌐 Public Directory' : '🔒 Private Circle'}
+                        </p>
+                    </div>
+                    <button onClick={() => setActiveTab('settings')} className="text-xs font-bold text-brand hover:underline text-left cursor-pointer">Edit Settings →</button>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                {/* Quick share widget */}
+                <div className="lg:col-span-2 bg-gray-50 dark:bg-gray-700/30 p-5 rounded-2xl border border-gray-200/60 dark:border-gray-700 flex flex-col items-center justify-between text-center gap-4">
+                    <div className="w-full text-left">
+                        <h4 className="text-sm font-bold text-gray-800 dark:text-white">Quick Invite</h4>
+                        <p className="text-[10px] text-gray-450 uppercase tracking-wider mt-0.5">Share Link or QR Code</p>
+                    </div>
+
+                    <div id="admin-qr-canvas-overview" className="bg-white p-2.5 rounded-xl shadow-sm border border-gray-200/50 flex items-center justify-center min-h-[140px] min-w-[140px] select-none" />
+
+                    <div className="flex gap-1.5 w-full">
+                        <button
+                            onClick={handleCopyInvite}
+                            className={`flex-1 py-2.5 rounded-xl font-bold text-xs text-white transition-all shadow-sm cursor-pointer ${
+                                copyMessage ? 'bg-green-600 hover:bg-green-700' : 'bg-brand hover:bg-brand-hover active:bg-brand-active'
+                            }`}
+                        >
+                            {copyMessage ? '✓ Link Copied!' : '📋 Copy Link'}
+                        </button>
+                        <button
+                            onClick={handleDownloadQr}
+                            className="px-3 py-2.5 bg-white dark:bg-gray-800 text-gray-650 dark:text-gray-300 border border-gray-205 dark:border-gray-600 rounded-xl font-bold text-xs transition shadow-sm cursor-pointer"
+                            title="Download QR Code"
+                        >
+                            ⬇ QR
+                        </button>
+                    </div>
+                </div>
+
+                {/* Recent actions list */}
+                <div className="lg:col-span-3 bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200/60 dark:border-gray-700 shadow-sm flex flex-col">
+                    <div className="flex justify-between items-center mb-4">
+                        <div>
+                            <h4 className="text-sm font-bold text-gray-800 dark:text-white">Recent Admin Activity</h4>
+                            <p className="text-[10px] text-gray-450 uppercase tracking-wider mt-0.5">Audit Log Overview</p>
+                        </div>
+                        <button onClick={() => setActiveTab('audit')} className="text-xs font-bold text-brand hover:underline cursor-pointer">View All →</button>
+                    </div>
+
+                    {loadingLogs ? (
+                        <div className="space-y-3 flex-1">
+                            {[...Array(3)].map((_, i) => (
+                                <div key={i} className="h-10 bg-gray-50 dark:bg-gray-750 rounded-xl animate-pulse" />
+                            ))}
+                        </div>
+                    ) : auditLogs.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center py-6 text-gray-400 italic text-xs">
+                            No recent admin actions recorded.
+                        </div>
+                    ) : (
+                        <div className="space-y-3 flex-1 overflow-y-auto">
+                            {auditLogs.slice(0, 3).map(log => (
+                                <div key={log.id} className="flex items-center justify-between gap-3 text-xs bg-gray-50 dark:bg-gray-700/30 p-3 rounded-xl border border-gray-150/40 dark:border-gray-750">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="font-bold text-gray-805 dark:text-gray-200 truncate">{log.action}</p>
+                                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">by {getUserLabel(log.adminId)}</p>
+                                    </div>
+                                    <span className="text-[9px] font-bold text-gray-400 whitespace-nowrap shrink-0">{formatTimestamp(log.timestamp)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function AdminPage({
     criteria, pubs, user, currentGroup, pubsRef, criteriaRef, groupRef, allUsers, db, featureFlags, scores = {}
 }) {
     const { showToast } = useToast();
     const [confirmState, setConfirmState] = useState(null);
-    const [activeTab, setActiveTab] = useState('settings');
+    const [activeTab, setActiveTab] = useState('overview');
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     // --- SETTINGS ---
@@ -99,7 +338,6 @@ export default function AdminPage({
 
     // --- MISC ---
     const [copyMessage, setCopyMessage] = useState('');
-    const [showQr,      setShowQr]      = useState(false);
 
     // --- AUDIT ---
     const [auditLogs,   setAuditLogs]   = useState([]);
@@ -151,20 +389,33 @@ export default function AdminPage({
     }, [criteria]);
 
     useEffect(() => {
-        if (!showQr) return;
+        if (activeTab !== 'invites' && activeTab !== 'overview') return;
 
         const renderQr = () => {
-            const container = document.getElementById('admin-qr-canvas');
-            if (!container || !window.QRCode) return;
-            container.innerHTML = '';
-            new window.QRCode(container, {
-                text: inviteUrl,
-                width: 200,
-                height: 200,
-                colorDark: '#000000',
-                colorLight: '#ffffff',
-                correctLevel: window.QRCode.CorrectLevel?.H ?? 2,
-            });
+            const container1 = document.getElementById('admin-qr-canvas-inline');
+            const container2 = document.getElementById('admin-qr-canvas-overview');
+            if (container1 && window.QRCode) {
+                container1.innerHTML = '';
+                new window.QRCode(container1, {
+                    text: inviteUrl,
+                    width: 180,
+                    height: 180,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: window.QRCode.CorrectLevel?.H ?? 2,
+                });
+            }
+            if (container2 && window.QRCode) {
+                container2.innerHTML = '';
+                new window.QRCode(container2, {
+                    text: inviteUrl,
+                    width: 130,
+                    height: 130,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: window.QRCode.CorrectLevel?.H ?? 2,
+                });
+            }
         };
 
         if (window.QRCode) {
@@ -186,10 +437,10 @@ export default function AdminPage({
         document.head.appendChild(script);
 
         return () => script.removeEventListener('load', renderQr);
-    }, [showQr, inviteUrl]);
+    }, [activeTab, inviteUrl]);
 
     useEffect(() => {
-        if (activeTab !== 'audit') return;
+        if (activeTab !== 'audit' && activeTab !== 'overview') return;
         setLoadingLogs(true);
         const unsub = groupRef.collection('auditLogs')
             .orderBy('timestamp', 'desc')
@@ -543,12 +794,12 @@ export default function AdminPage({
     };
 
     const handleCopyInvite = async () => {
-        try { await navigator.clipboard.writeText(inviteUrl); setCopyMessage('Invite link copied!'); setTimeout(() => setCopyMessage(''), 2000); }
-        catch (e) { setCopyMessage('Could not copy.'); }
+        try { await navigator.clipboard.writeText(inviteUrl); showToast('Invite link copied!', 'success'); }
+        catch (e) { showToast('Could not copy link.', 'error'); }
     };
 
     const handleDownloadQr = () => {
-        const canvas = document.querySelector('#admin-qr-canvas canvas');
+        const canvas = document.querySelector('#admin-qr-canvas-inline canvas') || document.querySelector('#admin-qr-canvas-overview canvas');
         if (!canvas) return;
         const link = document.createElement('a');
         link.href = canvas.toDataURL('image/png');
@@ -567,24 +818,24 @@ export default function AdminPage({
         return (
             <button
                 onClick={() => { setActiveTab(item.id); setSidebarOpen(false); }}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 relative ${
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-150 relative cursor-pointer ${
                     isActive
-                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100'
+                        ? 'bg-brand/10 text-brand'
+                        : 'text-gray-650 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900 hover:text-gray-900 dark:hover:text-gray-150'
                 }`}
             >
                 {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-blue-500 rounded-r-full" />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-brand rounded-r-full" />
                 )}
-                <span className="text-base leading-none">{item.icon}</span>
+                <AdminNavIcon type={item.id} />
                 <span className="flex-1 text-left">{item.label}</span>
                 {item.id === 'members' && pendingMembers.length > 0 && (
-                    <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">
+                    <span className="bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full animate-pulse">
                         {pendingMembers.length}
                     </span>
                 )}
                 {item.id === 'members' && (
-                    <span className="text-xs text-gray-400 dark:text-gray-500">{members.length}</span>
+                    <span className="text-[10px] font-bold text-gray-400 bg-gray-50 dark:bg-gray-900 px-1.5 py-0.5 rounded-full border border-gray-150 dark:border-gray-700">{members.length}</span>
                 )}
             </button>
         );
@@ -592,16 +843,16 @@ export default function AdminPage({
 
     // ── Sidebar content ────────────────────────────────────────────────────────
     const SidebarContent = () => (
-        <nav className="flex flex-col gap-5 p-4">
+        <nav className="flex flex-col gap-5 p-4 bg-white dark:bg-gray-800">
             {/* Group identity */}
-            <div className="px-3 pb-3 border-b border-gray-200 dark:border-gray-700">
-                <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-0.5">Managing</p>
-                <p className="text-sm font-bold text-blue-600 dark:text-blue-400 truncate">{currentGroup?.groupName}</p>
+            <div className="px-3 pb-3 border-b border-gray-100 dark:border-gray-700">
+                <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1 select-none">Managing Group</p>
+                <p className="text-sm font-bold text-brand truncate leading-tight">{currentGroup?.groupName}</p>
             </div>
 
             {NAV_GROUPS.map(group => (
-                <div key={group.label}>
-                    <p className="px-3 mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                <div key={group.label} className="space-y-1">
+                    <p className="px-3 text-[9px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-550 select-none">
                         {group.label}
                     </p>
                     <div className="flex flex-col gap-0.5">
@@ -617,142 +868,64 @@ export default function AdminPage({
         <div className="w-full">
             {confirmState && <ConfirmModal {...confirmState} onClose={() => setConfirmState(null)} />}
 
-            {showQr && (
-                <div
-                    onClick={() => setShowQr(false)}
-                    style={{
-                        position: 'fixed',
-                        inset: 0,
-                        background: 'rgba(0, 0, 0, 0.72)',
-                        zIndex: 9999,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: 'var(--space-4)',
-                        backdropFilter: 'blur(4px)',
-                    }}
-                >
-                    <div
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                            width: '100%',
-                            maxWidth: '360px',
-                            background: 'var(--color-surface)',
-                            border: '1px solid var(--color-border)',
-                            borderRadius: 'var(--radius-xl)',
-                            boxShadow: 'var(--shadow-lg)',
-                            padding: 'var(--space-6)',
-                            position: 'relative',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: 'var(--space-4)',
-                        }}
-                    >
-                        <button
-                            onClick={() => setShowQr(false)}
-                            aria-label="Close QR modal"
-                            style={{
-                                position: 'absolute',
-                                top: 'var(--space-3)',
-                                right: 'var(--space-3)',
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '9999px',
-                                border: '1px solid var(--color-border)',
-                                background: 'var(--color-surface-offset)',
-                                color: 'var(--color-text-muted)',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '16px',
-                                fontWeight: 700,
-                            }}
-                        >
-                            ✕
-                        </button>
-
-                        <div style={{ textAlign: 'center', paddingTop: 'var(--space-2)' }}>
-                            <h3 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text)' }}>Scan to Join</h3>
-                            <p style={{ margin: 'var(--space-2) 0 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
-                                Share this QR code so people can join <strong>{currentGroup?.groupName || 'your group'}</strong>.
-                            </p>
-                        </div>
-
-                        <div
-                            id="admin-qr-canvas"
-                            style={{
-                                background: '#ffffff',
-                                padding: '14px',
-                                borderRadius: 'var(--radius-lg)',
-                                border: '1px solid #e5e7eb',
-                                minHeight: '228px',
-                                minWidth: '228px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                            }}
-                        />
-
-                        <button
-                            onClick={handleDownloadQr}
-                            style={{
-                                width: '100%',
-                                padding: 'var(--space-3) var(--space-4)',
-                                background: 'var(--color-primary)',
-                                color: '#ffffff',
-                                border: 'none',
-                                borderRadius: 'var(--radius-md)',
-                                fontWeight: 700,
-                                fontSize: 'var(--text-sm)',
-                                cursor: 'pointer',
-                            }}
-                        >
-                            ⬇ Download QR
-                        </button>
-                    </div>
-                </div>
-            )}
-
             {/* Page header */}
-            <div className="mb-6">
-                <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Group Admin</h2>
+            <div className="mb-6 flex justify-between items-end">
+                <div>
+                    <h2 className="text-3xl font-black text-gray-850 dark:text-white leading-tight">Group Administration</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Customise directory, moderate members, and configure leaderboard weight distributions.</p>
+                </div>
             </div>
 
             {/* Mobile: top bar with hamburger */}
-            <div className="flex items-center gap-3 mb-4 md:hidden">
+            <div className="flex items-center gap-3 mb-4 md:hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-2.5 rounded-2xl shadow-sm">
                 <button
                     onClick={() => setSidebarOpen(o => !o)}
-                    className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                    className="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-750 text-gray-650 dark:text-gray-300 transition cursor-pointer border border-gray-200 dark:border-gray-650"
                     aria-label="Toggle admin menu"
                 >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                         <line x1="3" y1="6"  x2="21" y2="6"  />
                         <line x1="3" y1="12" x2="21" y2="12" />
                         <line x1="3" y1="18" x2="21" y2="18" />
                     </svg>
                 </button>
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{activeLabel}</span>
+                <span className="text-xs font-bold text-gray-750 dark:text-gray-200 uppercase tracking-wider">{activeLabel}</span>
             </div>
 
             {/* Mobile: slide-down sidebar */}
             {sidebarOpen && (
-                <div className="md:hidden mb-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg">
+                <div className="md:hidden mb-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden animate-fadeIn">
                     <SidebarContent />
                 </div>
             )}
 
             {/* Desktop: sidebar + content layout */}
-            <div className="flex gap-6 items-start">
+            <div className="flex flex-col md:flex-row gap-6 items-start">
 
                 {/* Sidebar — desktop only */}
-                <aside className="hidden md:block w-52 shrink-0 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm sticky top-20">
+                <aside className="hidden md:block w-52 shrink-0 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm sticky top-20 overflow-hidden">
                     <SidebarContent />
                 </aside>
 
                 {/* Main content */}
-                <div className="flex-1 min-w-0 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 min-h-[500px]">
+                <div className="flex-1 min-w-0 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 min-h-[520px]">
+                    {activeTab === 'overview' && (
+                        <OverviewTab
+                            currentGroup={currentGroup}
+                            membersCount={members.length}
+                            pubsCount={pubs.length}
+                            pendingCount={pendingMembers.length}
+                            inviteUrl={inviteUrl}
+                            inviteCode={inviteCode}
+                            copyMessage={copyMessage}
+                            handleCopyInvite={handleCopyInvite}
+                            handleDownloadQr={handleDownloadQr}
+                            auditLogs={auditLogs}
+                            loadingLogs={loadingLogs}
+                            getUserLabel={getUserLabel}
+                            setActiveTab={setActiveTab}
+                        />
+                    )}
 
                     {activeTab === 'settings' && (
                         <SettingsTab
@@ -777,7 +950,7 @@ export default function AdminPage({
                             requireApproval={requireApproval}
                             copyMessage={copyMessage}
                             handleCopyInvite={handleCopyInvite}
-                            setShowQr={setShowQr}
+                            handleDownloadQr={handleDownloadQr}
                         />
                     )}
 

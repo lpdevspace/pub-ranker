@@ -12,6 +12,13 @@
 /* Tailwind brand colour slot */
 @theme {
   --color-brand: var(--theme-color, #b45309);
+  --color-brand-hover: var(--color-brand-hover);
+  --color-brand-active: var(--color-brand-active);
+  --color-brand-highlight: var(--color-brand-highlight);
+  --color-brand-subtle: var(--color-brand-subtle);
+  --color-brand-dark: var(--color-brand-dark);
+  --color-brand-light: var(--color-brand-light);
+  --color-brand-border: var(--color-brand-border);
 }
 
 /* Base resets */

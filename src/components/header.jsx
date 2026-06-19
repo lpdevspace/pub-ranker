@@ -9,7 +9,7 @@ function DarkModeToggle({ isDarkMode, onToggle, size = 20 }) {
             aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             style={{ width: 36, height: 36 }}
-            className="flex items-center justify-center rounded-full text-gray-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-600 dark:hover:text-amber-400 dark:text-gray-400 transition-all duration-200"
+            className="flex items-center justify-center rounded-full text-gray-500 hover:bg-brand-subtle dark:hover:bg-brand-highlight hover:text-brand dark:hover:text-brand dark:text-gray-400 transition-all duration-200"
         >
             {isDarkMode ? (
                 <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -40,6 +40,111 @@ function PintMark({ size = 28 }) {
             <path d="M8 14 L7.5 36 Q7.5 37 8.5 37 L23.5 37 Q24.5 37 24.5 36 L24 14 Z" fill="currentColor" opacity="0.15" />
         </svg>
     );
+}
+
+function NavIcon({ type }) {
+    switch (type) {
+        case 'dashboard':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="3" width="7" height="9" rx="1" />
+                    <rect x="14" y="3" width="7" height="5" rx="1" />
+                    <rect x="14" y="12" width="7" height="9" rx="1" />
+                    <rect x="3" y="16" width="7" height="5" rx="1" />
+                </svg>
+            );
+        case 'taproom':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-purple-500 dark:text-purple-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+            );
+        case 'pubs':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-rose-500 dark:text-rose-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+                    <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
+                    <line x1="6" y1="1.5" x2="6" y2="4.5" />
+                    <line x1="10" y1="1.5" x2="10" y2="4.5" />
+                    <line x1="14" y1="1.5" x2="14" y2="4.5" />
+                </svg>
+            );
+        case 'toVisit':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" />
+                    <circle cx="12" cy="12" r="6" />
+                    <circle cx="12" cy="12" r="2" />
+                </svg>
+            );
+        case 'insights':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-sky-500 dark:text-sky-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 3v18h18" />
+                    <path d="m19 9-5 5-4-4-3 3" />
+                </svg>
+            );
+        case 'events':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+            );
+        case 'map':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-teal-500 dark:text-teal-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                    <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+                    <line x1="9" y1="3" x2="9" y2="18" />
+                    <line x1="15" y1="6" x2="15" y2="21" />
+                </svg>
+            );
+        case 'leaderboard':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-yellow-500 dark:text-yellow-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                    <path d="M4 22h16" />
+                    <path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34" />
+                    <path d="M12 2a4 4 0 0 1 4 4v4.5A4.5 4.5 0 0 1 11.5 15h-3A4.5 4.5 0 0 1 4 10.5V6a4 4 0 0 1 4-4z" />
+                </svg>
+            );
+        case 'individual':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M14.5 17.5 3 6V3h3l11.5 11.5" />
+                    <path d="m13 19 6-6" />
+                    <path d="m16 22 5-5" />
+                    <path d="M19 5v3.5L14.5 13" />
+                    <path d="M14 2h3v3" />
+                </svg>
+            );
+        case 'achievements':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-amber-600 dark:text-amber-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="8" r="7" />
+                    <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+                </svg>
+            );
+        case 'spin':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-pink-500 dark:text-pink-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                </svg>
+            );
+        case 'feedback':
+            return (
+                <svg className="w-4 h-4 flex-shrink-0 text-cyan-500 dark:text-cyan-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    <path d="M10 8h4" />
+                    <path d="M12 6v4" />
+                </svg>
+            );
+        default:
+            return <span>🍺</span>;
+    }
 }
 
 export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile, isDarkMode, toggleDarkMode, scores = {}, pubs = [], criteria = [], groupId }) {
@@ -78,18 +183,18 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
         catch (e) { console.error('Error signing out', e); }
     };
 
-    const NavButton = ({ name, targetPage, icon }) => {
+    const NavButton = ({ name, targetPage }) => {
         const isActive = page === targetPage;
         return (
             <button
                 onClick={() => setPage(targetPage)}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold transition-all duration-200 whitespace-nowrap ${
+                className={`relative flex items-center gap-2 px-4 py-3 text-sm font-semibold transition-all duration-150 whitespace-nowrap border-b-2 -mb-[1px] focus:outline-none ${
                     isActive
-                        ? 'bg-amber-600 text-white shadow-sm'
-                        : 'text-gray-500 dark:text-gray-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-700 dark:hover:text-amber-400'
+                        ? 'border-brand text-brand font-black'
+                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-200 dark:hover:border-gray-700'
                 }`}
             >
-                <span className="text-sm">{icon}</span>
+                <NavIcon type={targetPage} />
                 <span>{name}</span>
             </button>
         );
@@ -138,12 +243,12 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                         <button
                                             key={pub.id}
                                             onClick={() => { setPage(pub.isVisited ? 'pubs' : 'toVisit'); setShowSearch(false); }}
-                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition text-left border-b border-gray-50 dark:border-gray-800 last:border-0"
+                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-brand-subtle dark:hover:bg-brand-highlight transition text-left border-b border-gray-50 dark:border-gray-800 last:border-0"
                                         >
                                             {pub.photoURL ? (
                                                 <img src={pub.photoURL} alt={pub.name} className="w-10 h-10 rounded-full object-cover flex-shrink-0" loading="lazy" width="40" height="40" />
                                             ) : (
-                                                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-lg flex-shrink-0">🍺</div>
+                                                <div className="w-10 h-10 rounded-full bg-brand-subtle dark:bg-brand-highlight flex items-center justify-center text-lg flex-shrink-0">🍺</div>
                                             )}
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-bold text-gray-900 dark:text-white text-sm truncate">{pub.name}</p>
@@ -152,7 +257,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                             <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                                                 pub.isVisited
                                                     ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                    : 'bg-brand-subtle text-brand dark:bg-brand-highlight dark:text-brand'
                                             }`}>
                                                 {pub.isVisited ? 'Visited' : 'To Visit'}
                                             </span>
@@ -177,7 +282,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
 
                         {/* Logo */}
                         <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="text-amber-600 dark:text-amber-400 flex-shrink-0">
+                            <span className="text-brand flex-shrink-0">
                                 <PintMark size={26} />
                             </span>
                             <div className="flex flex-col justify-center min-w-0">
@@ -185,7 +290,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                     Pub Ranker
                                 </h1>
                                 {groupName && (
-                                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-widest truncate leading-tight">
+                                    <span className="text-[10px] text-brand font-bold uppercase tracking-widest truncate leading-tight">
                                         {groupName}
                                     </span>
                                 )}
@@ -214,7 +319,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                     title="Group Admin"
                                     className={`flex items-center justify-center w-9 h-9 rounded-full transition ${
                                         page === 'admin'
-                                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                            ? 'bg-brand-subtle text-brand dark:bg-brand-highlight dark:text-brand'
                                             : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400'
                                     }`}
                                 >
@@ -258,7 +363,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
 
                             <button
                                 onClick={() => setPage('business')}
-                                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-full text-xs font-black uppercase tracking-wider transition shadow-sm"
+                                className="px-3 py-1.5 bg-brand hover:bg-brand-hover active:bg-brand-active text-white rounded-full text-xs font-black uppercase tracking-wider transition shadow-sm"
                             >
                                 For Venues
                             </button>
@@ -273,7 +378,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                 {avatarUrl ? (
                                     <img src={avatarUrl} alt="Avatar" className="w-7 h-7 rounded-full object-cover shadow-sm" loading="lazy" width="28" height="28" />
                                 ) : (
-                                    <div className="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold text-xs shadow-sm">
+                                    <div className="w-7 h-7 rounded-full bg-brand flex items-center justify-center text-white font-bold text-xs shadow-sm">
                                         {displayName.charAt(0).toUpperCase()}
                                     </div>
                                 )}
@@ -315,26 +420,35 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                             >
                                 {avatarUrl
                                     ? <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" loading="lazy" width="32" height="32" />
-                                    : <div className="w-full h-full bg-amber-500 flex items-center justify-center text-white font-bold text-xs">{displayName.charAt(0).toUpperCase()}</div>
+                                    : <div className="w-full h-full bg-brand flex items-center justify-center text-white font-bold text-xs">{displayName.charAt(0).toUpperCase()}</div>
                                 }
                             </button>
                         </div>
                     </div>
 
                     {/* Nav row */}
-                    <div className="pb-2 flex overflow-x-auto gap-1 hide-scrollbar items-center border-t border-gray-100 dark:border-gray-800/50 pt-1.5">
-                        <NavButton name="Dashboard"    targetPage="dashboard"    icon="📊" />
-                        <NavButton name="Taproom"      targetPage="taproom"      icon="📱" />
-                        <NavButton name="Directory"    targetPage="pubs"         icon="🍻" />
-                        <NavButton name="Hit List"     targetPage="toVisit"      icon="🎯" />
-                        <NavButton name="Insights"     targetPage="insights"     icon="📈" />
-                        <NavButton name="Events"       targetPage="events"       icon="📅" />
-                        <NavButton name="Map"          targetPage="map"          icon="🗺️" />
-                        <NavButton name="Leaderboard"  targetPage="leaderboard"  icon="🏆" />
-                        <NavButton name="Versus"       targetPage="individual"   icon="🥊" />
-                        <NavButton name="Achievements" targetPage="achievements" icon="🎖️" />
-                        <NavButton name="Spin"         targetPage="spin"         icon="🎡" />
-                        <NavButton name="Feedback"     targetPage="feedback"     icon="💬" />
+                    <div className="flex overflow-x-auto gap-0 hide-scrollbar items-center border-t border-b border-gray-100 dark:border-gray-800/50">
+                        {[
+                            { name: "Dashboard",    page: "dashboard" },
+                            { name: "Taproom",      page: "taproom" },
+                            { name: "Directory",    page: "pubs" },
+                            { name: "Hit List",     page: "toVisit" },
+                            { name: "Insights",     page: "insights" },
+                            { name: "Events",       page: "events" },
+                            { name: "Map",          page: "map" },
+                            { name: "Leaderboard",  page: "leaderboard" },
+                            { name: "Versus",       page: "individual" },
+                            { name: "Achievements", page: "achievements" },
+                            { name: "Spin",         page: "spin" },
+                            { name: "Feedback",     page: "feedback" }
+                        ].map((btn, idx, arr) => (
+                            <React.Fragment key={btn.page}>
+                                <NavButton name={btn.name} targetPage={btn.page} />
+                                {idx < arr.length - 1 && (
+                                    <div className="w-px h-3 bg-gray-200/80 dark:bg-gray-800/40 flex-shrink-0" aria-hidden="true" />
+                                )}
+                            </React.Fragment>
+                        ))}
                     </div>
                 </div>
             </header>
@@ -351,7 +465,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                     aria-label="More navigation options"
                                     aria-expanded={isNavOpen}
                                     className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
-                                        isNavOpen ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500'
+                                    isNavOpen ? 'text-brand' : 'text-gray-400 dark:text-gray-500'
                                     }`}
                                 >
                                     <span className="text-xl leading-none">{isNavOpen ? '✕' : '☰'}</span>
@@ -367,13 +481,13 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                 aria-current={isActive ? 'page' : undefined}
                                 className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors relative ${
                                     isActive
-                                        ? 'text-amber-600 dark:text-amber-400'
+                                        ? 'text-brand'
                                         : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                                 }`}
                             >
                                 <span className="text-xl leading-none">{item.icon}</span>
                                 <span className="text-[10px] font-bold uppercase tracking-wider">{item.label}</span>
-                                {isActive && <span className="absolute bottom-0 w-8 h-0.5 bg-amber-600 dark:bg-amber-400 rounded-full" />}
+                                {isActive && <span className="absolute bottom-0 w-8 h-0.5 bg-brand rounded-full" />}
                             </button>
                         );
                     })}
@@ -397,7 +511,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                 <button
                                     key={item.page}
                                     onClick={() => { setPage(item.page); setIsNavOpen(false); }}
-                                    className="flex flex-col items-center gap-1 p-3 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-900/10 transition"
+                                    className="flex flex-col items-center gap-1 p-3 rounded-xl hover:bg-brand-subtle dark:hover:bg-brand-highlight transition"
                                 >
                                     <span className="text-2xl">{item.icon}</span>
                                     <span className="text-[11px] font-bold text-gray-600 dark:text-gray-300">{item.label}</span>
@@ -407,7 +521,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                         <div className="flex gap-2 px-3 pb-3">
                             <button
                                 onClick={() => { toggleDarkMode(); setIsNavOpen(false); }}
-                                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-bold text-gray-700 dark:text-gray-300 transition hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-bold text-gray-700 dark:text-gray-300 transition hover:bg-brand-subtle dark:hover:bg-brand-highlight"
                             >
                                 {isDarkMode ? (
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
@@ -560,7 +674,7 @@ function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pu
                         {avatarUrl ? (
                             <img src={avatarUrl} alt="Preview" className="w-14 h-14 rounded-full object-cover shadow-sm border-2 border-white dark:border-gray-800" onError={e => e.target.style.display = 'none'} loading="lazy" width="56" height="56" />
                         ) : (
-                            <div className="w-14 h-14 rounded-full bg-amber-500 flex items-center justify-center text-white text-xl font-black shadow-sm">
+                            <div className="w-14 h-14 rounded-full bg-brand flex items-center justify-center text-white text-xl font-black shadow-sm">
                                 {(userProfile?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
                             </div>
                         )}
@@ -571,18 +685,18 @@ function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pu
                     </div>
                     <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Display Name</label>
-                        <input type="text" value={nickname} onChange={e => setNickname(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
+                        <input type="text" value={nickname} onChange={e => setNickname(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
                     </div>
                     <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Avatar URL</label>
-                        <input type="text" value={avatarUrl} onChange={e => setAvatarUrl(sanitizeAvatarUrl(e.target.value))} placeholder="https://…" className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
+                        <input type="text" value={avatarUrl} onChange={e => setAvatarUrl(sanitizeAvatarUrl(e.target.value))} placeholder="https://…" className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
                     </div>
                     <div>
                         <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Bio</label>
-                        <input type="text" value={bio} onChange={e => setBio(e.target.value)} maxLength="40" placeholder="e.g. Pale Ale Enthusiast" className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
+                        <input type="text" value={bio} onChange={e => setBio(e.target.value)} maxLength="40" placeholder="e.g. Pale Ale Enthusiast" className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
                     </div>
                     <div className="pt-3">
-                        <button type="submit" disabled={saving} className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold transition shadow-sm disabled:opacity-50">
+                        <button type="submit" disabled={saving} className="w-full py-3 bg-brand hover:bg-brand-hover active:bg-brand-active text-white rounded-xl font-bold transition shadow-sm disabled:opacity-50">
                             {saving ? 'Saving…' : 'Save Details'}
                         </button>
                     </div>
@@ -599,11 +713,11 @@ function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pu
                         {badges.map((badge, idx) => (
                             <div
                                 key={idx}
-                                className={`flex flex-col items-center p-3 rounded-2xl text-center transition-all ${badge.earned ? 'bg-amber-50 dark:bg-amber-900/20 shadow-sm' : 'bg-gray-50 dark:bg-gray-800 opacity-50 grayscale'}`}
+                                className={`flex flex-col items-center p-3 rounded-2xl text-center transition-all ${badge.earned ? 'bg-brand-subtle dark:bg-brand-highlight shadow-sm' : 'bg-gray-50 dark:bg-gray-800 opacity-50 grayscale'}`}
                                 title={badge.desc}
                             >
                                 <span className="text-2xl mb-1">{badge.emoji}</span>
-                                <span className={`text-[9px] font-bold uppercase tracking-wider leading-tight ${badge.earned ? 'text-amber-700 dark:text-amber-500' : 'text-gray-400'}`}>{badge.title}</span>
+                                <span className={`text-[9px] font-bold uppercase tracking-wider leading-tight ${badge.earned ? 'text-brand' : 'text-gray-400'}`}>{badge.title}</span>
                             </div>
                         ))}
                     </div>

@@ -29,14 +29,14 @@ function LeaderRow({ rank, member, count, total, isCurrentUser }) {
             gap:         '0.75rem',
             padding:     '0.6rem 1rem',
             borderRadius:'0.75rem',
-            background:  isCurrentUser ? 'rgba(217,119,6,0.08)' : 'transparent',
-            border:      isCurrentUser ? '1.5px solid rgba(217,119,6,0.25)' : '1.5px solid transparent',
+            background:  isCurrentUser ? 'var(--color-brand-subtle)' : 'transparent',
+            border:      isCurrentUser ? '1.5px solid var(--color-brand-border)' : '1.5px solid transparent',
         }}>
             <span style={{
                 minWidth:   '1.5rem',
                 fontWeight: 900,
                 fontSize:   '0.8rem',
-                color:      rank <= 3 ? ['#b45309','#9ca3af','#cd7f32'][rank-1] : 'var(--color-text-faint, #9ca3af)',
+                color:      rank === 1 ? 'var(--color-brand)' : rank === 2 ? '#9ca3af' : rank === 3 ? '#cd7f32' : 'var(--color-text-faint, #9ca3af)',
                 textAlign:  'right',
             }}>
                 {rank <= 3 ? ['🥇','🥈','🥉'][rank-1] : `#${rank}`}
@@ -58,9 +58,9 @@ function LeaderRow({ rank, member, count, total, isCurrentUser }) {
             </span>
             <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
                 <div style={{ width:80, height:6, background:'var(--color-surface-offset, #e5e7eb)', borderRadius:'9999px', overflow:'hidden' }}>
-                    <div style={{ height:'100%', width:`${pct}%`, background:'#d97706', borderRadius:'9999px', transition:'width 0.6s cubic-bezier(0.16,1,0.3,1)' }} />
+                    <div style={{ height:'100%', width:`${pct}%`, background:'var(--color-brand)', borderRadius:'9999px', transition:'width 0.6s cubic-bezier(0.16,1,0.3,1)' }} />
                 </div>
-                <span style={{ fontSize:'0.75rem', fontWeight:900, color:'#d97706', minWidth:'2rem', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{count}</span>
+                <span style={{ fontSize:'0.75rem', fontWeight:900, color:'var(--color-brand)', minWidth:'2rem', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{count}</span>
             </div>
         </div>
     );
@@ -188,12 +188,12 @@ export default function AchievementsPage({
                                     display:'flex', alignItems:'center', gap:'0.4rem',
                                     padding:'0.35rem 0.75rem 0.35rem 0.35rem',
                                     borderRadius:'9999px',
-                                    border:`2px solid ${isActive ? '#d97706' : 'transparent'}`,
-                                    background: isActive ? 'rgba(217,119,6,0.1)' : 'var(--color-surface, #f9fafb)',
+                                    border:`2px solid ${isActive ? 'var(--color-brand)' : 'transparent'}`,
+                                    background: isActive ? 'var(--color-brand-subtle)' : 'var(--color-surface, #f9fafb)',
                                     cursor:'pointer', transition:'all 180ms ease',
                                     fontWeight: isActive ? 800 : 600,
                                     fontSize:'0.8rem',
-                                    color: isActive ? '#d97706' : 'var(--color-text-muted)',
+                                    color: isActive ? 'var(--color-brand)' : 'var(--color-text-muted)',
                                 }}
                             >
                                 <div style={{
@@ -222,7 +222,7 @@ export default function AchievementsPage({
                 transition:'opacity 0.4s ease 0.1s, transform 0.4s ease 0.1s',
             }}>
                 <div style={{ background:'var(--color-surface)', borderRadius:'1rem', padding:'1rem', textAlign:'center', border:'1px solid var(--color-border, #e5e7eb)' }}>
-                    <p style={{ fontSize:'1.8rem', fontWeight:900, color:'#d97706', margin:0, fontVariantNumeric:'tabular-nums' }}>{earnedBadgeList.length}</p>
+                    <p style={{ fontSize:'1.8rem', fontWeight:900, color:'var(--color-brand)', margin:0, fontVariantNumeric:'tabular-nums' }}>{earnedBadgeList.length}</p>
                     <p style={{ fontSize:'0.6rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.08em', color:'var(--color-text-muted)', margin:'0.2rem 0 0' }}>Earned</p>
                 </div>
                 <div style={{ background:'var(--color-surface)', borderRadius:'1rem', padding:'1rem', textAlign:'center', border:'1px solid var(--color-border, #e5e7eb)' }}>
@@ -276,11 +276,11 @@ export default function AchievementsPage({
                         onClick={() => setActiveCategory(cat.id)}
                         style={{
                             padding:'0.35rem 0.85rem', borderRadius:'9999px',
-                            border:`2px solid ${activeCategory === cat.id ? '#d97706' : 'transparent'}`,
-                            background: activeCategory === cat.id ? 'rgba(217,119,6,0.1)' : 'var(--color-surface, #f9fafb)',
+                            border:`2px solid ${activeCategory === cat.id ? 'var(--color-brand)' : 'transparent'}`,
+                            background: activeCategory === cat.id ? 'var(--color-brand-subtle)' : 'var(--color-surface, #f9fafb)',
                             cursor:'pointer', fontSize:'0.78rem',
                             fontWeight: activeCategory === cat.id ? 800 : 600,
-                            color: activeCategory === cat.id ? '#d97706' : 'var(--color-text-muted)',
+                            color: activeCategory === cat.id ? 'var(--color-brand)' : 'var(--color-text-muted)',
                             transition:'all 180ms ease',
                             display:'flex', alignItems:'center', gap:'0.3rem',
                         }}
@@ -289,7 +289,7 @@ export default function AchievementsPage({
                         <span>{cat.label}</span>
                         {cat.id !== 'all' && (
                             <span style={{
-                                background: activeCategory === cat.id ? '#d97706' : 'var(--color-surface-offset, #e5e7eb)',
+                                background: activeCategory === cat.id ? 'var(--color-brand)' : 'var(--color-surface-offset, #e5e7eb)',
                                 color:      activeCategory === cat.id ? '#fff' : 'var(--color-text-muted)',
                                 borderRadius:'9999px', padding:'0 0.35rem',
                                 fontSize:'0.6rem', fontWeight:900, fontVariantNumeric:'tabular-nums',

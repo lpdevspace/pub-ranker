@@ -24,8 +24,8 @@ export default function NotFoundPage({ setPage }) {
           onClick={() => setPage('dashboard')}
           className="
             inline-flex items-center gap-2 px-5 py-2.5
-            bg-amber-500 hover:bg-amber-600 active:bg-amber-700
-            text-gray-900 font-bold rounded-xl
+            bg-brand hover:bg-brand-hover active:bg-brand-active
+            text-white font-bold rounded-xl
             transition-colors duration-150
           "
         >

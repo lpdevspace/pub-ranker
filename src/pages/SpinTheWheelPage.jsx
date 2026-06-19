@@ -7,10 +7,40 @@ const AVAILABLE_TAGS = [
     '🎯 Darts', '🍷 Cocktails', '🔥 Open Fire'
 ];
 
-const WHEEL_COLORS = [
-    '#b45309', '#d97706', '#92400e', '#f59e0b',
-    '#78350f', '#fbbf24', '#a16207', '#c97c1a',
-];
+function getWheelColors(brandHex, count) {
+    if (!brandHex || !brandHex.startsWith('#')) {
+        return ['#b45309', '#d97706', '#92400e', '#f59e0b', '#78350f', '#fbbf24', '#a16207', '#c97c1a'];
+    }
+    const r = parseInt(brandHex.slice(1, 3), 16);
+    const g = parseInt(brandHex.slice(3, 5), 16);
+    const b = parseInt(brandHex.slice(5, 7), 16);
+    
+    const rN = r / 255, gN = g / 255, bN = b / 255;
+    const max = Math.max(rN, gN, bN), min = Math.min(rN, gN, bN);
+    let h, s, l = (max + min) / 2;
+    if (max === min) {
+        h = s = 0;
+    } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case rN: h = (gN - bN) / d + (gN < bN ? 6 : 0); break;
+            case gN: h = (bN - rN) / d + 2; break;
+            case bN: h = (rN - gN) / d + 4; break;
+        }
+        h /= 6;
+    }
+    
+    const colors = [];
+    const colorCount = Math.max(count, 8);
+    for (let i = 0; i < colorCount; i++) {
+        const shiftedH = (h * 360 + (i % 2 === 0 ? 8 : -8) + 360) % 360;
+        const shiftedS = Math.min(100, Math.max(25, s * 100 + (i % 3 === 0 ? 5 : -5)));
+        const shiftedL = 30 + ((i * 17) % 5) * 10;
+        colors.push(`hsl(${shiftedH}, ${shiftedS}%, ${shiftedL}%)`);
+    }
+    return colors;
+}
 
 /* ── canvas draw ──────────────────────────────────────────────────── */
 function drawWheel(canvas, pubs, rotationDeg) {
@@ -28,6 +58,13 @@ function drawWheel(canvas, pubs, rotationDeg) {
 
     ctx.clearRect(0, 0, size, size);
 
+    let brandHex = '#b45309';
+    try {
+        const computed = window.getComputedStyle(document.documentElement).getPropertyValue('--color-brand').trim();
+        if (computed && computed.startsWith('#')) brandHex = computed;
+    } catch (e) {}
+    const wheelColors = getWheelColors(brandHex, n);
+
     pubs.forEach((pub, i) => {
         const startAngle = rotRad + i * sliceAngle;
         const endAngle   = startAngle + sliceAngle;
@@ -38,7 +75,7 @@ function drawWheel(canvas, pubs, rotationDeg) {
         ctx.moveTo(cx, cy);
         ctx.arc(cx, cy, radius, startAngle, endAngle);
         ctx.closePath();
-        ctx.fillStyle = WHEEL_COLORS[i % WHEEL_COLORS.length];
+        ctx.fillStyle = wheelColors[i % wheelColors.length];
         ctx.fill();
 
         // inner highlight
@@ -210,11 +247,17 @@ export default function SpinTheWheelPage({ pubs, newPubs, criteria, scores }) {
             setIsSpinning(false);
             setSpinResult(filteredPubs[winIdx]);
             setTimeout(() => setShowResult(true), 100);
+            let brandHex = '#b45309';
+            try {
+                const computed = window.getComputedStyle(document.documentElement).getPropertyValue('--color-brand').trim();
+                if (computed && computed.startsWith('#')) brandHex = computed;
+            } catch (e) {}
+
             confetti({
                 particleCount: 200,
                 spread: 100,
                 origin: { y: 0.5 },
-                colors: ['#b45309', '#d97706', '#fbbf24', '#fde68a', '#ffffff'],
+                colors: [brandHex, '#fbbf24', '#fde68a', '#ffffff'],
             });
         }, 4100);
     };
@@ -233,7 +276,7 @@ export default function SpinTheWheelPage({ pubs, newPubs, criteria, scores }) {
     const btnBg        = (isLoading || pubCount > 0) ? 'var(--color-brand)' : 'var(--color-surface-offset)';
     const btnColor     = (isLoading || pubCount > 0) ? '#ffffff' : 'var(--color-text-faint)';
     const btnShadow    = (isLoading || pubCount > 0) && !isSpinning
-        ? '0 8px 24px rgba(180,83,9,0.4), 0 2px 6px rgba(0,0,0,0.2)'
+        ? '0 8px 24px color-mix(in srgb, var(--color-brand) 40%, transparent), 0 2px 6px rgba(0,0,0,0.2)'
         : 'none';
     const btnLabel     = isSpinning ? null
         : isLoading   ? 'Loading…'
@@ -277,7 +320,7 @@ export default function SpinTheWheelPage({ pubs, newPubs, criteria, scores }) {
                 .spinning-text    { animation: pulse 0.8s ease-in-out infinite; }
                 .loading-text     { animation: loadingPulse 1.2s ease-in-out infinite; }
                 .shimmer-btn {
-                    background: linear-gradient(90deg, var(--color-brand) 0%, #fbbf24 40%, var(--color-brand) 80%) !important;
+                    background: linear-gradient(90deg, var(--color-brand) 0%, var(--color-brand-light) 40%, var(--color-brand) 80%) !important;
                     background-size: 200% auto !important;
                     animation: shimmer 2s linear infinite;
                 }
@@ -295,7 +338,7 @@ export default function SpinTheWheelPage({ pubs, newPubs, criteria, scores }) {
 
                     {/* Hero */}
                     <div className="grain-overlay" style={{
-                        background: 'linear-gradient(135deg, var(--color-brand-active) 0%, var(--color-brand) 50%, #d97706 100%)',
+                        background: 'linear-gradient(135deg, var(--color-brand-active) 0%, var(--color-brand) 50%, var(--color-brand-dark) 100%)',
                         borderRadius: 'var(--radius-2xl)',
                         padding: 'var(--space-8) var(--space-8) var(--space-10)',
                         textAlign: 'center',

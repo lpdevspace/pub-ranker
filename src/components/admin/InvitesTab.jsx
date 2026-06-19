@@ -6,95 +6,86 @@ export default function InvitesTab({
     requireApproval,
     copyMessage,
     handleCopyInvite,
-    setShowQr,
+    handleDownloadQr,
 }) {
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+        <div className="space-y-6">
             <div>
-                <h3 style={{ margin: '0 0 var(--space-1)', fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text)' }}>Invite Link</h3>
-                <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
-                    Share this link to invite people to your group.
-                    {requireApproval && (
-                        <span style={{ marginLeft: 'var(--space-2)', display: 'inline-block', background: 'var(--color-warning-highlight)', color: 'var(--color-warning)', fontSize: 'var(--text-xs)', fontWeight: 700, padding: '2px 10px', borderRadius: 'var(--radius-full)' }}>
-                            Approval required
-                        </span>
-                    )}
+                <h3 className="text-lg font-bold text-gray-800 dark:text-white">Invite Link</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    Share this unique link or QR code to invite new members to your group.
                 </p>
             </div>
 
-            {/* Invite URL row */}
-            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'stretch' }}>
-                <input
-                    readOnly
-                    value={inviteUrl}
-                    style={{
-                        flex: 1,
-                        padding: 'var(--space-2) var(--space-3)',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: 'var(--radius-md)',
-                        background: 'var(--color-surface-offset)',
-                        color: 'var(--color-text)',
-                        fontSize: 'var(--text-sm)',
-                        fontFamily: 'monospace',
-                        minWidth: 0,
-                    }}
-                />
-                <button
-                    onClick={handleCopyInvite}
-                    style={{
-                        padding: 'var(--space-2) var(--space-4)',
-                        background: copyMessage ? 'var(--color-success)' : 'var(--color-primary)',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: 'var(--radius-md)',
-                        fontWeight: 600,
-                        fontSize: 'var(--text-sm)',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'background var(--transition-interactive)',
-                        flexShrink: 0,
-                    }}
-                >
-                    {copyMessage ? '✓ Copied!' : '📋 Copy'}
-                </button>
-            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Invite Actions Card */}
+                <div className="lg:col-span-2 space-y-4">
+                    <div className="bg-gray-50 dark:bg-gray-700/30 p-5 rounded-2xl border border-gray-200/60 dark:border-gray-700 space-y-4">
+                        <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Group Invite URL</span>
+                            {requireApproval ? (
+                                <span className="px-2.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-[10px] font-bold rounded-full border border-amber-200 dark:border-amber-800 uppercase tracking-wide">
+                                    Approval Required
+                                </span>
+                            ) : (
+                                <span className="px-2.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold rounded-full border border-green-200 dark:border-green-800 uppercase tracking-wide">
+                                    Auto-Join Enabled
+                                </span>
+                            )}
+                        </div>
 
-            {/* Group ID + QR row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-                    Group ID: <span style={{ fontFamily: 'monospace', color: 'var(--color-text)' }}>{inviteCode}</span>
-                </span>
-                <button
-                    onClick={() => setShowQr(true)}
-                    style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 'var(--space-1)',
-                        padding: 'var(--space-1) var(--space-3)',
-                        background: 'var(--color-surface-offset)',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: 'var(--radius-md)',
-                        fontSize: 'var(--text-xs)',
-                        fontWeight: 600,
-                        color: 'var(--color-text)',
-                        cursor: 'pointer',
-                        transition: 'background var(--transition-interactive)',
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--color-surface-dynamic)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'var(--color-surface-offset)'}
-                >
-                    <span style={{ fontSize: '14px' }}>⬛</span> Show QR Code
-                </button>
-            </div>
+                        <div className="flex gap-2">
+                            <input
+                                readOnly
+                                value={inviteUrl}
+                                className="flex-1 min-w-0 px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-sm font-mono focus:outline-none"
+                            />
+                            <button
+                                onClick={handleCopyInvite}
+                                className={`px-5 py-3 rounded-xl font-bold text-sm text-white transition-all shadow-sm flex-shrink-0 cursor-pointer ${
+                                    copyMessage
+                                        ? 'bg-green-600 hover:bg-green-700'
+                                        : 'bg-brand hover:bg-brand-hover active:bg-brand-active'
+                                }`}
+                            >
+                                {copyMessage ? '✓ Copied!' : '📋 Copy Link'}
+                            </button>
+                        </div>
 
-            {/* Help text */}
-            <div style={{ padding: 'var(--space-4)', background: 'var(--color-surface-offset)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
-                <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
-                    <strong style={{ color: 'var(--color-text)' }}>How it works:</strong> Anyone with this link can request to join your group.
-                    {requireApproval
-                        ? ' As approval is required, you\'ll need to accept their request from the Members tab.'
-                        : ' They\'ll be added automatically — no approval needed.'}
-                </p>
+                        <div className="pt-2 flex items-center justify-between border-t border-gray-200/50 dark:border-gray-700/50 text-xs">
+                            <span className="text-gray-500 dark:text-gray-400">Invite Code / Group ID:</span>
+                            <span className="font-mono font-bold text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800 px-2 py-1 rounded border border-gray-200 dark:border-gray-700 select-all">
+                                {inviteCode}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="bg-brand-subtle/50 dark:bg-brand-highlight/20 p-4 rounded-xl border border-brand-border/30 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                        <strong className="text-brand font-bold block mb-1">How invites work:</strong>
+                        {requireApproval ? (
+                            <span>When people click this link or scan the QR code, they can request to join. You will be notified and can approve or deny their requests inside the <strong>Members</strong> tab.</span>
+                        ) : (
+                            <span>Anyone who scans the code or visits the link will join your group directory immediately without waiting for admin approval.</span>
+                        )}
+                    </div>
+                </div>
+
+                {/* Inline QR Code Card */}
+                <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-700/30 p-5 rounded-2xl border border-gray-200/60 dark:border-gray-700 text-center gap-4">
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">QR Code invite</span>
+                    
+                    <div 
+                        id="admin-qr-canvas-inline" 
+                        className="bg-white p-3 rounded-xl shadow-sm border border-gray-200/50 flex items-center justify-center min-h-[180px] min-w-[180px] select-none"
+                    />
+
+                    <button
+                        onClick={handleDownloadQr}
+                        className="w-full py-2.5 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 rounded-xl font-bold text-xs transition shadow-sm cursor-pointer"
+                    >
+                        ⬇ Download QR Code Image
+                    </button>
+                </div>
             </div>
         </div>
     );

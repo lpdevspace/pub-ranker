@@ -112,6 +112,14 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
         window.history.replaceState({ page: p }, '', PAGE_TO_PATH[p] || window.location.pathname);
     }, []);
 
+    useEffect(() => {
+        if (groupData?.brandColor) {
+            document.documentElement.style.setProperty('--theme-color', groupData.brandColor);
+        } else {
+            document.documentElement.style.removeProperty('--theme-color');
+        }
+    }, [groupData?.brandColor]);
+
     const handleSwitchGroup = async () => {
         try { await db.collection('users').doc(user.uid).update({ activeGroupId: null }); }
         catch (e) { console.error('Error switching group:', e); }

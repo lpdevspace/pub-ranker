@@ -21,6 +21,17 @@ if (!firebase.apps.length) {
 
 const auth    = firebase.auth();
 const db      = firebase.firestore();
+
+// Enable Firestore offline persistence for robust offline PWA operation
+db.enablePersistence()
+    .catch((err) => {
+        if (err.code === 'failed-precondition') {
+            console.warn('Firestore persistence failed-precondition: multiple tabs open');
+        } else if (err.code === 'unimplemented') {
+            console.warn('Firestore persistence unimplemented: browser not supported');
+        }
+    });
+
 const storage = firebase.storage();
 
 export { firebase, auth, db, storage };

@@ -118,123 +118,48 @@ function BadgesStrip({ badges }) {
     const ordered  = [...unlocked, ...locked];
 
     return (
-        <div style={{
-            background: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-xl)',
-            boxShadow: 'var(--shadow-sm)',
-            padding: 'var(--space-4) var(--space-5)',
-        }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)' }}>
-                <p className="text-label">&#x1F3C5; Group Badges</p>
-                <span style={{
-                    fontSize: 'var(--text-xs)',
-                    fontWeight: 700,
-                    fontFamily: 'var(--font-body)',
-                    color: 'var(--color-brand)',
-                    background: 'var(--color-brand-highlight, rgba(1,105,111,0.1))',
-                    padding: '2px var(--space-3)',
-                    borderRadius: 'var(--radius-full)',
-                }}>
+        <div className="bg-surface border border-border rounded-2xl shadow-sm p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-3">
+                <p className="text-label">🏆 Group Badges</p>
+                <span className="text-xs font-bold text-brand bg-brand-highlight px-3 py-0.5 rounded-full">
                     {unlocked.length} / {badges.length} unlocked
                 </span>
             </div>
 
             {/* Horizontally scrollable badge row */}
-            <div style={{
-                display: 'flex',
-                gap: 'var(--space-3)',
-                overflowX: 'auto',
-                paddingBottom: 'var(--space-2)',
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'var(--color-border) transparent',
-            }}>
+            <div className="scroll-x-clean flex gap-4 pb-2">
                 {ordered.map(badge => (
                     <div
                         key={badge.id}
                         onMouseEnter={() => setTooltip(badge.id)}
                         onMouseLeave={() => setTooltip(null)}
-                        style={{
-                            position: 'relative',
-                            flexShrink: 0,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: 'var(--space-1)',
-                            width: '5.5rem',
-                            cursor: 'default',
-                        }}
+                        className="relative flex-shrink-0 flex flex-col items-center gap-1.5 w-20 cursor-default"
                     >
                         {/* Badge circle */}
-                        <div style={{
-                            width: '3.5rem',
-                            height: '3.5rem',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '1.5rem',
-                            transition: 'all 0.2s ease',
-                            background: badge.unlocked
-                                ? 'linear-gradient(135deg, var(--color-brand), var(--color-brand-dark))'
-                                : 'var(--color-surface-offset)',
-                            border: badge.unlocked
-                                ? '2px solid var(--color-brand-light, rgba(1,105,111,0.3))'
-                                : '2px solid var(--color-border)',
-                            boxShadow: badge.unlocked ? 'var(--shadow-md)' : 'none',
-                            filter: badge.unlocked ? 'none' : 'grayscale(1) opacity(0.35)',
-                        }}>
+                        <div
+                            className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-200 ${
+                                badge.unlocked
+                                    ? 'bg-gradient-to-br from-brand to-brand-dark border-2 border-brand-light shadow-md'
+                                    : 'bg-surface-offset border-2 border-border grayscale opacity-35'
+                            }`}
+                        >
                             {badge.emoji}
                         </div>
 
                         {/* Badge label */}
-                        <p style={{
-                            fontSize: '0.65rem',
-                            fontWeight: 700,
-                            fontFamily: 'var(--font-body)',
-                            textAlign: 'center',
-                            lineHeight: 1.2,
-                            color: badge.unlocked ? 'var(--color-text)' : 'var(--color-text-faint)',
-                            maxWidth: '5rem',
-                        }}>
+                        <p
+                            className={`text-[10px] font-bold text-center leading-tight max-w-[5rem] ${
+                                badge.unlocked ? 'text-text' : 'text-text-faint'
+                            }`}
+                        >
                             {badge.label}
                         </p>
 
                         {/* Tooltip on hover */}
                         {tooltip === badge.id && (
-                            <div style={{
-                                position: 'absolute',
-                                bottom: 'calc(100% + var(--space-2))',
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                background: 'var(--color-text)',
-                                color: 'var(--color-surface)',
-                                fontSize: '0.65rem',
-                                fontFamily: 'var(--font-body)',
-                                fontWeight: 500,
-                                padding: 'var(--space-2) var(--space-3)',
-                                borderRadius: 'var(--radius-md)',
-                                whiteSpace: 'nowrap',
-                                maxWidth: '14rem',
-                                whiteSpace: 'normal',
-                                textAlign: 'center',
-                                zIndex: 50,
-                                boxShadow: 'var(--shadow-lg)',
-                                pointerEvents: 'none',
-                                lineHeight: 1.4,
-                            }}>
-                                {badge.unlocked ? badge.desc : `\uD83D\uDD12 ${badge.desc}`}
-                                <div style={{
-                                    position: 'absolute',
-                                    top: '100%',
-                                    left: '50%',
-                                    transform: 'translateX(-50%)',
-                                    width: 0,
-                                    height: 0,
-                                    borderLeft: '5px solid transparent',
-                                    borderRight: '5px solid transparent',
-                                    borderTop: '5px solid var(--color-text)',
-                                }} />
+                            <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 bg-text text-surface text-[10px] font-semibold px-3 py-1.5 rounded-lg shadow-lg max-w-[14rem] text-center z-50 pointer-events-none leading-relaxed">
+                                {badge.unlocked ? badge.desc : `🔒 ${badge.desc}`}
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[5px] border-t-text" />
                             </div>
                         )}
                     </div>
@@ -251,9 +176,9 @@ function ScoreTrendSparkline({ points }) {
 
     if (!points || points.length < 2) {
         return (
-            <div style={{ textAlign: 'center', padding: 'var(--space-8) 0', opacity: 0.4 }}>
-                <span style={{ fontSize: '2rem', display: 'block', marginBottom: 'var(--space-2)' }}>&#x1F4C8;</span>
-                <p className="text-muted" style={{ fontStyle: 'italic', fontSize: 'var(--text-xs)' }}>Rate at least 2 pubs to see your group's trend.</p>
+            <div className="text-center py-8 opacity-40">
+                <span className="text-3xl block mb-2">📈</span>
+                <p className="text-muted text-xs italic">Rate at least 2 pubs to see your group's trend.</p>
             </div>
         );
     }
@@ -282,35 +207,29 @@ function ScoreTrendSparkline({ points }) {
     const first = points[0].score;
     const last  = points[points.length - 1].score;
     const diff  = last - first;
-    const trendEmoji  = diff > 0.5 ? '\uD83D\uDCC8' : diff < -0.5 ? '\uD83D\uDCC9' : '\u27A1\uFE0F';
+    const trendEmoji  = diff > 0.5 ? '📈' : diff < -0.5 ? '📉' : '➡️';
     const trendLabel  = diff > 0.5 ? 'Trending up'  : diff < -0.5 ? 'Trending down' : 'Holding steady';
     const trendColor  = diff > 0.5 ? 'var(--color-success)' : diff < -0.5 ? 'var(--color-error)' : 'var(--color-text-muted)';
 
     return (
         <div>
             {/* Header row */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
-                <p className="text-label">&#x1F4C8; Group Score Trend</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                    <span style={{ fontSize: '1rem' }}>{trendEmoji}</span>
-                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', color: trendColor }}>{trendLabel}</span>
-                    <span style={{
-                        fontSize: 'var(--text-xs)',
-                        fontWeight: 700,
-                        fontFamily: 'var(--font-body)',
-                        color: 'var(--color-text-faint)',
-                        background: 'var(--color-surface-offset)',
-                        padding: '2px var(--space-3)',
-                        borderRadius: 'var(--radius-full)',
-                    }}>Last {points.length} pubs</span>
+            <div className="flex items-center justify-between mb-4">
+                <p className="text-label">📈 Group Score Trend</p>
+                <div className="flex items-center gap-2">
+                    <span className="text-sm">{trendEmoji}</span>
+                    <span className="text-xs font-bold font-body" style={{ color: trendColor }}>{trendLabel}</span>
+                    <span className="text-xs font-bold font-body text-text-faint bg-surface-offset px-3 py-0.5 rounded-full">
+                        Last {points.length} pubs
+                    </span>
                 </div>
             </div>
 
             {/* SVG sparkline */}
-            <div style={{ position: 'relative' }}>
+            <div className="relative">
                 <svg
                     viewBox={`0 0 ${W} ${H}`}
-                    style={{ width: '100%', height: '6rem', overflow: 'visible' }}
+                    className="w-full h-24 overflow-visible"
                     aria-label="Group score trend chart"
                 >
                     <defs>
@@ -327,7 +246,7 @@ function ScoreTrendSparkline({ points }) {
                                 key={s}
                                 x1={PAD_X} y1={toY(s)}
                                 x2={W - PAD_X} y2={toY(s)}
-                                stroke="var(--color-border)"
+                                className="stroke-border"
                                 strokeWidth="1"
                                 strokeDasharray="4 4"
                             />
@@ -341,7 +260,7 @@ function ScoreTrendSparkline({ points }) {
                     <polyline
                         points={linePts}
                         fill="none"
-                        stroke="var(--color-brand)"
+                        className="stroke-brand"
                         strokeWidth="2.5"
                         strokeLinejoin="round"
                         strokeLinecap="round"
@@ -355,7 +274,7 @@ function ScoreTrendSparkline({ points }) {
                                 cx={toX(i)} cy={toY(p.score)}
                                 r="12"
                                 fill="transparent"
-                                style={{ cursor: 'pointer' }}
+                                className="cursor-pointer"
                                 onMouseEnter={() => setHovered(i)}
                                 onMouseLeave={() => setHovered(null)}
                             />
@@ -364,9 +283,8 @@ function ScoreTrendSparkline({ points }) {
                                 cx={toX(i)} cy={toY(p.score)}
                                 r={hovered === i ? 5 : 3.5}
                                 fill={hovered === i ? 'var(--color-brand)' : 'var(--color-surface)'}
-                                stroke="var(--color-brand)"
+                                className="stroke-brand transition-all duration-150"
                                 strokeWidth="2"
-                                style={{ transition: 'r 0.15s ease' }}
                             />
                         </g>
                     ))}
@@ -377,47 +295,29 @@ function ScoreTrendSparkline({ points }) {
                     const p   = points[hovered];
                     const pct = hovered / (points.length - 1);
                     return (
-                        <div style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: `clamp(0px, calc(${(pct * 100).toFixed(1)}% - 4rem), calc(100% - 8rem))`,
-                            background: 'var(--color-text)',
-                            color: 'var(--color-surface)',
-                            fontSize: '0.7rem',
-                            fontFamily: 'var(--font-body)',
-                            fontWeight: 600,
-                            padding: 'var(--space-2) var(--space-3)',
-                            borderRadius: 'var(--radius-md)',
-                            pointerEvents: 'none',
-                            whiteSpace: 'nowrap',
-                            zIndex: 10,
-                            boxShadow: 'var(--shadow-lg)',
-                            lineHeight: 1.5,
-                        }}>
-                            <div style={{ fontWeight: 800 }}>{p.name}</div>
-                            <div style={{ opacity: 0.8 }}>{p.score.toFixed(1)} / 10</div>
+                        <div
+                            className="absolute top-0 bg-text text-surface text-[10px] font-semibold px-3 py-1.5 rounded-lg shadow-lg z-10 pointer-events-none leading-normal whitespace-nowrap"
+                            style={{
+                                left: `clamp(0px, calc(${(pct * 100).toFixed(1)}% - 4rem), calc(100% - 8rem))`,
+                            }}
+                        >
+                            <div className="font-extrabold">{p.name}</div>
+                            <div className="opacity-80">{p.score.toFixed(1)} / 10</div>
                         </div>
                     );
                 })()}
             </div>
 
             {/* Pub name labels on the x-axis */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--space-2)', paddingInline: `${PAD_X}px` }}>
+            <div className="flex justify-between mt-2" style={{ paddingInline: `${PAD_X}px` }}>
                 {points.map((p, i) => (
                     <span
                         key={i}
+                        className={`text-[9px] font-semibold font-body text-center overflow-hidden text-ellipsis whitespace-nowrap cursor-default transition-colors duration-150 ${
+                            hovered === i ? 'text-brand' : 'text-text-faint'
+                        }`}
                         style={{
-                            fontSize: '0.6rem',
-                            fontFamily: 'var(--font-body)',
-                            fontWeight: 600,
-                            color: hovered === i ? 'var(--color-brand)' : 'var(--color-text-faint)',
                             maxWidth: `${Math.floor(100 / points.length) - 2}%`,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            textAlign: 'center',
-                            transition: 'color 0.15s ease',
-                            cursor: 'default',
                         }}
                         onMouseEnter={() => setHovered(i)}
                         onMouseLeave={() => setHovered(null)}
@@ -436,22 +336,20 @@ export function StatCard({ title, value, subValue, onClick, icon }) {
     return (
         <div
             onClick={onClick}
-            className="card-warm"
-            style={{ padding: 'var(--space-5)', cursor: onClick ? 'pointer' : 'default', transition: 'all var(--transition-interactive)' }}
-            onMouseEnter={e => { if (onClick) { e.currentTarget.style.boxShadow = 'var(--shadow-md)'; e.currentTarget.style.borderColor = 'var(--color-brand)'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
-            onMouseLeave={e => { if (onClick) { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.transform = 'none'; } }}
+            className={`card-warm p-5 ${onClick ? 'cursor-pointer hover:border-brand/40 hover:-translate-y-0.5' : 'cursor-default'} transition-all duration-200`}
         >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-2)' }}>
-                <p className="text-label" style={{ color: onClick ? 'var(--color-brand)' : undefined }}>
-                    {title} {onClick && '\u2197'}
+            <div className="flex justify-between items-start mb-2">
+                <p className={`text-label ${onClick ? 'text-brand' : ''}`}>
+                    {title} {onClick && '↗'}
                 </p>
-                {icon && <span style={{ fontSize: '1.25rem', opacity: 0.6 }}>{icon}</span>}
+                {icon && <span className="text-lg opacity-60">{icon}</span>}
             </div>
-            <p className="text-kpi" style={{ marginTop: 'var(--space-1)' }}>{value}</p>
-            {subValue && <p className="text-muted" style={{ marginTop: 'var(--space-2)', fontWeight: 600 }}>{subValue}</p>}
+            <p className="text-kpi mt-1">{value}</p>
+            {subValue && <p className="text-muted mt-2 font-semibold">{subValue}</p>}
         </div>
     );
 }
+
 
 /* ─── main component ──────────────────────────────────────────────────────── */
 
@@ -731,81 +629,65 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
     const overallAvg = overallAvgNum.toFixed(1);
     const livePub = pubsArray.find(p => p.id === livePubId);
 
-    /* ── card style helpers ── */
-    const cardBase = { background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-sm)' };
-    const padded   = { ...cardBase, padding: 'var(--space-6)' };
-
-    /* ─────────────────────────────────────────────────────────────────────── */
     return (
         <div className="space-y-6 animate-fadeIn pb-20">
 
             {/* ── First Quest Banner ── */}
             {user && !hasCompletedFirstQuest && (
-                <div style={{ background: 'linear-gradient(135deg, var(--color-brand), var(--color-brand-dark))', borderRadius: 'var(--radius-xl)', padding: 'var(--space-5)', color: '#fff', boxShadow: 'var(--shadow-lg)', position: 'relative', overflow: 'hidden', border: '1px solid var(--color-brand-light)' }} className="group">
-                    <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div className="bg-gradient-to-r from-brand to-brand-dark rounded-2xl p-5 text-white shadow-md border border-brand-light/10 relative overflow-hidden group">
+                    <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
-                            <h3 style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 'var(--text-lg)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
-                                <span className="animate-bounce" style={{ fontSize: '1.5rem' }}>&#x1F3C6;</span> Your First Quest
+                            <h3 className="heading-ui text-base sm:text-lg flex items-center gap-2 mb-1">
+                                <span className="animate-bounce text-xl">🏆</span> Your First Quest
                             </h3>
-                            <p style={{ fontSize: 'var(--text-sm)', fontWeight: 400, opacity: 0.9, maxWidth: '28rem', fontFamily: 'var(--font-body)' }}>
+                            <p className="text-xs sm:text-sm font-medium opacity-90 max-w-lg font-body">
                                 Welcome to the crew! Head to the Directory and drop your first rating to unlock the 'First Pint' badge.
                             </p>
                         </div>
-                        <button onClick={() => setPage('pubs')} className="hidden sm:block" style={{ padding: 'var(--space-2) var(--space-6)', background: '#fff', color: 'var(--color-brand-dark)', fontWeight: 700, fontFamily: 'var(--font-body)', fontSize: 'var(--text-sm)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)', border: 'none', cursor: 'pointer' }}>
-                            Start Rating &rarr;
+                        <button
+                            onClick={() => setPage('pubs')}
+                            className="btn-brand bg-white text-brand hover:bg-brand-highlight hover:text-brand-dark px-5 py-2.5 rounded-xl font-bold text-xs self-start sm:self-auto cursor-pointer transition-all shadow-md border-none"
+                        >
+                            Start Rating →
                         </button>
                     </div>
-                    <div style={{ position: 'absolute', right: '-2.5rem', top: '-2.5rem', width: '10rem', height: '10rem', background: 'rgba(255,255,255,0.15)', borderRadius: '50%', filter: 'blur(2rem)', pointerEvents: 'none' }} />
+                    <div className="absolute right-[-2.5rem] top-[-2.5rem] w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
                 </div>
             )}
 
             {/* ── Page heading ── */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+            <div className="flex justify-between items-end flex-wrap gap-4">
                 <div>
                     <h2 className="text-page-title">Group Dashboard</h2>
-                    <p className="text-muted" style={{ marginTop: 'var(--space-1)' }}>Your city's drinking analytics.</p>
+                    <p className="text-muted mt-1">Your city's drinking analytics.</p>
                 </div>
 
                 {/* ── Member Leaderboard Mini ── */}
                 {memberLeaderboard.length > 0 && (
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 'var(--space-1)',
-                        background: 'var(--color-surface)',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: 'var(--radius-xl)',
-                        padding: 'var(--space-2) var(--space-4)',
-                        boxShadow: 'var(--shadow-sm)',
-                    }}>
-                        <span style={{ fontSize: '0.85rem', marginRight: 'var(--space-2)', opacity: 0.5 }}>&#x1F3C6;</span>
+                    <div className="flex items-center flex-wrap gap-2 bg-surface border border-border rounded-2xl p-2 shadow-sm">
+                        <span className="text-xs mr-1.5 opacity-60">🏆</span>
                         {memberLeaderboard.map((member, i) => (
-                            <div key={i} style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 'var(--space-1)',
-                                padding: 'var(--space-1) var(--space-3)',
-                                borderRadius: 'var(--radius-full)',
-                                background: member.isMe ? 'var(--color-brand)' : 'var(--color-surface-offset)',
-                                border: member.isMe ? 'none' : '1px solid var(--color-border)',
-                            }}>
-                                <span style={{ fontSize: '0.85rem', lineHeight: 1 }}>{MEDAL[i]}</span>
-                                <span style={{
-                                    fontSize: 'var(--text-xs)',
-                                    fontWeight: 700,
-                                    fontFamily: 'var(--font-body)',
-                                    color: member.isMe ? '#fff' : 'var(--color-text)',
-                                    maxWidth: '7rem',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                }}>{member.name}</span>
-                                <span style={{
-                                    fontSize: 'var(--text-xs)',
-                                    fontFamily: 'var(--font-body)',
-                                    color: member.isMe ? 'rgba(255,255,255,0.75)' : 'var(--color-text-faint)',
-                                    fontWeight: 600,
-                                }}>{member.count}</span>
+                            <div
+                                key={i}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold font-body transition-colors ${
+                                    member.isMe
+                                        ? 'bg-brand text-white shadow-xs'
+                                        : 'bg-surface-offset border border-border text-text'
+                                }`}
+                            >
+                                <span className="text-xs leading-none">{MEDAL[i]}</span>
+                                <span
+                                    className="max-w-[7rem] overflow-hidden text-ellipsis whitespace-nowrap"
+                                >
+                                    {member.name}
+                                </span>
+                                <span
+                                    className={`font-semibold ${
+                                        member.isMe ? 'text-white/80' : 'text-text-faint'
+                                    }`}
+                                >
+                                    {member.count}
+                                </span>
                             </div>
                         ))}
                     </div>
@@ -816,80 +698,85 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
             <BadgesStrip badges={badges} />
 
             {/* ══ HERO ROW: Pub of Month (left) + KPI cards (right) ══ */}
-            <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 'var(--space-4)', alignItems: 'stretch' }}>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
 
                 {/* Pub of the Month */}
                 <div
                     onClick={() => setPage('pubs')}
-                    style={{ borderRadius: 'var(--radius-xl)', overflow: 'hidden', boxShadow: 'var(--shadow-lg)', cursor: 'pointer', position: 'relative', minHeight: '16rem', background: 'var(--color-surface-offset)', transition: 'all var(--transition-interactive)' }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = 'var(--shadow-lg), 0 12px 32px rgba(0,0,0,0.18)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }}
-                    className="group"
+                    className="relative overflow-hidden rounded-2xl shadow-sm border border-border bg-surface-offset group cursor-pointer min-h-[16rem] transition-all duration-300 hover:shadow-md hover:-translate-y-1"
                 >
                     {spotlightPub?.photoURL ? (
                         <img
                             src={spotlightPub.photoURL}
                             alt={spotlightPub.name}
-                            loading="lazy" width="600" height="400"
-                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
-                            className="group-hover:scale-105"
+                            loading="lazy"
+                            width="600"
+                            height="400"
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                     ) : (
-                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, var(--color-brand-dark), var(--color-brand))' }} />
+                        <div className="absolute inset-0 bg-gradient-to-br from-brand-dark to-brand" />
                     )}
-                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)' }} />
-                    <div style={{ position: 'relative', zIndex: 1, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 'var(--space-5)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-full)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>&#x1F525; Pub of the Month</span>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
+                    <div className="relative z-10 h-full flex flex-col justify-between p-5">
+                        <div>
+                            <span className="inline-block bg-white/20 backdrop-blur-md text-white text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-wider">
+                                🔥 Pub of the Month
+                            </span>
                         </div>
                         {spotlightPub ? (
                             <div>
-                                <p style={{ color: '#fff', fontFamily: 'var(--font-display)', fontSize: 'var(--text-xl)', fontWeight: 400, lineHeight: 1.15, marginBottom: 'var(--space-1)', textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>{spotlightPub.name}</p>
-                                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: 'var(--font-body)', marginBottom: 'var(--space-3)' }}>&#x1F4CD; {spotlightPub.location}</p>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                                    <span style={{ background: 'var(--color-brand)', color: '#fff', padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-full)', fontWeight: 800, fontSize: 'var(--text-base)', fontFamily: 'var(--font-body)' }}>
+                                <p className="text-white font-display text-xl leading-snug mb-1 drop-shadow-md">
+                                    {spotlightPub.name}
+                                </p>
+                                <p className="text-white/70 text-xs font-bold font-body mb-3">
+                                    📍 {spotlightPub.location}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <span className="bg-brand text-white px-3 py-1 rounded-full font-extrabold text-sm font-body shadow-xs">
                                         {spotlightPub.avgScore.toFixed(1)}/10
                                     </span>
-                                    <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: 'var(--text-xs)', fontFamily: 'var(--font-body)', fontWeight: 600 }}>
+                                    <span className="text-white/60 text-xs font-semibold font-body">
                                         {scoreTierLabel(spotlightPub.avgScore).label}
                                     </span>
                                 </div>
                             </div>
                         ) : (
-                            <div style={{ textAlign: 'center' }}>
-                                <span style={{ fontSize: '2.5rem' }}>&#x1F451;</span>
-                                <p style={{ color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', marginTop: 'var(--space-2)', fontFamily: 'var(--font-body)' }}>Rate a pub to crown it here.</p>
+                            <div className="text-center my-auto">
+                                <span className="text-3xl">👑</span>
+                                <p className="text-white/75 text-xs italic mt-2 font-body">
+                                    Rate a pub to crown it here.
+                                </p>
                             </div>
                         )}
                     </div>
                 </div>
 
                 {/* KPI grid */}
-                <div className="lg:col-span-2 grid grid-cols-2" style={{ gap: 'var(--space-4)' }}>
-                    <StatCard title="Visited Pubs"   value={pubsArray.length}    onClick={() => setPage('pubs')}    icon="&#x1F37A;" />
-                    <StatCard title="Pubs to Visit"  value={newPubsArray.length} onClick={() => setPage('toVisit')} icon="&#x1F4CB;" />
-                    <StatCard title="Total Raters"   value={usersSize}                                              icon="&#x1F465;" />
+                <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <StatCard title="Visited Pubs"   value={pubsArray.length}    onClick={() => setPage('pubs')}    icon="🍺" />
+                    <StatCard title="Pubs to Visit"  value={newPubsArray.length} onClick={() => setPage('toVisit')} icon="📋" />
+                    <StatCard title="Total Raters"   value={usersSize}                                              icon="👥" />
                     <StatCard
                         title="Overall Average"
                         value={overallAvg}
                         subValue="Group Wide"
-                        icon="&#x2B50;"
+                        icon="⭐"
                     />
                     {user && (
-                        <div className="col-span-2 card-warm" style={{ padding: 'var(--space-4)', display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-                            <div style={{ flex: 1 }}>
-                                <p className="text-label" style={{ marginBottom: 'var(--space-2)' }}>My Rating Progress</p>
-                                <div style={{ height: '8px', background: 'var(--color-surface-offset)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
-                                    <div style={{
-                                        height: '100%',
-                                        width: pubsArray.length > 0 ? `${Math.min(100, (myRatedCount / pubsArray.length) * 100)}%` : '0%',
-                                        background: 'linear-gradient(90deg, var(--color-brand), var(--color-brand-dark))',
-                                        borderRadius: 'var(--radius-full)',
-                                        transition: 'width 0.8s ease',
-                                    }} />
+                        <div className="col-span-1 sm:col-span-2 card-warm p-4 flex items-center gap-4">
+                            <div className="flex-1">
+                                <p className="text-label mb-2">My Rating Progress</p>
+                                <div className="h-2 bg-surface-offset rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-brand to-brand-dark rounded-full transition-all duration-700"
+                                        style={{
+                                            width: pubsArray.length > 0 ? `${Math.min(100, (myRatedCount / pubsArray.length) * 100)}%` : '0%',
+                                        }}
+                                    />
                                 </div>
                             </div>
-                            <p style={{ fontSize: 'var(--text-sm)', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-brand)', whiteSpace: 'nowrap' }}>
+                            <p className="text-xs font-bold font-body text-brand whitespace-nowrap self-end mb-0.5">
                                 {myRatedCount} / {pubsArray.length} pubs
                             </p>
                         </div>
@@ -898,196 +785,213 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
             </div>
 
             {/* ══ ROW 2: Live Location + Guinness Index ══ */}
-            <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 'var(--space-4)' }}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
                 {/* Live Location */}
-                <div style={{ ...padded, position: 'relative', overflow: 'hidden' }}>
-                    {livePubId && <div style={{ position: 'absolute', inset: 0, background: 'var(--color-brand)', opacity: 0.04, pointerEvents: 'none' }} className="animate-pulse" />}
-                    <div style={{ position: 'relative', zIndex: 1 }}>
-                        <p className="text-label" style={{ marginBottom: 'var(--space-3)' }}>&#x1F4CD; Current Group Location</p>
-                        {livePubId ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
-                                {livePub?.photoURL ? (
-                                    <img src={livePub.photoURL} alt={livePub.name} loading="lazy" width="56" height="56"
-                                        style={{ width: '3.5rem', height: '3.5rem', borderRadius: 'var(--radius-lg)', objectFit: 'cover', border: '2px solid var(--color-brand-light)', boxShadow: 'var(--shadow-sm)' }} />
-                                ) : (
-                                    <div className="animate-bounce" style={{ fontSize: '2rem' }}>&#x1F4CD;</div>
-                                )}
-                                <p className="text-page-title" style={{ color: 'var(--color-brand)', lineHeight: 1.1 }}>{livePub?.name || 'Unknown Pub'}</p>
-                            </div>
-                        ) : (
-                            <p className="text-section-heading" style={{ marginBottom: 'var(--space-4)', opacity: 0.6 }}>Not currently at a pub.</p>
-                        )}
-                        {isOwnerOrManager ? (
-                            <>
-                                <select
-                                    value={livePubId}
-                                    onChange={handleSetLiveLocation}
-                                    style={{ width: '100%', padding: 'var(--space-3) var(--space-4)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-2)', color: 'var(--color-text)', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer', boxShadow: 'var(--shadow-sm)', outline: 'none' }}
-                                    onFocus={e => e.target.style.borderColor = 'var(--color-brand)'}
-                                    onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
-                                >
-                                    <option value="">&#x1F3E0; Everyone went home</option>
-                                    <optgroup label="Active Pubs">
-                                        {pubsArray.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                    </optgroup>
-                                </select>
-                                {locationError && (
-                                    <p style={{ marginTop: 'var(--space-2)', fontSize: 'var(--text-xs)', color: 'var(--color-error)', fontWeight: 600 }}>{locationError}</p>
-                                )}
-                            </>
-                        ) : (
-                            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontStyle: 'italic', marginTop: 'var(--space-2)' }}>
-                                Only the group owner or a manager can change the live location.
-                            </p>
-                        )}
+                <div className="card-warm p-6 relative overflow-hidden">
+                    {livePubId && <div className="absolute inset-0 bg-brand/5 pointer-events-none animate-pulse" />}
+                    <div className="relative z-10 flex flex-col justify-between h-full">
+                        <div>
+                            <p className="text-label mb-3">📍 Current Group Location</p>
+                            {livePubId ? (
+                                <div className="flex items-center gap-4 mb-4">
+                                    {livePub?.photoURL ? (
+                                        <img
+                                            src={livePub.photoURL}
+                                            alt={livePub.name}
+                                            loading="lazy"
+                                            width="56"
+                                            height="56"
+                                            className="w-14 h-14 rounded-xl object-cover border-2 border-brand-light shadow-sm"
+                                        />
+                                    ) : (
+                                        <div className="text-3xl animate-bounce">📍</div>
+                                    )}
+                                    <p className="text-page-title text-brand leading-tight font-bold">{livePub?.name || 'Unknown Pub'}</p>
+                                </div>
+                            ) : (
+                                <p className="text-section-heading mb-4 opacity-50 font-normal">Not currently at a pub.</p>
+                            )}
+                        </div>
+                        
+                        <div>
+                            {isOwnerOrManager ? (
+                                <>
+                                    <select
+                                        value={livePubId}
+                                        onChange={handleSetLiveLocation}
+                                        className="w-full px-4 py-3 border border-border rounded-xl bg-surface-2 text-text font-body font-semibold text-xs cursor-pointer shadow-xs outline-none focus:border-brand"
+                                    >
+                                        <option value="">🏠 Everyone went home</option>
+                                        <optgroup label="Active Pubs">
+                                            {pubsArray.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                        </optgroup>
+                                    </select>
+                                    {locationError && (
+                                        <p className="mt-2 text-xs text-error font-semibold">{locationError}</p>
+                                    )}
+                                </>
+                            ) : (
+                                <p className="text-xs text-text-muted italic mt-2">
+                                    Only the group owner or a manager can change the live location.
+                                </p>
+                            )}
+                        </div>
                     </div>
                 </div>
 
                 {/* Guinness Index */}
                 {(cheapestPint || priciestPint) ? (
-                    <div style={{ background: 'linear-gradient(135deg, var(--color-brand-dark), var(--color-brand))', padding: '3px', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-sm)' }}>
-                        <div style={{ background: 'var(--color-surface)', borderRadius: 'calc(var(--radius-xl) - 3px)', padding: 'var(--space-6)', height: '100%' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
-                                <span style={{ fontSize: '2rem' }}>&#x1F37A;</span>
+                    <div className="bg-gradient-to-br from-brand-dark to-brand p-[1.5px] rounded-2xl shadow-sm">
+                        <div className="bg-surface rounded-[calc(var(--radius-2xl)-1.5px)] p-6 h-full flex flex-col justify-between">
+                            <div className="flex items-center gap-3 mb-5">
+                                <span className="text-3xl">🍺</span>
                                 <div>
-                                    <h3 className="text-section-heading" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--font-display)', fontWeight: 400 }}>The Guinness Index</h3>
-                                    <p className="text-muted" style={{ fontSize: 'var(--text-xs)' }}>Tracking the exact price of a pint</p>
+                                    <h3 className="text-section-heading font-display font-normal uppercase tracking-wider text-base">The Guinness Index</h3>
+                                    <p className="text-muted text-[10px] uppercase font-bold tracking-wider">Tracking the exact price of a pint</p>
                                 </div>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {cheapestPint && (
-                                    <div style={{ background: 'rgba(67,122,34,0.08)', border: '1px solid rgba(67,122,34,0.2)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                                    <div className="bg-success-bg/10 border border-success/20 rounded-xl p-4 flex flex-col gap-2">
                                         {cheapestPint.pub.photoURL && (
-                                            <img src={cheapestPint.pub.photoURL} alt={cheapestPint.pub.name} loading="lazy" width="48" height="48"
-                                                style={{ width: '3rem', height: '3rem', borderRadius: 'var(--radius-md)', objectFit: 'cover', marginBottom: 'var(--space-1)' }} />
+                                            <img
+                                                src={cheapestPint.pub.photoURL}
+                                                alt={cheapestPint.pub.name}
+                                                loading="lazy"
+                                                width="48"
+                                                height="48"
+                                                className="w-12 h-12 rounded-lg object-cover mb-1 border border-success/10 shadow-xs"
+                                            />
                                         )}
-                                        <p className="text-label" style={{ color: 'var(--color-success)' }}>&#x1F49A; Cheapest Pint</p>
-                                        <p className="text-kpi" style={{ fontSize: 'var(--text-xl)' }}>&pound;{cheapestPint.avgPrice.toFixed(2)}</p>
-                                        <p className="text-muted" style={{ fontSize: 'var(--text-xs)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cheapestPint.pub.name}</p>
+                                        <p className="text-label text-success">💚 Cheapest Pint</p>
+                                        <p className="text-kpi text-lg">£{cheapestPint.avgPrice.toFixed(2)}</p>
+                                        <p className="text-muted text-[10px] font-bold overflow-hidden text-ellipsis whitespace-nowrap">{cheapestPint.pub.name}</p>
                                     </div>
                                 )}
                                 {priciestPint && (
-                                    <div style={{ background: 'rgba(161,44,123,0.08)', border: '1px solid rgba(161,44,123,0.2)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                                    <div className="bg-error-bg/10 border border-error/20 rounded-xl p-4 flex flex-col gap-2">
                                         {priciestPint.pub.photoURL && (
-                                            <img src={priciestPint.pub.photoURL} alt={priciestPint.pub.name} loading="lazy" width="48" height="48"
-                                                style={{ width: '3rem', height: '3rem', borderRadius: 'var(--radius-md)', objectFit: 'cover', marginBottom: 'var(--space-1)' }} />
+                                            <img
+                                                src={priciestPint.pub.photoURL}
+                                                alt={priciestPint.pub.name}
+                                                loading="lazy"
+                                                width="48"
+                                                height="48"
+                                                className="w-12 h-12 rounded-lg object-cover mb-1 border border-error/10 shadow-xs"
+                                            />
                                         )}
-                                        <p className="text-label" style={{ color: 'var(--color-error)' }}>&#x1F534; Priciest Pint</p>
-                                        <p className="text-kpi" style={{ fontSize: 'var(--text-xl)' }}>&pound;{priciestPint.avgPrice.toFixed(2)}</p>
-                                        <p className="text-muted" style={{ fontSize: 'var(--text-xs)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{priciestPint.pub.name}</p>
+                                        <p className="text-label text-error">❤️ Priciest Pint</p>
+                                        <p className="text-kpi text-lg">£{priciestPint.avgPrice.toFixed(2)}</p>
+                                        <p className="text-muted text-[10px] font-bold overflow-hidden text-ellipsis whitespace-nowrap">{priciestPint.pub.name}</p>
                                     </div>
                                 )}
                             </div>
                         </div>
                     </div>
                 ) : (
-                    <div style={{ ...padded, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.4 }}>
-                        <p className="text-muted" style={{ textAlign: 'center', fontStyle: 'italic' }}>No pint prices logged yet.</p>
+                    <div className="card-warm p-6 flex items-center justify-center opacity-40 min-h-[12rem]">
+                        <p className="text-muted text-xs italic text-center">No pint prices logged yet.</p>
                     </div>
                 )}
             </div>
 
             {/* ══ ROW 3: Biggest Debate + Dark Horse ══ */}
             {(biggestDebatePub || darkHorsePub) && (
-                <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 'var(--space-4)' }}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {biggestDebatePub && (
-                        <div style={{ ...cardBase, padding: 'var(--space-5)', display: 'flex', gap: 'var(--space-4)', alignItems: 'center', cursor: 'pointer', transition: 'all var(--transition-interactive)' }}
+                        <div
                             onClick={() => setPage('pubs')}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-brand)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}
+                            className="card-warm p-4 flex gap-4 items-center cursor-pointer transition-all duration-200 hover:border-brand/40"
                         >
                             {biggestDebatePub.photoURL ? (
-                                <img src={biggestDebatePub.photoURL} alt={biggestDebatePub.name} loading="lazy" width="64" height="64"
-                                    style={{ width: '4rem', height: '4rem', borderRadius: 'var(--radius-lg)', objectFit: 'cover', flexShrink: 0, border: '2px solid var(--color-border)' }} />
+                                <img
+                                    src={biggestDebatePub.photoURL}
+                                    alt={biggestDebatePub.name}
+                                    loading="lazy"
+                                    width="64"
+                                    height="64"
+                                    className="w-16 h-16 rounded-xl object-cover flex-shrink-0 border border-border shadow-xs"
+                                />
                             ) : (
-                                <div style={{ width: '4rem', height: '4rem', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-offset)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', flexShrink: 0 }}>&#x26A1;</div>
+                                <div className="w-16 h-16 rounded-xl bg-surface-offset flex items-center justify-center text-3xl flex-shrink-0">⚡</div>
                             )}
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                                <p className="text-label" style={{ color: 'var(--color-warning)', marginBottom: 'var(--space-1)' }}>&#x26A1; Biggest Debate</p>
-                                <p className="text-card-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 'var(--space-1)' }}>{biggestDebatePub.name}</p>
-                                <p className="text-muted" style={{ fontSize: 'var(--text-xs)' }}>Members can't agree &mdash; avg {biggestDebatePub.avgScore.toFixed(1)}/10</p>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-label text-warning mb-1">⚡ Biggest Debate</p>
+                                <p className="text-card-title text-sm overflow-hidden text-ellipsis whitespace-nowrap mb-0.5">{biggestDebatePub.name}</p>
+                                <p className="text-muted text-[10px]">Members disagree • avg {biggestDebatePub.avgScore.toFixed(1)}/10</p>
                             </div>
-                            <span style={{ fontSize: 'var(--text-xl)', fontFamily: 'var(--font-body)', fontWeight: 800, color: 'var(--color-brand)', flexShrink: 0 }}>{biggestDebatePub.avgScore.toFixed(1)}</span>
+                            <span className="text-lg font-black text-brand flex-shrink-0 font-body">{biggestDebatePub.avgScore.toFixed(1)}</span>
                         </div>
                     )}
                     {darkHorsePub && (
-                        <div style={{ ...cardBase, padding: 'var(--space-5)', display: 'flex', gap: 'var(--space-4)', alignItems: 'center', cursor: 'pointer', transition: 'all var(--transition-interactive)' }}
+                        <div
                             onClick={() => setPage('pubs')}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--color-brand)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}
+                            className="card-warm p-4 flex gap-4 items-center cursor-pointer transition-all duration-200 hover:border-brand/40"
                         >
                             {darkHorsePub.photoURL ? (
-                                <img src={darkHorsePub.photoURL} alt={darkHorsePub.name} loading="lazy" width="64" height="64"
-                                    style={{ width: '4rem', height: '4rem', borderRadius: 'var(--radius-lg)', objectFit: 'cover', flexShrink: 0, border: '2px solid var(--color-border)' }} />
+                                <img
+                                    src={darkHorsePub.photoURL}
+                                    alt={darkHorsePub.name}
+                                    loading="lazy"
+                                    width="64"
+                                    height="64"
+                                    className="w-16 h-16 rounded-xl object-cover flex-shrink-0 border border-border shadow-xs"
+                                />
                             ) : (
-                                <div style={{ width: '4rem', height: '4rem', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-offset)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', flexShrink: 0 }}>&#x1F311;</div>
+                                <div className="w-16 h-16 rounded-xl bg-surface-offset flex items-center justify-center text-3xl flex-shrink-0">🌑</div>
                             )}
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                                <p className="text-label" style={{ color: 'var(--color-purple)', marginBottom: 'var(--space-1)' }}>&#x1F311; Dark Horse</p>
-                                <p className="text-card-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 'var(--space-1)' }}>{darkHorsePub.name}</p>
-                                <p className="text-muted" style={{ fontSize: 'var(--text-xs)' }}>High rated but only 1 review &mdash; go explore!</p>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-label text-purple-600 mb-1">🌑 Dark Horse</p>
+                                <p className="text-card-title text-sm overflow-hidden text-ellipsis whitespace-nowrap mb-0.5">{darkHorsePub.name}</p>
+                                <p className="text-muted text-[10px]">High rating but only 1 review</p>
                             </div>
-                            <span style={{ fontSize: 'var(--text-xl)', fontFamily: 'var(--font-body)', fontWeight: 800, color: 'var(--color-brand)', flexShrink: 0 }}>{darkHorsePub.avgScore.toFixed(1)}</span>
+                            <span className="text-lg font-black text-brand flex-shrink-0 font-body">{darkHorsePub.avgScore.toFixed(1)}</span>
                         </div>
                     )}
                 </div>
             )}
 
             {/* ══ ROW 3.5: Last Pub Night Ticker + This Week's Mission ══ */}
-            <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 'var(--space-4)' }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
                 {/* Last Pub Night Ticker */}
-                <div style={{
-                    ...cardBase,
-                    padding: 'var(--space-6)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 'var(--space-5)',
-                    overflow: 'hidden',
-                    position: 'relative',
-                }}>
-                    <div style={{ position: 'absolute', right: '-1rem', top: '-1rem', fontSize: '8rem', opacity: 0.04, pointerEvents: 'none', lineHeight: 1 }}>&#x1F37B;</div>
-                    <div style={{
-                        flexShrink: 0,
-                        width: '5rem',
-                        height: '5rem',
-                        borderRadius: 'var(--radius-xl)',
-                        background: daysSinceLastVisit === null
-                            ? 'var(--color-surface-offset)'
-                            : daysSinceLastVisit <= 7
-                                ? 'linear-gradient(135deg, var(--color-brand), var(--color-brand-dark))'
-                                : daysSinceLastVisit <= 14
-                                    ? 'linear-gradient(135deg, #b07a00, #ca8a04)'
-                                    : 'linear-gradient(135deg, var(--color-error), #7a1a5e)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: 'var(--shadow-md)',
-                    }}>
-                        <span style={{ fontFamily: 'var(--font-body)', fontWeight: 900, fontSize: daysSinceLastVisit !== null && daysSinceLastVisit >= 100 ? 'var(--text-lg)' : 'var(--text-xl)', color: '#fff', lineHeight: 1 }}>
+                <div className="card-warm p-5 sm:p-6 flex items-center gap-5 overflow-hidden relative">
+                    <div className="absolute right-[-1rem] top-[-1rem] text-8xl opacity-5 pointer-events-none select-none">🍻</div>
+                    <div
+                        className={`flex-shrink-0 w-20 h-20 rounded-2xl flex items-center justify-center shadow-md ${
+                            daysSinceLastVisit === null
+                                ? 'bg-surface-offset border border-border'
+                                : daysSinceLastVisit <= 7
+                                    ? 'bg-gradient-to-br from-brand to-brand-dark border border-brand-light/10 text-white'
+                                    : daysSinceLastVisit <= 14
+                                        ? 'bg-gradient-to-br from-yellow-600 to-amber-500 text-white'
+                                        : 'bg-gradient-to-br from-error to-rose-800 text-white'
+                        }`}
+                    >
+                        <span className={`font-body font-black ${daysSinceLastVisit !== null && daysSinceLastVisit >= 100 ? 'text-base' : 'text-2xl'}`}>
                             {daysSinceLastVisit !== null ? daysSinceLastVisit : '?'}
                         </span>
                     </div>
                     <div>
-                        <p className="text-label" style={{ marginBottom: 'var(--space-1)' }}>&#x1F4C5; Last Pub Night</p>
-                        <p className="text-section-heading" style={{ lineHeight: 1.15 }}>
+                        <p className="text-label mb-1">📅 Last Pub Night</p>
+                        <p className="text-section-heading leading-tight text-base sm:text-lg">
                             {daysSinceLastVisit === null
                                 ? 'No visits yet!'
                                 : daysSinceLastVisit === 0
-                                    ? 'Today \u2014 you\'re out! \uD83C\uDF7A'
+                                    ? 'Today — you\'re out! 🍻'
                                     : daysSinceLastVisit === 1
                                         ? 'Yesterday'
                                         : `${daysSinceLastVisit} days ago`}
                         </p>
-                        <p className="text-muted" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--space-1)' }}>
+                        <p className="text-muted text-[10px] mt-1 leading-normal">
                             {daysSinceLastVisit === null
                                 ? 'Add your first pub visit to start tracking.'
                                 : daysSinceLastVisit <= 7
-                                    ? 'Still fresh \u2014 the crew is active! \uD83C\uDF89'
+                                    ? 'Still fresh — the crew is active! 🎉'
                                     : daysSinceLastVisit <= 14
                                         ? 'Been a while... time to plan a crawl?'
-                                        : 'The pubs miss you. \uD83E\uDD7A Get one in!'}
+                                        : 'The pubs miss you. 🥺 Get one in!'}
                         </p>
                     </div>
                 </div>
@@ -1095,48 +999,49 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
                 {/* This Week's Mission */}
                 <div
                     onClick={() => missionPub && setPage('toVisit')}
-                    style={{
-                        position: 'relative',
-                        overflow: 'hidden',
-                        borderRadius: 'var(--radius-xl)',
-                        boxShadow: 'var(--shadow-sm)',
-                        cursor: missionPub ? 'pointer' : 'default',
-                        border: '1px solid var(--color-border)',
-                        background: 'var(--color-surface)',
-                        transition: 'all var(--transition-interactive)',
-                    }}
-                    onMouseEnter={e => { if (missionPub) { e.currentTarget.style.borderColor = 'var(--color-brand)'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; } }}
-                    onMouseLeave={e => { if (missionPub) { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; } }}
+                    className={`card-warm relative overflow-hidden p-5 sm:p-6 flex flex-col justify-between min-h-[10rem] ${
+                        missionPub ? 'cursor-pointer hover:border-brand/40' : 'cursor-default'
+                    }`}
                 >
                     {missionPub?.photoURL ? (
-                        <img src={missionPub.photoURL} alt={missionPub.name} loading="lazy" width="600" height="300"
-                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.18 }} />
+                        <img
+                            src={missionPub.photoURL}
+                            alt={missionPub.name}
+                            loading="lazy"
+                            width="600"
+                            height="300"
+                            className="absolute inset-0 w-full h-full object-cover opacity-10 pointer-events-none"
+                        />
                     ) : (
-                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(1,105,111,0.08), rgba(1,105,111,0.02))' }} />
+                        <div className="absolute inset-0 bg-brand/5 pointer-events-none" />
                     )}
-                    <div style={{ position: 'relative', zIndex: 1, padding: 'var(--space-6)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-                            <span style={{ fontSize: '1.5rem' }}>&#x1F3AF;</span>
-                            <p className="text-label" style={{ color: 'var(--color-brand)' }}>This Week's Mission</p>
-                            <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', background: 'var(--color-brand)', color: '#fff', padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-full)' }}>Weekly</span>
+                    <div className="relative z-10 w-full">
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="text-xl">🎯</span>
+                            <p className="text-label text-brand">This Week's Mission</p>
+                            <span className="ml-auto text-[9px] font-black tracking-wider uppercase bg-brand text-white px-2 py-0.5 rounded-full shadow-xs">
+                                Weekly
+                            </span>
                         </div>
                         {missionPub ? (
                             <>
-                                <p className="text-section-heading" style={{ marginBottom: 'var(--space-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <p className="text-section-heading text-base sm:text-lg overflow-hidden text-ellipsis whitespace-nowrap mb-0.5">
                                     {missionPub.name}
                                 </p>
                                 {missionPub.location && (
-                                    <p className="text-muted" style={{ fontSize: 'var(--text-xs)', marginBottom: 'var(--space-3)' }}>&#x1F4CD; {missionPub.location}</p>
+                                    <p className="text-muted text-[10px] mb-3">📍 {missionPub.location}</p>
                                 )}
-                                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', fontStyle: 'italic', lineHeight: 1.5 }}>
-                                    This week the crew should visit <strong style={{ color: 'var(--color-text)' }}>{missionPub.name}</strong>. It's on the list — go explore and drop your ratings!
+                                <p className="text-[11px] text-text-muted italic leading-normal">
+                                    The crew is assigned to visit <strong>{missionPub.name}</strong> this week. It's on your hitlist — go explore!
                                 </p>
-                                <p style={{ marginTop: 'var(--space-4)', fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-brand)' }}>View on To-Visit List &rarr;</p>
+                                <p className="mt-4 text-[10px] font-extrabold text-brand flex items-center gap-1">
+                                    View on Hitlist →
+                                </p>
                             </>
                         ) : (
-                            <div style={{ textAlign: 'center', padding: 'var(--space-6) 0' }}>
-                                <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: 'var(--space-2)', opacity: 0.4 }}>&#x2705;</span>
-                                <p className="text-muted" style={{ fontStyle: 'italic' }}>No unvisited pubs on the list — you've conquered them all!</p>
+                            <div className="text-center py-4">
+                                <span className="text-2xl block mb-1">✅</span>
+                                <p className="text-muted text-xs italic">No unvisited pubs on the list — you've conquered them all!</p>
                             </div>
                         )}
                     </div>
@@ -1144,74 +1049,81 @@ export default function DashboardPage({ user, userProfile, pubs, newPubs, criter
             </div>
 
             {/* ══ ROW 5: Group Score Trend Sparkline ══ */}
-            <div style={{ ...padded }}>
+            <div className="card-warm p-5 sm:p-6">
                 <ScoreTrendSparkline points={scoreTrendPoints} />
             </div>
 
             {/* ══ ROW 4: Events + Activity Feed ══ */}
-            <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 'var(--space-4)' }}>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
 
                 {/* Upcoming Events */}
-                <div style={{ ...padded, display: 'flex', flexDirection: 'column' }} className="lg:col-span-1">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-5)' }}>
-                        <h3 className="text-section-heading">Upcoming Events</h3>
-                        <button onClick={() => setPage('events')} style={{ fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-body)', color: 'var(--color-brand)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>View All</button>
+                <div className="card-warm p-5 flex flex-col justify-between lg:col-span-1 min-h-[16rem]">
+                    <div>
+                        <div className="flex justify-between items-center mb-5">
+                            <h3 className="text-section-heading">Upcoming Events</h3>
+                            <button
+                                onClick={() => setPage('events')}
+                                className="text-xs font-bold text-brand hover:underline cursor-pointer border-none bg-transparent"
+                            >
+                                View All
+                            </button>
+                        </div>
+                        
+                        {upcomingEvents.length === 0 ? (
+                            <div className="text-center py-8 opacity-40">
+                                <span className="text-3xl block mb-2">📅</span>
+                                <p className="text-muted text-xs italic">No events planned.</p>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-3 max-h-[18rem] overflow-y-auto pr-1">
+                                {upcomingEvents.map(event => {
+                                    const eventDate = new Date(event.date);
+                                    const pub = pubsArray.find(p => p.id === event.pubId);
+                                    return (
+                                        <div
+                                            key={event.id}
+                                            onClick={() => setPage('events')}
+                                            className="flex gap-3 items-center bg-surface-offset p-2.5 rounded-xl border border-border cursor-pointer transition-colors duration-150 hover:border-brand/40"
+                                        >
+                                            <div className="bg-brand text-white rounded-lg py-1.5 px-2.5 text-center min-w-[3.2rem] flex-shrink-0 shadow-xs">
+                                                <p className="text-[9px] uppercase font-black leading-none font-body">{eventDate.toLocaleDateString(undefined, { month: 'short' })}</p>
+                                                <p className="text-base font-extrabold leading-none mt-1 font-body">{eventDate.getDate()}</p>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-card-title text-sm overflow-hidden text-ellipsis whitespace-nowrap mb-0.5">{event.title}</p>
+                                                <p className="text-muted text-[10px] overflow-hidden text-ellipsis whitespace-nowrap">📍 {pub?.name || 'Unknown Pub'}</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
-                    {upcomingEvents.length === 0 ? (
-                        <div style={{ textAlign: 'center', margin: 'auto', padding: 'var(--space-8) 0' }}>
-                            <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: 'var(--space-2)', opacity: 0.5 }}>&#x1F4C5;</span>
-                            <p className="text-muted" style={{ fontStyle: 'italic' }}>No events planned.</p>
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', overflowY: 'auto' }}>
-                            {upcomingEvents.map(event => {
-                                const eventDate = new Date(event.date);
-                                const pub = pubsArray.find(p => p.id === event.pubId);
-                                return (
-                                    <div
-                                        key={event.id}
-                                        onClick={() => setPage('events')}
-                                        style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center', background: 'var(--color-surface-offset)', padding: 'var(--space-3)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', cursor: 'pointer', transition: 'border-color var(--transition-interactive)' }}
-                                        onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--color-brand)'}
-                                        onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--color-border)'}
-                                    >
-                                        <div style={{ background: 'var(--color-brand)', color: '#fff', borderRadius: 'var(--radius-md)', padding: 'var(--space-2)', textAlign: 'center', minWidth: '3rem', flexShrink: 0 }}>
-                                            <p style={{ fontSize: '0.6rem', textTransform: 'uppercase', fontWeight: 700, lineHeight: 1, fontFamily: 'var(--font-body)' }}>{eventDate.toLocaleDateString(undefined, { month: 'short' })}</p>
-                                            <p style={{ fontSize: 'var(--text-lg)', fontWeight: 700, lineHeight: 1, marginTop: 'var(--space-1)', fontFamily: 'var(--font-body)' }}>{eventDate.getDate()}</p>
-                                        </div>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <p className="text-card-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</p>
-                                            <p className="text-muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'var(--text-xs)' }}>&#x1F4CD; {pub?.name || 'Unknown Pub'}</p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
                 </div>
 
                 {/* Group Activity Feed */}
-                <div style={{ ...padded, display: 'flex', flexDirection: 'column' }} className="lg:col-span-2">
-                    <h3 className="text-section-heading" style={{ marginBottom: 'var(--space-5)' }}>Group Activity</h3>
+                <div className="card-warm p-5 sm:p-6 flex flex-col lg:col-span-2 min-h-[16rem]">
+                    <h3 className="text-section-heading mb-5">Group Activity</h3>
                     {Object.keys(groupedTimeline).length === 0 ? (
-                        <p className="text-muted" style={{ textAlign: 'center', margin: 'auto', fontStyle: 'italic' }}>No recent activity.</p>
+                        <p className="text-muted text-xs italic text-center my-auto">No recent activity.</p>
                     ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', overflowY: 'auto', maxHeight: '28rem', paddingRight: 'var(--space-2)' }}>
+                        <div className="flex flex-col gap-5 overflow-y-auto max-h-[22rem] pr-2">
                             {['Today', 'This Week', 'Earlier'].filter(g => groupedTimeline[g]?.length).map(group => (
-                                <div key={group}>
-                                    <p style={{ fontSize: 'var(--text-xs)', fontWeight: 800, fontFamily: 'var(--font-body)', color: 'var(--color-text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-3)', paddingBottom: 'var(--space-2)', borderBottom: '1px solid var(--color-divider)' }}>{group}</p>
-                                    <div style={{ position: 'relative', borderLeft: '2px solid var(--color-brand-light)', marginLeft: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                                <div key={group} className="space-y-3">
+                                    <p className="text-[10px] font-black font-body text-text-faint uppercase tracking-wider pb-1.5 border-b border-divider">{group}</p>
+                                    <div className="relative border-l border-brand/20 ml-4 flex flex-col gap-4 pl-4 py-1">
                                         {groupedTimeline[group].map(item => (
-                                            <div key={item.id} style={{ position: 'relative', paddingLeft: 'var(--space-6)' }} className="group">
-                                                <span style={{ position: 'absolute', left: '-18px', top: '0.25rem', background: 'var(--color-surface)', border: '2px solid var(--color-brand-light)', borderRadius: '50%', width: '2.25rem', height: '2.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--text-base)', boxShadow: 'var(--shadow-sm)', zIndex: 1 }}>
+                                            <div key={item.id} className="relative group">
+                                                {/* Emoji marker dot */}
+                                                <span className="absolute left-[-26px] top-1 bg-surface border border-brand/35 rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-xs z-10 select-none">
                                                     {item.emoji}
                                                 </span>
-                                                <div style={{ background: 'var(--color-surface-offset)', padding: 'var(--space-3) var(--space-4)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-1)' }}>
-                                                        <p className="text-label" style={{ color: 'var(--color-brand)' }}>{item.title}</p>
-                                                        <p style={{ fontSize: '0.6rem', color: 'var(--color-text-faint)', fontWeight: 700, fontFamily: 'var(--font-body)', background: 'var(--color-surface)', padding: '2px var(--space-2)', borderRadius: 'var(--radius-full)' }}>{item.dateLabel}</p>
+                                                <div className="bg-surface-offset p-3 rounded-xl border border-border shadow-xs">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <p className="text-[10px] font-black text-brand uppercase tracking-wider">{item.title}</p>
+                                                        <p className="text-[9px] text-text-faint font-bold font-body bg-surface px-2 py-0.5 rounded-full border border-border">{item.dateLabel}</p>
                                                     </div>
-                                                    <p className="text-body" style={{ fontWeight: 500 }}>{item.text}</p>
+                                                    <p className="text-xs font-semibold text-text/80">{item.text}</p>
                                                 </div>
                                             </div>
                                         ))}

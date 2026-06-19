@@ -172,7 +172,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // ── 4. Firebase / Firestore / Auth — network-first (must stay live) ───────
+  // ── 4. Firebase / Firestore / Auth — bypass service worker ───────────────
+  // Let the browser and Firebase SDK handle these requests directly to prevent token caching and sync conflicts.
   if (
     url.hostname.includes('firebaseio.com') ||
     url.hostname.includes('googleapis.com') ||
@@ -181,7 +182,6 @@ self.addEventListener('fetch', (event) => {
     url.hostname.includes('identitytoolkit') ||
     url.hostname.includes('securetoken.google')
   ) {
-    event.respondWith(networkFirst(request, RUNTIME_CACHE));
     return;
   }
 
