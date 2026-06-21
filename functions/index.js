@@ -302,3 +302,10 @@ exports.onGlobalScoreCreate = functions
         const data = snap.data();
         return writeRateLimit(data.userId, context);
     });
+
+// ── Stripe (checkout + webhook) ──────────────────────────────────────────────
+// Re-exported from a separate module to keep this file focused. Both functions
+// remain dormant until Stripe keys are configured via `firebase functions:config:set`.
+const stripeModule = require('./stripe');
+exports.createCheckoutSession = stripeModule.createCheckoutSession;
+exports.stripeWebhook          = stripeModule.stripeWebhook;

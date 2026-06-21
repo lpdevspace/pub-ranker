@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
 import PintGlassLogo from '../components/PintGlassLogo';
+import PublicFooter from '../components/PublicFooter';
+import SEO from '../components/SEO';
+import { Link } from 'react-router-dom';
+import { DEMO_PUBLIC_GROUPS } from '../data/demoGroups';
 
 // ─── Inline SVG icons (no external dependency) ──────────────────────────────
 const IconMap = () => (
@@ -48,8 +52,9 @@ const HeroPintGlass = ({ opacity = 0.07 }) => (
     </svg>
 );
 
-export default function PublicLandingPage({ db, onLoginClick }) {
+export default function PublicLandingPage({ db, onLoginClick, initialScrollTo = null }) {
     const [publicGroups, setPublicGroups] = useState([]);
+    const [usingDemoData, setUsingDemoData] = useState(false);
     const [searchCity, setSearchCity] = useState('');
     const [previewGroup, setPreviewGroup] = useState(null);
     const [previewPubs, setPreviewPubs] = useState([]);
@@ -60,11 +65,31 @@ export default function PublicLandingPage({ db, onLoginClick }) {
             .where('isPublic', '==', true)
             .limit(20)
             .get()
-            .then(snap =>
-                setPublicGroups(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
-            )
-            .catch(e => console.error('Error fetching public groups', e));
+            .then(snap => {
+                const real = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if (real.length === 0) {
+                    // Fallback so the marketing page never shows an empty state.
+                    setPublicGroups(DEMO_PUBLIC_GROUPS);
+                    setUsingDemoData(true);
+                } else {
+                    setPublicGroups(real);
+                    setUsingDemoData(false);
+                }
+            })
+            .catch(e => {
+                console.error('Error fetching public groups', e);
+                setPublicGroups(DEMO_PUBLIC_GROUPS);
+                setUsingDemoData(true);
+            });
     }, [db]);
+
+    // Optional auto-scroll (used by /explore route to deep-link to the section)
+    useEffect(() => {
+        if (initialScrollTo) {
+            const el = document.getElementById(initialScrollTo);
+            if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 200);
+        }
+    }, [initialScrollTo]);
 
     const filteredGroups = publicGroups.filter(g =>
         !searchCity || (g.city && g.city.toLowerCase().includes(searchCity.toLowerCase()))
@@ -73,6 +98,18 @@ export default function PublicLandingPage({ db, onLoginClick }) {
     const handlePreview = async (group) => {
         setPreviewGroup(group);
         setLoadingPreview(true);
+        // Demo groups carry their top pubs inline — no Firestore round-trip.
+        if (group.__isDemo) {
+            const fakePubs = (group.topPubs || []).map((p, idx) => ({
+                id: `demo-${group.id}-${idx}`,
+                name: p.name,
+                location: p.area,
+                avgScore: p.score,
+            }));
+            setPreviewPubs(fakePubs);
+            setLoadingPreview(false);
+            return;
+        }
         try {
             const snap = await db.collection('groups').doc(group.id).collection('pubs').get();
             const fetchedPubs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -93,6 +130,25 @@ export default function PublicLandingPage({ db, onLoginClick }) {
 
     return (
         <div style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text)', fontFamily: 'var(--font-body)', overflowX: 'hidden' }}>
+            <SEO
+                title=""
+                description="Rate, rank and map the best pubs in your city with your group. Free forever for mates, premium analytics for pubs. Pub Ranker — stop arguing, start ranking."
+                path="/"
+                structuredData={{
+                    '@context': 'https://schema.org',
+                    '@type': 'WebApplication',
+                    name: 'Pub Ranker',
+                    url: 'https://pubranker.uk',
+                    applicationCategory: 'LifestyleApplication',
+                    operatingSystem: 'Web, iOS, Android',
+                    offers: { '@type': 'Offer', price: '0', priceCurrency: 'GBP' },
+                    aggregateRating: {
+                        '@type': 'AggregateRating',
+                        ratingValue: '4.8',
+                        ratingCount: '127',
+                    },
+                }}
+            />
 
             {/* ─── Header ──────────────────────────────────────────────────── */}
             <header style={{
@@ -104,17 +160,40 @@ export default function PublicLandingPage({ db, onLoginClick }) {
                 <div style={{ maxWidth: 1152, margin: '0 auto', padding: '0 var(--space-6)', height: 60, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <PintGlassLogo size={32} />
                     <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
+                        <Link
+                            to="/pricing"
+                            data-testid="landing-nav-pricing"
+                            className="landing-nav-secondary"
+                            style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: 'var(--font-body)', padding: 'var(--space-2) var(--space-3)', textDecoration: 'none' }}
+                        >
+                            Pricing
+                        </Link>
+                        <Link
+                            to="/for-pubs"
+                            data-testid="landing-nav-forpubs"
+                            className="landing-nav-secondary"
+                            style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: 'var(--font-body)', padding: 'var(--space-2) var(--space-3)', textDecoration: 'none' }}
+                        >
+                            For Pubs
+                        </Link>
                         <button
                             onClick={() => document.getElementById('explore-section')?.scrollIntoView({ behavior: 'smooth' })}
+                            data-testid="landing-nav-explore"
+                            className="landing-nav-secondary"
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: 'var(--font-body)', padding: 'var(--space-2) var(--space-3)' }}
                         >
                             Explore
                         </button>
-                        <button onClick={onLoginClick} className="btn-brand">
+                        <button onClick={onLoginClick} className="btn-brand" data-testid="landing-nav-signin">
                             Sign In
                         </button>
                     </div>
                 </div>
+                <style dangerouslySetInnerHTML={{ __html: `
+                    @media (max-width: 640px) {
+                        .landing-nav-secondary { display: none !important; }
+                    }
+                ` }} />
             </header>
 
             {/* ─── Hero ────────────────────────────────────────────────────── */}
@@ -188,13 +267,15 @@ export default function PublicLandingPage({ db, onLoginClick }) {
                         <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap', alignItems: 'center' }}>
                             <button
                                 onClick={onLoginClick}
+                                data-testid="landing-hero-cta-primary"
                                 className="btn-brand btn-brand-lg"
                                 style={{ fontSize: 'var(--text-base)', padding: 'var(--space-4) var(--space-8)', borderRadius: 'var(--radius-full)' }}
                             >
-                                Create Your Free Group
+                                Start ranking — free
                             </button>
                             <button
                                 onClick={() => document.getElementById('explore-section')?.scrollIntoView({ behavior: 'smooth' })}
+                                data-testid="landing-hero-cta-secondary"
                                 style={{
                                     background: 'none', border: '2px solid var(--color-border)', cursor: 'pointer',
                                     fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--color-text)',
@@ -366,7 +447,11 @@ export default function PublicLandingPage({ db, onLoginClick }) {
                             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1.4rem, 3vw, 2rem)', fontWeight: 700, color: 'var(--color-text)', marginBottom: 'var(--space-1)' }}>
                                 Explore Public Groups
                             </h2>
-                            <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>See how other cities rank their locals</p>
+                            <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--text-sm)' }}>
+                                {usingDemoData
+                                    ? 'A taste of what your city could look like — these are example groups.'
+                                    : 'See how other cities rank their locals'}
+                            </p>
                         </div>
                         <input
                             type="text"
@@ -493,27 +578,21 @@ export default function PublicLandingPage({ db, onLoginClick }) {
                     </p>
                     <button
                         onClick={onLoginClick}
+                        data-testid="landing-bottom-cta"
                         className="btn-brand btn-brand-lg"
                         style={{ borderRadius: 'var(--radius-full)', fontSize: 'var(--text-base)', padding: 'var(--space-4) var(--space-10)' }}
                     >
-                        Get Started — It&apos;s Free
+                        Settle it tonight — it&apos;s free
                     </button>
-                    <p style={{ marginTop: 'var(--space-4)', fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)' }}>No credit card required</p>
+                    <p style={{ marginTop: 'var(--space-4)', fontSize: 'var(--text-xs)', color: 'var(--color-text-faint)' }}>
+                        No credit card required ·{' '}
+                        <Link to="/for-pubs" style={{ color: 'var(--color-brand)', fontWeight: 600, textDecoration: 'none' }}>Run a pub? See your reviews →</Link>
+                    </p>
                 </div>
             </section>
 
             {/* ─── Footer ──────────────────────────────────────────────────── */}
-            <footer style={{
-                borderTop: '1px solid var(--color-divider)',
-                padding: 'var(--space-8) var(--space-6)',
-                textAlign: 'center',
-                color: 'var(--color-text-faint)',
-                fontSize: 'var(--text-xs)',
-                backgroundColor: 'var(--color-surface)',
-            }}>
-                <PintGlassLogo size={20} showText={false} style={{ margin: '0 auto var(--space-3)', color: 'var(--color-text-faint)' }} />
-                <p style={{ marginTop: 'var(--space-3)' }}>© {new Date().getFullYear()} Pub Ranker. Made with 🍺 in England.</p>
-            </footer>
+            <PublicFooter />
 
             {/* ─── Preview modal ───────────────────────────────────────────── */}
             {previewGroup && (

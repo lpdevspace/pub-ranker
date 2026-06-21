@@ -2,7 +2,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { auth, db } from './firebase';
 import MainApp from './MainApp';
 import LoadingScreen from './components/LoadingScreen';
-import PublicLandingPage from './pages/PublicLandingPage';
+import PublicSiteRouter from './pages/PublicSiteRouter';
 import AuthScreen from './pages/AuthScreen';
 import GroupPortal from './pages/GroupPortal';
 import { ToastProvider } from './context/ToastContext';
@@ -131,7 +131,7 @@ export default function App() {
     } else if (!user) {
         currentScreen = showAuth
             ? <AuthScreen auth={auth} onBack={() => setShowAuth(false)} />
-            : <PublicLandingPage db={db} onLoginClick={() => setShowAuth(true)} />;
+            : <PublicSiteRouter db={db} user={null} userProfile={null} onLoginClick={() => setShowAuth(true)} />;
 
     } else if (!userProfile) {
         currentScreen = <LoadingScreen text="Loading profile..." />;
