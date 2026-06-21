@@ -150,7 +150,14 @@ service cloud.firestore {
            && request.resource.data.value is number
            && request.resource.data.value >= 0
            && request.resource.data.value <= 10;
-         allow update: if isSuperAdmin() || (isSignedIn() && isNotBanned() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid);
+         allow update: if isSuperAdmin()
+           || (isSignedIn() && isNotBanned() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid)
+           // Pub owner publicly replying to a review on a venue they have claimed
+           || (isSignedIn() && isNotBanned()
+               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerReply'])
+               && resource.data.pubId is string
+               && get(/databases/$(database)/documents/pubs/$(resource.data.pubId)).data.get('claimedBy', []) is list
+               && request.auth.uid in get(/databases/$(database)/documents/pubs/$(resource.data.pubId)).data.get('claimedBy', []));
          allow delete: if isSuperAdmin() || (isSignedIn() && isNotBanned() && resource.data.userId == request.auth.uid);
          match /comments/{commentId} {
             allow read: if isSignedIn();
@@ -205,7 +212,14 @@ service cloud.firestore {
         && request.resource.data.value is number
         && request.resource.data.value >= 0
         && request.resource.data.value <= 10;
-      allow update: if isSuperAdmin() || (isSignedIn() && isNotBanned() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid);
+      allow update: if isSuperAdmin()
+        || (isSignedIn() && isNotBanned() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid)
+        // Pub owner publicly replying to a review on a venue they have claimed
+        || (isSignedIn() && isNotBanned()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerReply'])
+            && resource.data.pubId is string
+            && get(/databases/$(database)/documents/pubs/$(resource.data.pubId)).data.get('claimedBy', []) is list
+            && request.auth.uid in get(/databases/$(database)/documents/pubs/$(resource.data.pubId)).data.get('claimedBy', []));
       allow delete: if isSuperAdmin() || (isSignedIn() && isNotBanned() && resource.data.userId == request.auth.uid);
     }
 
@@ -251,6 +265,21 @@ service cloud.firestore {
       allow create: if isSignedIn() && isNotBanned();
       allow read: if isSignedIn() && (canEditConfig() || resource.data.requestedByUid == request.auth.uid);
       allow update, delete: if canEditConfig();
+    }
+
+    // Contact form submissions from /contact public page.
+    // Anyone (signed-in or not) can create; only admins can read/process.
+    match /contactRequests/{reqId} {
+      allow create: if isValidText(request.resource.data.message, 2000)
+        && isValidOptionalText(request.resource.data, 'name', 120)
+        && isValidOptionalText(request.resource.data, 'email', 200);
+      allow read, update, delete: if canEditConfig();
+    }
+
+    // Payment transactions — written ONLY by the Stripe Cloud Function (Admin SDK).
+    match /payment_transactions/{txId} {
+      allow read: if isSuperAdmin();
+      allow write: if false; // Admin SDK only
     }
 
     match /deals/{dealId} {

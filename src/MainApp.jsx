@@ -145,7 +145,7 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
             case 'individual':   return <IndividualPage {...sharedProps} />;
             case 'spin':         return <SpinPage {...sharedProps} onSelectPub={setSelectedPub} />;
             case 'feedback':     return <FeedbackPage {...sharedProps} />;
-            case 'business':     return <VenuePortalPage db={db} user={user} />;
+            case 'business':     return <VenuePortalPage db={db} user={user} userProfile={userProfile} />;
             case 'achievements': return <AchievementsPage {...sharedProps} />;
             case 'checkins':     return <CheckInsPage db={db} groupId={groupId} pubs={pubs} allUsers={allUsers} user={user} />;
             case 'admin':

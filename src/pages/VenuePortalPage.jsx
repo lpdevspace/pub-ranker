@@ -1,5 +1,16 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { firebase } from '../firebase';
 import ConfirmModal from '../components/ConfirmModal';
+import { startCheckout, openCustomerPortal } from '../utils/checkout';
+import { getPlanForVenue, canUseFeature, PUB_PLANS } from '../utils/pubPlans';
+import CriteriaBreakdown from '../components/venue/CriteriaBreakdown';
+import TrendChart from '../components/venue/TrendChart';
+import CompetitorBenchmark from '../components/venue/CompetitorBenchmark';
+import ReviewCard from '../components/venue/ReviewCard';
+import BillingTab from '../components/venue/BillingTab';
+import FeaturedTab from '../components/venue/FeaturedTab';
+import MultiVenueOverview from '../components/venue/MultiVenueOverview';
+import PremiumLock from '../components/venue/PremiumLock';
 
 // ---------------------------------------------------------------------------
 // Tiny toast helper
@@ -71,7 +82,7 @@ function PortalIcon({ type, className = "w-4 h-4 flex-shrink-0" }) {
     }
 }
 
-export default function VenuePortalPage({ db, user }) {
+export default function VenuePortalPage({ db, user, userProfile }) {
     const [ownedVenues, setOwnedVenues] = useState([]);
     const [myClaims, setMyClaims] = useState([]);
     const [allPubs, setAllPubs] = useState([]);
@@ -83,7 +94,8 @@ export default function VenuePortalPage({ db, user }) {
     const [loading, setLoading] = useState(true);
     const [isSubmittingClaim, setIsSubmittingClaim] = useState(false);
     
-    // Venue stats
+    // Venue raw scores (now we keep the full list so we can derive criteria + trend)
+    const [rawScores, setRawScores] = useState([]);
     const [venueStats, setVenueStats] = useState({ totalCheckins: 0, averageRating: 0.0, upvotesCount: 0, recentReviews: [] });
     const [loadingStats, setLoadingStats] = useState(false);
 
@@ -97,13 +109,8 @@ export default function VenuePortalPage({ db, user }) {
     const [profileForm, setProfileForm] = useState({ name: '', location: '', address: '', photoURL: '' });
     const [isSavingProfile, setIsSavingProfile] = useState(false);
 
-    // Premium Subscription paywall
-    const [isPremium, setIsPremium] = useState(false);
-    const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
-    const [checkoutLoading, setCheckoutLoading] = useState(false);
-    const [cardNumber, setCardNumber] = useState('');
-    const [cardExpiry, setCardExpiry] = useState('');
-    const [cardCvc, setCardCvc] = useState('');
+    // Stripe checkout fallback modal (shown when Stripe isn't configured yet)
+    const [checkoutUnavailable, setCheckoutUnavailable] = useState(false);
 
     // ConfirmModal state
     const [confirmState, setConfirmState] = useState(null);
@@ -123,11 +130,7 @@ export default function VenuePortalPage({ db, user }) {
             setOwnedVenues(claimed);
 
             if (claimed.length > 0) {
-                const initialId = claimed[0].id;
-                setSelectedVenueId(initialId);
-                // Check local storage premium unlock state
-                const isUnlocked = localStorage.getItem(`premium_unlocked_${initialId}`) === 'true';
-                setIsPremium(isUnlocked);
+                setSelectedVenueId(claimed[0].id);
             }
 
             // 2. Fetch my submitted claims
@@ -153,6 +156,20 @@ export default function VenuePortalPage({ db, user }) {
         return ownedVenues.find(v => v.id === selectedVenueId) || null;
     }, [ownedVenues, selectedVenueId]);
 
+    // Plan & feature gating (single source of truth for the whole portal)
+    const plan = useMemo(() => getPlanForVenue(userProfile, activeVenue), [userProfile, activeVenue]);
+    const can  = useCallback((f) => canUseFeature(plan, f), [plan]);
+
+    // Pub Plus subscribers get 2 featured credits/month — compute remaining.
+    const featuredCreditsRemaining = useMemo(() => {
+        if (plan?.key !== 'pubPlus') return 0;
+        const used = userProfile?.featuredCreditsUsedThisMonth || 0;
+        const month = new Date().getUTCMonth();
+        const trackedMonth = userProfile?.featuredCreditsMonth;
+        // Reset if it's a new month
+        return trackedMonth === month ? Math.max(0, 2 - used) : 2;
+    }, [plan, userProfile]);
+
     // -----------------------------------------------------------------------
     // UPDATE PROFILE FORM WHEN VENUE CHANGES
     // -----------------------------------------------------------------------
@@ -164,8 +181,6 @@ export default function VenuePortalPage({ db, user }) {
                 address: activeVenue.address || '',
                 photoURL: activeVenue.photoURL || '',
             });
-            // Update active premium status
-            setIsPremium(localStorage.getItem(`premium_unlocked_${activeVenue.id}`) === 'true');
         }
     }, [activeVenue]);
 
@@ -179,45 +194,74 @@ export default function VenuePortalPage({ db, user }) {
 
         try {
             // 1. Fetch scores (using collectionGroup with index-missing fallback)
+            let allScores = [];
             let checkins = [];
             let ratingSum = 0;
             let reviewsList = [];
 
             try {
                 const scoresSnap = await db.collectionGroup('scores').where('pubId', '==', venueId).get();
-                checkins = scoresSnap.docs.map(doc => doc.data());
-                
-                checkins.forEach(c => {
-                    ratingSum += c.value;
+                allScores = scoresSnap.docs.map(doc => ({
+                    id: doc.id,
+                    scoreId: doc.id,
+                    ref: doc.ref,
+                    ...doc.data(),
+                }));
+                checkins = allScores;
+
+                allScores.forEach(c => {
+                    ratingSum += (Number(c.value) || 0);
                     if (c.textComment) {
                         reviewsList.push({
+                            id: c.id,
+                            scoreId: c.id,
+                            ref: c.ref,
                             userName: c.userName || 'Anonymous',
                             rating: c.value,
+                            criterionId: c.criterionId,
                             comment: c.textComment,
+                            ownerReply: c.ownerReply || null,
                             date: c.createdAt ? new Date(c.createdAt.toDate()).toLocaleDateString() : 'Recent'
                         });
                     }
                 });
+                reviewsList.sort((a, b) => (b.scoreId > a.scoreId ? 1 : -1));
             } catch (err) {
                 console.warn('CollectionGroup scores query requires indexes or failed. Using simulated fallback data.', err);
-                // Fallback: Generate semi-realistic mock review statistics based on active venue name
-                checkins = Array.from({ length: 42 });
-                ratingSum = 42 * 7.8;
+                // Fallback: Generate semi-realistic mock scores so the dashboard
+                // demos correctly in fresh environments.
+                const now = Date.now();
+                const day = 24 * 60 * 60 * 1000;
+                const criteria = ['atmosphere', 'service', 'beer', 'price', 'food'];
+                allScores = Array.from({ length: 42 }, (_, i) => ({
+                    id: `mock-${i}`,
+                    scoreId: `mock-${i}`,
+                    value: 5 + Math.random() * 4 + (i < 20 ? 0.3 : 0),
+                    criterionId: criteria[i % criteria.length],
+                    createdAt: { toDate: () => new Date(now - i * 1.5 * day) },
+                    userName: ['Sarah L.', 'Dave M.', 'Chris T.', 'Priya K.', 'Tom W.'][i % 5],
+                    textComment: i % 6 === 0
+                        ? 'Solid local. Beer is well-kept and staff are friendly.'
+                        : null,
+                }));
+                checkins = allScores;
+                ratingSum = allScores.reduce((a, s) => a + s.value, 0);
                 reviewsList = [
-                    { userName: 'Sarah L.', rating: 9, comment: 'Incredible beer selection and a very cozy fire pit.', date: 'Today' },
-                    { userName: 'Dave M.', rating: 8, comment: 'Solid atmosphere. Bartenders are always friendly.', date: 'Yesterday' },
-                    { userName: 'Chris T.', rating: 6, comment: 'Pint price is a bit high, but the garden is beautiful.', date: '3 days ago' },
+                    { id: 'mock-r1', userName: 'Sarah L.', rating: 9, comment: 'Incredible beer selection and a very cozy fire pit.', date: 'Today',     criterionId: 'atmosphere' },
+                    { id: 'mock-r2', userName: 'Dave M.',  rating: 8, comment: 'Solid atmosphere. Bartenders are always friendly.',   date: 'Yesterday', criterionId: 'service' },
+                    { id: 'mock-r3', userName: 'Chris T.', rating: 6, comment: 'Pint price is a bit high, but the garden is beautiful.', date: '3 days ago', criterionId: 'price' },
                 ];
             }
 
             const upvotes = activeVenue?.upvotes ? activeVenue.upvotes.length : 0;
             const avg = checkins.length > 0 ? (ratingSum / checkins.length).toFixed(1) : '0.0';
 
+            setRawScores(allScores);
             setVenueStats({
                 totalCheckins: checkins.length,
                 averageRating: avg,
                 upvotesCount: upvotes,
-                recentReviews: reviewsList.slice(0, 4)
+                recentReviews: reviewsList.slice(0, 8)
             });
 
             // 2. Fetch deals
@@ -359,28 +403,92 @@ export default function VenuePortalPage({ db, user }) {
     };
 
     // -----------------------------------------------------------------------
-    // PREMIUM SUBSCRIPTION
+    // SUBSCRIPTION & STRIPE (real checkout — no more mock card form)
     // -----------------------------------------------------------------------
-    const handleExecuteCheckout = (e) => {
-        e.preventDefault();
-        if (!cardNumber || !cardExpiry || !cardCvc) {
-            return showToast('Please complete all card details.', 'warning');
-        }
+    const handleUpgrade = useCallback((priceKey) => {
+        // priceKey is one of: 'pubProMonthly', 'pubPlusMonthly',
+        //                     'featuredOneOff', 'featuredMonthly'
+        startCheckout(priceKey, {
+            user, userProfile,
+            venueId: selectedVenueId || null,
+            onUnavailable: () => setCheckoutUnavailable(true),
+        });
+    }, [user, userProfile, selectedVenueId]);
 
-        setCheckoutLoading(true);
-        setTimeout(() => {
-            setCheckoutLoading(false);
-            setCheckoutModalOpen(false);
-            setIsPremium(true);
-            localStorage.setItem(`premium_unlocked_${selectedVenueId}`, 'true');
-            showToast('🎉 Billing confirmed! Deep Analytics are now unlocked.', 'success');
-            
-            // Reset checkout inputs
-            setCardNumber('');
-            setCardExpiry('');
-            setCardCvc('');
-        }, 2200);
-    };
+    const handleManageBilling = useCallback(() => {
+        openCustomerPortal({
+            stripeCustomerId: userProfile?.stripeCustomerId,
+            onUnavailable: () => setCheckoutUnavailable(true),
+        });
+    }, [userProfile]);
+
+    // -----------------------------------------------------------------------
+    // REVIEW REPLY
+    // -----------------------------------------------------------------------
+    const handleReplyToReview = useCallback(async (review, text) => {
+        try {
+            if (!review.ref) throw new Error('Cannot reply to a demo review.');
+            await review.ref.update({
+                ownerReply: {
+                    text,
+                    repliedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    ownerUid: user.uid,
+                    ownerVenueId: activeVenue?.id || null,
+                },
+            });
+            // Optimistically update local state
+            setVenueStats(prev => ({
+                ...prev,
+                recentReviews: prev.recentReviews.map(r =>
+                    r.id === review.id
+                        ? { ...r, ownerReply: { text, repliedAt: new Date(), ownerUid: user.uid } }
+                        : r
+                ),
+            }));
+            showToast('💬 Reply posted — visible publicly on the review.');
+        } catch (e) {
+            console.error(e);
+            showToast('Failed to post reply: ' + e.message, 'error');
+        }
+    }, [user, activeVenue]);
+
+    // -----------------------------------------------------------------------
+    // FEATURED LISTING
+    // -----------------------------------------------------------------------
+    const handleClaimFeaturedCredit = useCallback(async () => {
+        if (!activeVenue) return;
+        if (featuredCreditsRemaining <= 0) {
+            showToast('No featured credits remaining this month.', 'warning');
+            return;
+        }
+        try {
+            const oneWeek = 7 * 24 * 60 * 60 * 1000;
+            const currentUntil = activeVenue.featuredUntil?.toDate?.()?.getTime() || Date.now();
+            const newUntil = new Date(Math.max(Date.now(), currentUntil) + oneWeek);
+            const month = new Date().getUTCMonth();
+
+            await db.collection('pubs').doc(activeVenue.id).update({
+                featuredUntil: firebase.firestore.Timestamp.fromDate(newUntil),
+            });
+            await db.collection('users').doc(user.uid).set({
+                featuredCreditsUsedThisMonth: (userProfile?.featuredCreditsMonth === month
+                    ? (userProfile?.featuredCreditsUsedThisMonth || 0)
+                    : 0) + 1,
+                featuredCreditsMonth: month,
+            }, { merge: true });
+
+            // Optimistic UI update
+            setOwnedVenues(prev => prev.map(v =>
+                v.id === activeVenue.id
+                    ? { ...v, featuredUntil: { toDate: () => newUntil } }
+                    : v
+            ));
+            showToast('⭐ Featured for 7 more days.');
+        } catch (e) {
+            console.error(e);
+            showToast('Failed to activate featured listing: ' + e.message, 'error');
+        }
+    }, [activeVenue, featuredCreditsRemaining, db, user, userProfile]);
 
     // -----------------------------------------------------------------------
     // RENDER STATES
@@ -506,83 +614,28 @@ export default function VenuePortalPage({ db, user }) {
             <ToastContainer toasts={toasts} />
             {confirmState && <ConfirmModal {...confirmState} onClose={() => setConfirmState(null)} />}
 
-            {/* Simulated stripe checkout modal */}
-            {checkoutModalOpen && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-                    <form onSubmit={handleExecuteCheckout} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 relative space-y-4">
+            {/* Stripe checkout unavailable banner (shown when keys aren't configured yet) */}
+            {checkoutUnavailable && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" data-testid="checkout-unavailable-modal">
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 relative space-y-4 text-center">
                         <button
                             type="button"
-                            onClick={() => setCheckoutModalOpen(false)}
+                            onClick={() => setCheckoutUnavailable(false)}
                             className="absolute top-4 right-4 w-7 h-7 bg-gray-50 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-850 dark:hover:text-white transition cursor-pointer"
-                        >
-                            ✕
-                        </button>
-                        
-                        <div className="text-center pb-2">
-                            <span className="text-3xl">🍷</span>
-                            <h3 className="text-xl font-black text-gray-855 dark:text-white mt-1.5">Activate Premium Insights</h3>
-                            <p className="text-xs text-gray-450 dark:text-gray-400 mt-0.5">Unlock competitor benchmarks & demographics dashboard</p>
-                        </div>
-
-                        <div className="bg-brand-subtle dark:bg-brand-highlight/20 p-3.5 rounded-xl border border-brand-border/20 text-center">
-                            <p className="text-[10px] uppercase font-bold tracking-widest text-brand">Monthly Subscription</p>
-                            <p className="text-2xl font-black text-brand mt-0.5">£19.99<span className="text-xs font-normal"> / month</span></p>
-                            <p className="text-[9px] text-gray-500 mt-1">Cancel anytime instantly from your settings</p>
-                        </div>
-
-                        <div className="space-y-3">
-                            <div>
-                                <label className="block text-[9px] font-bold text-gray-400 dark:text-gray-550 uppercase tracking-wider mb-1">Card Number</label>
-                                <div className="relative">
-                                    <input
-                                        type="text"
-                                        value={cardNumber}
-                                        onChange={e => setCardNumber(e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim().substring(0, 19))}
-                                        placeholder="4000 1234 5678 9010"
-                                        className="w-full pl-9 pr-3 py-2.5 text-xs border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-750 dark:text-white outline-none focus:ring-2 focus:ring-brand font-mono"
-                                        maxLength="19"
-                                        required
-                                    />
-                                    <div className="absolute left-3 top-3.5"><PortalIcon type="credit-card" className="w-4 h-4 text-gray-400" /></div>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Expiration Date</label>
-                                    <input
-                                        type="text"
-                                        value={cardExpiry}
-                                        onChange={e => setCardExpiry(e.target.value.replace(/\//g, '').replace(/(\d{2})/g, '$1/').replace(/\/$/, '').substring(0, 5))}
-                                        placeholder="MM/YY"
-                                        className="w-full px-3 py-2.5 text-xs border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-55 dark:bg-gray-750 dark:text-white outline-none focus:ring-2 focus:ring-brand font-mono text-center"
-                                        maxLength="5"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[9px] font-bold text-gray-400 dark:text-gray-555 uppercase tracking-wider mb-1">Security Code (CVC)</label>
-                                    <input
-                                        type="password"
-                                        value={cardCvc}
-                                        onChange={e => setCardCvc(e.target.value.replace(/\D/g, '').substring(0, 3))}
-                                        placeholder="123"
-                                        className="w-full px-3 py-2.5 text-xs border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-55 dark:bg-gray-755 dark:text-white outline-none focus:ring-2 focus:ring-brand font-mono text-center"
-                                        maxLength="3"
-                                        required
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
+                            data-testid="checkout-unavailable-close"
+                        >✕</button>
+                        <div className="text-3xl">🚧</div>
+                        <h3 className="text-xl font-black text-gray-855 dark:text-white">Checkout coming soon</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                            Stripe isn&apos;t connected to this environment yet. Once your team
+                            wires up the Stripe keys + deploys the checkout Cloud Function,
+                            this button will go straight to a secure Stripe checkout page.
+                        </p>
                         <button
-                            type="submit"
-                            disabled={checkoutLoading}
-                            className="w-full py-3 bg-brand text-white font-bold text-xs rounded-xl hover:opacity-85 disabled:opacity-50 transition cursor-pointer"
-                        >
-                            {checkoutLoading ? 'Processing Secure Stripe Checkout...' : 'Confirm Subscription & Unlock'}
-                        </button>
-                    </form>
+                            onClick={() => setCheckoutUnavailable(false)}
+                            className="px-6 py-2.5 bg-brand text-white font-bold text-xs rounded-xl hover:opacity-85 transition cursor-pointer"
+                        >Got it</button>
+                    </div>
                 </div>
             )}
 
@@ -624,40 +677,25 @@ export default function VenuePortalPage({ db, user }) {
                 
                 {/* Desktop sidebar */}
                 <aside className="w-full md:w-52 shrink-0 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm sticky top-20 overflow-hidden">
-                    <nav className="p-3.5 space-y-1">
-                        <button
-                            onClick={() => setActiveTab('insights')}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                activeTab === 'insights'
-                                    ? 'bg-brand/10 dark:bg-brand-highlight/20 text-brand'
-                                    : 'text-gray-600 dark:text-gray-450 hover:bg-gray-55 dark:hover:bg-gray-750'
-                            }`}
-                        >
-                            <PortalIcon type="insights" />
-                            <span>Insights & Traffic</span>
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('deals')}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                activeTab === 'deals'
-                                    ? 'bg-brand/10 dark:bg-brand-highlight/20 text-brand'
-                                    : 'text-gray-600 dark:text-gray-455 hover:bg-gray-55 dark:hover:bg-gray-750'
-                            }`}
-                        >
-                            <PortalIcon type="deals" />
-                            <span>Deals & Campaigns</span>
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('profile')}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                activeTab === 'profile'
-                                    ? 'bg-brand/10 dark:bg-brand-highlight/20 text-brand'
-                                    : 'text-gray-600 dark:text-gray-455 hover:bg-gray-55 dark:hover:bg-gray-750'
-                            }`}
-                        >
-                            <PortalIcon type="profile" />
-                            <span>Manage Profile</span>
-                        </button>
+                    {/* Plan badge */}
+                    <div className="px-4 pt-4 pb-3 border-b border-gray-150 dark:border-gray-750">
+                        <p className="text-[9px] uppercase tracking-wider font-bold text-gray-400">Current plan</p>
+                        <p className="text-sm font-black text-gray-850 dark:text-white flex items-center gap-2">
+                            {plan.label}
+                            {plan.key === 'pubPlus' && <span className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded font-bold">PLUS</span>}
+                            {plan.key === 'pubPro'  && <span className="text-[9px] bg-brand text-white px-1.5 py-0.5 rounded font-bold">PRO</span>}
+                        </p>
+                    </div>
+                    <nav className="p-3.5 space-y-1" data-testid="venue-sidebar-nav">
+                        <SidebarBtn id="insights"  label="Insights & Traffic"      icon="insights" active={activeTab} onClick={setActiveTab} />
+                        <SidebarBtn id="reviews"   label="Customer Reviews"        icon="profile"  active={activeTab} onClick={setActiveTab} />
+                        <SidebarBtn id="featured"  label="Featured Listing"        icon="claim"    active={activeTab} onClick={setActiveTab} />
+                        <SidebarBtn id="deals"     label="Deals & Campaigns"       icon="deals"    active={activeTab} onClick={setActiveTab} />
+                        <SidebarBtn id="profile"   label="Manage Profile"          icon="profile"  active={activeTab} onClick={setActiveTab} />
+                        {ownedVenues.length > 1 && (
+                            <SidebarBtn id="all-venues" label="All Venues"          icon="insights" active={activeTab} onClick={setActiveTab} />
+                        )}
+                        <SidebarBtn id="billing"   label="Subscription & Billing"  icon="credit-card" active={activeTab} onClick={setActiveTab} />
                     </nav>
                 </aside>
 
@@ -666,133 +704,158 @@ export default function VenuePortalPage({ db, user }) {
                     
                     {/* INSIGHTS TAB */}
                     {activeTab === 'insights' && (
-                        <div className="space-y-6 animate-fadeIn">
+                        <div className="space-y-6 animate-fadeIn" data-testid="insights-tab">
                             
                             {/* Metric KPI cards */}
                             <div className="grid grid-cols-3 gap-4">
-                                <div className="bg-white dark:bg-gray-850 p-4 rounded-xl border border-gray-150 dark:border-gray-750 shadow-sm">
-                                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block">Total Check-Ins</span>
+                                <div className="bg-white dark:bg-gray-850 p-4 rounded-xl border border-gray-150 dark:border-gray-750 shadow-sm" data-testid="kpi-checkins">
+                                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block">Total Reviews</span>
                                     <p className="text-2xl font-black text-gray-850 dark:text-white mt-1 tabular-nums">
                                         {loadingStats ? '...' : venueStats.totalCheckins}
                                     </p>
                                 </div>
-                                <div className="bg-white dark:bg-gray-850 p-4 rounded-xl border border-gray-150 dark:border-gray-750 shadow-sm">
+                                <div className="bg-white dark:bg-gray-850 p-4 rounded-xl border border-gray-150 dark:border-gray-750 shadow-sm" data-testid="kpi-avg">
                                     <span className="text-[10px] font-bold text-gray-400 dark:text-gray-550 uppercase tracking-wider block">Average Rating</span>
                                     <p className="text-2xl font-black text-brand mt-1 tabular-nums">
                                         {loadingStats ? '...' : `${venueStats.averageRating} / 10`}
                                     </p>
                                 </div>
-                                <div className="bg-white dark:bg-gray-850 p-4 rounded-xl border border-gray-150 dark:border-gray-750 shadow-sm">
-                                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-555 uppercase tracking-wider block">Leaderboard Hit-List</span>
+                                <div className="bg-white dark:bg-gray-850 p-4 rounded-xl border border-gray-150 dark:border-gray-750 shadow-sm" data-testid="kpi-votes">
+                                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-555 uppercase tracking-wider block">Leaderboard upvotes</span>
                                     <p className="text-2xl font-black text-gray-850 dark:text-white mt-1 tabular-nums">
-                                        {loadingStats ? '...' : `${venueStats.upvotesCount} votes`}
+                                        {loadingStats ? '...' : `${venueStats.upvotesCount}`}
                                     </p>
                                 </div>
                             </div>
 
-                            {/* Premium paywalled graphs */}
+                            {/* Criteria breakdown — Pub Pro */}
                             <div className="relative border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
-                                
-                                {/* Overlay paywall pitch */}
-                                {!isPremium && (
-                                    <div className="absolute inset-0 bg-white/40 dark:bg-black/45 backdrop-blur-[6px] z-50 flex items-center justify-center p-6 text-center animate-fadeIn">
-                                        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xl max-w-sm space-y-4">
-                                            <div className="text-3xl select-none">📈</div>
-                                            <h4 className="font-black text-lg text-gray-850 dark:text-white leading-tight">Unlock Advanced Visitor Analytics</h4>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                                                Deepen your marketing insights. Get hourly check-in heatmaps, local competitor comparisons, and customer age & rating distributions.
-                                            </p>
-                                            <button
-                                                onClick={() => setCheckoutModalOpen(true)}
-                                                className="px-6 py-2.5 bg-brand text-white font-bold text-xs rounded-xl hover:opacity-85 shadow-md transition cursor-pointer"
-                                            >
-                                                Start 7-Day Free Trial
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="p-5 bg-gray-55/20 dark:bg-gray-800/10 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/20 flex justify-between items-center">
                                     <div>
-                                        <h4 className="text-sm font-bold text-gray-800 dark:text-white">Customer Demographics & Traffic</h4>
-                                        <p className="text-[10px] text-gray-450 uppercase tracking-wider mt-0.5">Advanced Premium Reports</p>
+                                        <h4 className="text-sm font-bold text-gray-800 dark:text-white">Criteria breakdown</h4>
+                                        <p className="text-[10px] text-gray-450 uppercase tracking-wider mt-0.5">How you score on each criterion</p>
                                     </div>
-                                    {isPremium && (
-                                        <span className="bg-green-100 text-green-800 dark:bg-green-950/20 dark:text-green-400 font-bold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full select-none">
-                                            Premium Active
+                                    {can('criteriaBreakdown') && (
+                                        <span className="bg-brand/10 text-brand dark:bg-brand/20 font-bold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full select-none">
+                                            {plan.label}
                                         </span>
                                     )}
                                 </div>
-
-                                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8 min-h-[300px]">
-                                    
-                                    {/* Peak Hours Mock graph */}
-                                    <div className="space-y-3">
-                                        <h5 className="text-xs font-bold text-gray-755 dark:text-gray-300">Peak Check-In Hours</h5>
-                                        <div className="space-y-2.5">
-                                            {[['Friday Night','100% capacity', 'bg-brand'], ['Saturday Afternoon','85% capacity', 'bg-brand-light'], ['Thursday Night','60% capacity', 'bg-brand-light'], ['Friday Afternoon','40% capacity', 'bg-brand-border']].map(([time, value, color]) => (
-                                                <div key={time}>
-                                                    <div className="flex justify-between text-[10px] text-gray-550 mb-1">
-                                                        <span>{time}</span>
-                                                        <span>{value}</span>
-                                                    </div>
-                                                    <div className="w-full bg-gray-105 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
-                                                        <div className={`h-full ${color} rounded-full`} style={{ width: value.replace(' capacity', '') }} />
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* Visitor demographics mock data */}
-                                    <div className="space-y-3">
-                                        <h5 className="text-xs font-bold text-gray-755 dark:text-gray-300">Customer Age Distribution</h5>
-                                        <div className="grid grid-cols-4 gap-2 items-end pt-8 h-32">
-                                            {[
-                                                { label: '18-24', height: 'h-[80%]', pct: '40%' },
-                                                { label: '25-34', height: 'h-[60%]', pct: '30%' },
-                                                { label: '35-50', height: 'h-[40%]', pct: '20%' },
-                                                { label: '50+', height: 'h-[20%]', pct: '10%' }
-                                            ].map(item => (
-                                                <div key={item.label} className="flex flex-col items-center gap-1.5 h-full justify-end">
-                                                    <span className="text-[10px] text-brand font-bold">{item.pct}</span>
-                                                    <div className={`w-full bg-brand-light dark:bg-brand-highlight/20 rounded-t-lg ${item.height}`} />
-                                                    <span className="text-[9px] text-gray-400 mt-1 font-bold">{item.label}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
+                                <CriteriaBreakdown scores={rawScores} loading={loadingStats} />
+                                {!can('criteriaBreakdown') && (
+                                    <PremiumLock
+                                        requiredPlan="pubPro"
+                                        icon="📊"
+                                        title="See which criterion drags you down"
+                                        body="Pub Pro reveals your per-criterion average — atmosphere, service, beer, price, food — so you fix the right thing first."
+                                        onUpgrade={handleUpgrade}
+                                    />
+                                )}
                             </div>
 
-                            {/* Recent written reviews list */}
-                            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
-                                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/20">
-                                    <h4 className="text-sm font-bold text-gray-800 dark:text-white">Customer Reviews Feed</h4>
-                                    <p className="text-[10px] text-gray-450 uppercase tracking-wider mt-0.5">Written checks from all groups</p>
+                            {/* Trend chart + competitor benchmark grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="relative border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm min-h-[240px]">
+                                    <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/20">
+                                        <h4 className="text-sm font-bold text-gray-800 dark:text-white">12-week trend</h4>
+                                        <p className="text-[10px] text-gray-450 uppercase tracking-wider mt-0.5">Where are you heading?</p>
+                                    </div>
+                                    <TrendChart scores={rawScores} loading={loadingStats} />
+                                    {!can('trendChart') && (
+                                        <PremiumLock
+                                            requiredPlan="pubPro"
+                                            icon="📈"
+                                            title="Catch dips before they hurt"
+                                            body="Pub Pro shows the last 30 days vs prior — and a 12-week sparkline so you spot patterns early."
+                                            onUpgrade={handleUpgrade}
+                                        />
+                                    )}
                                 </div>
-                                <div className="divide-y divide-gray-150 dark:divide-gray-750">
-                                    {venueStats.recentReviews.length === 0 ? (
-                                        <p className="p-6 text-center text-xs text-gray-500 italic">No comments written by visitors yet.</p>
-                                    ) : (
-                                        venueStats.recentReviews.map((rev, idx) => (
-                                            <div key={idx} className="p-4 flex justify-between items-start gap-4">
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-bold text-xs text-gray-805 dark:text-white">{rev.userName}</span>
-                                                        <span className="text-[9px] text-gray-400 font-medium">{rev.date}</span>
-                                                    </div>
-                                                    <p className="text-xs text-gray-600 dark:text-gray-300 italic">"{rev.comment}"</p>
-                                                </div>
-                                                <span className="bg-brand-subtle dark:bg-brand-highlight/20 text-brand font-black text-xs px-2.5 py-0.5 rounded-lg select-none">
-                                                    {rev.rating} / 10
-                                                </span>
-                                            </div>
-                                        ))
+
+                                <div className="relative border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm min-h-[240px]">
+                                    <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/20">
+                                        <h4 className="text-sm font-bold text-gray-800 dark:text-white">Vs. neighbours</h4>
+                                        <p className="text-[10px] text-gray-450 uppercase tracking-wider mt-0.5">Local competitor benchmark</p>
+                                    </div>
+                                    <CompetitorBenchmark
+                                        db={db}
+                                        venue={activeVenue}
+                                        showFullLeaderboard={can('fullCompetitor')}
+                                    />
+                                    {!can('basicCompetitor') && (
+                                        <PremiumLock
+                                            requiredPlan="pubPro"
+                                            icon="🏅"
+                                            title="See how you rank locally"
+                                            body="Pub Pro shows your rank in your area. Pub Plus reveals the full leaderboard with names."
+                                            onUpgrade={handleUpgrade}
+                                        />
                                     )}
                                 </div>
                             </div>
                         </div>
+                    )}
+
+                    {/* REVIEWS TAB (with reply UI) */}
+                    {activeTab === 'reviews' && (
+                        <div className="space-y-4 animate-fadeIn" data-testid="reviews-tab">
+                            <div>
+                                <h4 className="text-sm font-bold text-gray-800 dark:text-white">Customer reviews feed</h4>
+                                <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">
+                                    Reply publicly to show you care · {can('reviewResponses') ? 'Replies enabled' : 'Upgrade to enable replies'}
+                                </p>
+                            </div>
+                            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
+                                {venueStats.recentReviews.length === 0 ? (
+                                    <p className="p-6 text-center text-xs text-gray-500 italic">No written reviews yet. Once customers leave comments, they&apos;ll appear here.</p>
+                                ) : (
+                                    venueStats.recentReviews.map(rev => (
+                                        <ReviewCard
+                                            key={rev.id}
+                                            review={rev}
+                                            canReply={can('reviewResponses')}
+                                            onReply={handleReplyToReview}
+                                            ownerName={activeVenue?.name}
+                                        />
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* FEATURED LISTING TAB */}
+                    {activeTab === 'featured' && (
+                        <FeaturedTab
+                            venue={activeVenue}
+                            plan={plan}
+                            featuredCreditsRemaining={featuredCreditsRemaining}
+                            onPurchaseOneOff={() => handleUpgrade('featuredOneOff')}
+                            onSubscribeFeatured={() => handleUpgrade('featuredMonthly')}
+                            onClaimCredit={handleClaimFeaturedCredit}
+                            onUpgrade={handleUpgrade}
+                        />
+                    )}
+
+                    {/* MULTI-VENUE OVERVIEW (Pub Plus) */}
+                    {activeTab === 'all-venues' && (
+                        <MultiVenueOverview
+                            db={db}
+                            ownedVenues={ownedVenues}
+                            plan={plan}
+                            onSelectVenue={(id) => { setSelectedVenueId(id); setActiveTab('insights'); }}
+                            onUpgrade={handleUpgrade}
+                        />
+                    )}
+
+                    {/* BILLING TAB */}
+                    {activeTab === 'billing' && (
+                        <BillingTab
+                            user={user}
+                            userProfile={userProfile}
+                            plan={plan}
+                            onUpgrade={handleUpgrade}
+                            onManage={handleManageBilling}
+                        />
                     )}
 
                     {/* DEALS TAB */}
@@ -984,5 +1047,26 @@ export default function VenuePortalPage({ db, user }) {
                 </div>
             </div>
         </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
+// SidebarBtn — small helper for the venue portal left-rail nav
+// ---------------------------------------------------------------------------
+function SidebarBtn({ id, label, icon, active, onClick }) {
+    const isActive = active === id;
+    return (
+        <button
+            onClick={() => onClick(id)}
+            data-testid={`sidebar-tab-${id}`}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-left ${
+                isActive
+                    ? 'bg-brand/10 dark:bg-brand-highlight/20 text-brand'
+                    : 'text-gray-600 dark:text-gray-450 hover:bg-gray-55 dark:hover:bg-gray-750'
+            }`}
+        >
+            <PortalIcon type={icon} />
+            <span className="truncate">{label}</span>
+        </button>
     );
 }

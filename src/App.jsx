@@ -186,7 +186,7 @@ export default function App() {
                             Log Out
                         </button>
                     </div>
-                    <VenuePortalPage db={db} user={user} />
+                    <VenuePortalPage db={db} user={user} userProfile={userProfile} />
                 </div>
             </Suspense>
         );

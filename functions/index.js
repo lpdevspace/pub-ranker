@@ -308,4 +308,5 @@ exports.onGlobalScoreCreate = functions
 // remain dormant until Stripe keys are configured via `firebase functions:config:set`.
 const stripeModule = require('./stripe');
 exports.createCheckoutSession = stripeModule.createCheckoutSession;
+exports.createPortalSession   = stripeModule.createPortalSession;
 exports.stripeWebhook          = stripeModule.stripeWebhook;

@@ -99,7 +99,7 @@ exports.createCheckoutSession = functions
             }
 
             const session = await stripe.checkout.sessions.create({
-                mode: 'subscription',
+                mode: req.body?.mode || 'subscription',
                 line_items: [{ price: priceId, quantity: 1 }],
                 success_url: successUrl,
                 cancel_url:  cancelUrl,
@@ -131,7 +131,41 @@ exports.createCheckoutSession = functions
         }
     });
 
-// ─── 2. Stripe Webhook ───────────────────────────────────────────────────────
+// ─── 3. Create Customer Portal Session ───────────────────────────────────────
+// Lets a subscribed pub manage their card, cancel, or download invoices via
+// the hosted Stripe Customer Portal.
+exports.createPortalSession = functions
+    .region('europe-west2')
+    .https.onRequest(async (req, res) => {
+        setCors(req, res);
+        if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+        if (req.method !== 'POST')    { res.status(405).json({ error: 'POST only' }); return; }
+
+        const stripe = getStripe();
+        if (!stripe) return res.status(503).json({ error: 'Stripe is not configured.' });
+
+        try {
+            const { customerId, returnUrl } = req.body || {};
+            if (!customerId) return res.status(400).json({ error: 'Missing customerId' });
+            if (!returnUrl)  return res.status(400).json({ error: 'Missing returnUrl' });
+
+            const okHost = (u) => {
+                try { return ALLOWED_ORIGINS.has(new URL(u).origin); } catch (_) { return false; }
+            };
+            if (!okHost(returnUrl)) return res.status(400).json({ error: 'Invalid returnUrl' });
+
+            const session = await stripe.billingPortal.sessions.create({
+                customer: customerId,
+                return_url: returnUrl,
+            });
+            res.status(200).json({ url: session.url });
+        } catch (err) {
+            console.error('createPortalSession error', err);
+            res.status(500).json({ error: err.message || 'Internal error' });
+        }
+    });
+
+// ─── 4. Stripe Webhook ───────────────────────────────────────────────────────
 exports.stripeWebhook = functions
     .region('europe-west2')
     .runWith({ memory: '256MB' })
@@ -159,24 +193,64 @@ exports.stripeWebhook = functions
         try {
             switch (event.type) {
                 case 'checkout.session.completed': {
-                    const session = event.data.object;
-                    const uid     = session.client_reference_id || session.metadata?.uid;
-                    const plan    = session.metadata?.plan || session.metadata?.priceKey || 'premiumMonthly';
+                    const session  = event.data.object;
+                    const uid      = session.client_reference_id || session.metadata?.uid;
+                    const priceKey = session.metadata?.priceKey || session.metadata?.plan || 'premiumMonthly';
+                    // Map priceKey → high-level plan label
+                    const planLabel =
+                        priceKey === 'pubProMonthly'  ? 'pubPro'  :
+                        priceKey === 'pubPlusMonthly' ? 'pubPlus' :
+                        'premium';
 
                     if (uid) {
                         await db.collection('users').doc(uid).set({
                             premium: true,
-                            premiumPlan: plan,
+                            premiumPlan: planLabel,
+                            premiumPriceKey: priceKey,
                             stripeCustomerId: session.customer || null,
                             stripeSubscriptionId: session.subscription || null,
                             premiumActivatedAt: admin.firestore.FieldValue.serverTimestamp(),
                         }, { merge: true });
+                    }
+                    // If the session metadata pinned a specific venue, also write
+                    // venue-level plan (used by chains with per-pub subscriptions).
+                    if (session.metadata?.venueId) {
+                        await db.collection('pubs').doc(session.metadata.venueId).set({
+                            premiumPlan: planLabel,
+                            stripeSubscriptionId: session.subscription || null,
+                            premiumActivatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        }, { merge: true });
+                    }
+                    // Featured-listing one-off or subscription: extend featured window
+                    if (priceKey === 'featuredOneOff' || priceKey === 'featuredMonthly') {
+                        const days = priceKey === 'featuredOneOff' ? 30 : 31;
+                        const until = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+                        if (session.metadata?.venueId) {
+                            await db.collection('pubs').doc(session.metadata.venueId).set({
+                                featuredUntil: admin.firestore.Timestamp.fromDate(until),
+                                featuredPurchasedAt: admin.firestore.FieldValue.serverTimestamp(),
+                            }, { merge: true });
+                        }
                     }
                     await db.collection('payment_transactions').doc(session.id).set({
                         status: 'completed',
                         paymentStatus: session.payment_status || 'paid',
                         completedAt: admin.firestore.FieldValue.serverTimestamp(),
                     }, { merge: true });
+                    break;
+                }
+                case 'customer.subscription.updated': {
+                    // Track active/past_due/canceled state on the user doc
+                    const sub = event.data.object;
+                    const customerId = sub.customer;
+                    const userSnap = await db.collection('users')
+                        .where('stripeCustomerId', '==', customerId).limit(1).get();
+                    if (!userSnap.empty) {
+                        await userSnap.docs[0].ref.set({
+                            stripeSubscriptionStatus: sub.status,
+                            stripeCurrentPeriodEnd: sub.current_period_end || null,
+                        }, { merge: true });
+                    }
                     break;
                 }
                 case 'customer.subscription.deleted': {
@@ -187,13 +261,13 @@ exports.stripeWebhook = functions
                     if (!userSnap.empty) {
                         await userSnap.docs[0].ref.set({
                             premium: false,
+                            premiumPlan: null,
                             premiumCancelledAt: admin.firestore.FieldValue.serverTimestamp(),
                         }, { merge: true });
                     }
                     break;
                 }
                 default:
-                    // Ignore other events for now
                     break;
             }
             res.json({ received: true });

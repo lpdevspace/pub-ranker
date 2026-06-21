@@ -115,3 +115,70 @@
 - index.html (OG, Twitter, canonical, description)
 - functions/index.js (exports Stripe functions)
 - .env.example (Stripe + AdSense vars documented)
+
+## Sprint 2 — Pub B2B dashboard  ✅ COMPLETE (Jan 2026)
+
+### Real Stripe subscriptions (no more mock card form)
+- ✅ Replaced fake credit-card modal with `startCheckout()` → real Stripe Hosted Checkout
+- ✅ `openCustomerPortal()` → Stripe Billing Portal redirect (manage card, cancel, invoices)
+- ✅ Added `createPortalSession` Cloud Function (europe-west2)
+- ✅ Webhook now handles `customer.subscription.updated`, sets `premiumPlan` correctly from priceKey metadata, and tracks featured-listing purchases (extends `pubs/{id}.featuredUntil`)
+- ✅ Tier-aware plan logic in `src/utils/pubPlans.js` (single source of truth: rank 0=Free, 1=Pub Pro, 2=Pub Plus)
+- ✅ Legacy `localStorage premium_unlocked_{venueId}` still respected for existing testers
+
+### Analytics rebuilt around REAL score data (not mocks)
+- ✅ `CriteriaBreakdown` — aggregates `collectionGroup('scores')` by `criterionId`, friendly labels, bar chart with traffic-light colours
+- ✅ `TrendChart` — 30-day-vs-prior-30-day delta + 12-week SVG sparkline (no chart library)
+- ✅ `CompetitorBenchmark` — pulls neighbouring pubs by `location`, two modes: Pub Pro shows "you're top X%" band only; Pub Plus shows full top-10 leaderboard with names
+
+### Review responses
+- ✅ `ReviewCard` component with inline reply draft → posts to score's `ownerReply: { text, repliedAt, ownerUid }`
+- ✅ New "Customer reviews" tab in venue portal
+- ✅ Firestore rules updated to permit owner-reply writes (only field `ownerReply` may be added by the venue's claimed owners)
+- ✅ Owner-reply requires Pub Pro plan or higher
+
+### Featured listings
+- ✅ `FeaturedTab` with 3 purchase paths:
+       - One-off £49 / 30 days (Stripe payment mode, not subscription)
+       - Monthly £15 rolling subscription
+       - 2 free credits/month for Pub Plus subscribers (7-day window each)
+- ✅ Stripe webhook extends `pubs/{venueId}.featuredUntil` automatically
+- ✅ Banner shows active expiry date when featured
+
+### Multi-venue Plus dashboard
+- ✅ `MultiVenueOverview` — bird's-eye grid of all claimed pubs with avg score + review count, flags any pub averaging <6 with ≥5 reviews
+- ✅ Hidden behind `PremiumLock` for non-Plus subscribers
+- ✅ Tab only shown when user has 2+ claimed pubs
+
+### Billing tab
+- ✅ `BillingTab` shows current plan, activation date, side-by-side Pub Pro / Pub Plus cards with feature lists, "Manage in Stripe →" button (uses portal endpoint)
+
+### Polish
+- ✅ Reusable `PremiumLock` overlay (consistent visual gating across all paywalled features)
+- ✅ Plan badge in sidebar (PRO / PLUS pill)
+- ✅ Stripe-unavailable banner shows when keys aren't configured (instead of broken behaviour)
+- ✅ Firestore rules: contact form `contactRequests` collection + `payment_transactions` (admin SDK only)
+
+### Files added this sprint
+- src/utils/pubPlans.js
+- src/components/venue/{PremiumLock,CriteriaBreakdown,TrendChart,
+                       CompetitorBenchmark,ReviewCard,BillingTab,
+                       FeaturedTab,MultiVenueOverview}.jsx
+
+### Files modified this sprint
+- src/pages/VenuePortalPage.jsx     (sidebar tabs, removed mock checkout, integrated new components)
+- src/utils/checkout.js             (added venueId/mode params, openCustomerPortal)
+- src/utils/stripeConfig.js         (added featuredOneOff + featuredMonthly prices)
+- functions/stripe.js               (createPortalSession, webhook subscription.updated, featured purchases, premiumPlan mapping)
+- functions/index.js                (exports createPortalSession)
+- src/App.jsx + src/MainApp.jsx     (pass userProfile to VenuePortalPage)
+- firestore.rules                   (owner-reply write rule, contactRequests, payment_transactions)
+- .env.example                      (VITE_STRIPE_PORTAL_ENDPOINT, featured price IDs)
+
+## Sprint 2 activation checklist
+1. **Stripe products** — Create 6 prices in Stripe Dashboard: PubRanker+ monthly + yearly,
+   Pub Pro monthly, Pub Plus monthly, Featured one-off (£49 one-time), Featured monthly (£15 recurring).
+2. **`.env`** — Populate `VITE_STRIPE_*` price IDs + `VITE_STRIPE_PORTAL_ENDPOINT`.
+3. **Cloud Functions** — `cd functions && npm install stripe && firebase deploy --only functions:createCheckoutSession,functions:createPortalSession,functions:stripeWebhook`
+4. **Stripe webhook** — Subscribe to `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
+5. **Firestore rules** — `firebase deploy --only firestore:rules` (already updated locally)

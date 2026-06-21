@@ -24,10 +24,12 @@ export const STRIPE_PUBLISHABLE_KEY =
     import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
 
 export const STRIPE_PRICES = {
-    premiumMonthly: import.meta.env.VITE_STRIPE_PRICE_PREMIUM_MONTHLY  || '',
-    premiumYearly:  import.meta.env.VITE_STRIPE_PRICE_PREMIUM_YEARLY   || '',
-    pubProMonthly:  import.meta.env.VITE_STRIPE_PRICE_PUB_PRO_MONTHLY  || '',
-    pubPlusMonthly: import.meta.env.VITE_STRIPE_PRICE_PUB_PLUS_MONTHLY || '',
+    premiumMonthly:  import.meta.env.VITE_STRIPE_PRICE_PREMIUM_MONTHLY  || '',
+    premiumYearly:   import.meta.env.VITE_STRIPE_PRICE_PREMIUM_YEARLY   || '',
+    pubProMonthly:   import.meta.env.VITE_STRIPE_PRICE_PUB_PRO_MONTHLY  || '',
+    pubPlusMonthly:  import.meta.env.VITE_STRIPE_PRICE_PUB_PLUS_MONTHLY || '',
+    featuredOneOff:  import.meta.env.VITE_STRIPE_PRICE_FEATURED_ONEOFF  || '',
+    featuredMonthly: import.meta.env.VITE_STRIPE_PRICE_FEATURED_MONTHLY || '',
 };
 
 export const STRIPE_ENABLED = Boolean(STRIPE_PUBLISHABLE_KEY);
