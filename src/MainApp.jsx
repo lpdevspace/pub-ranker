@@ -6,7 +6,7 @@ import LoadingScreen from './components/LoadingScreen';
 import CheckInButton from './components/CheckInButton';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 
-// ── Lazy-loaded pages — each page becomes its own split chunk ──────────────────
+// ── Lazy-loaded pages ──────────────────────────────────────────────────────────────
 const Dashboard         = React.lazy(() => import('./pages/DashboardPage.jsx'));
 const PubDirectoryPage  = React.lazy(() => import('./pages/PubsPage.jsx'));
 const RateView          = React.lazy(() => import('./pages/RateView.jsx'));
@@ -26,7 +26,7 @@ const AdminPageLoader      = React.lazy(() => import('./pages/AdminPage.jsx'));
 const SuperAdminPageLoader = React.lazy(() => import('./pages/SuperAdminPage.jsx'));
 const NotFoundPage         = React.lazy(() => import('./pages/NotFoundPage.jsx'));
 
-// ── URL <-> page key mapping ──────────────────────────────────────────────────────────────────
+// ── URL <-> page key mapping ──────────────────────────────────────────────────────────
 const PATH_TO_PAGE = {
     '/':               'dashboard',
     '/dashboard':      'dashboard',
@@ -57,7 +57,7 @@ function getPageFromURL() {
     return PATH_TO_PAGE[path] || '404';
 }
 
-// ── Route guard ─────────────────────────────────────────────────────────────────────────────
+// ── Route guard ─────────────────────────────────────────────────────────────────────
 function ProtectedRoute({ allowed, children, fallback = null }) {
     if (!allowed) return fallback;
     return children;
@@ -168,23 +168,47 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
         }
     };
 
+    // ── RateView: full-screen overlay, still needs sidebar offset on desktop ──
     if (selectedPub) {
         return (
-            <Suspense fallback={<LoadingScreen text="Loading..." />}>
-                <RateView
-                    pub={selectedPub}
-                    criteria={criteria}
+            <div className="page-root">
+                {/* Sidebar rendered so it stays visible during rating */}
+                <Header
                     user={user}
-                    onBack={() => setSelectedPub(null)}
-                    groupRef={groupRef}
+                    page={page}
+                    setPage={(p) => { setSelectedPub(null); setPage(p); }}
+                    canManageGroup={canManageGroup}
+                    groupName={groupData?.groupName || ''}
+                    onSwitchGroup={handleSwitchGroup}
+                    auth={auth}
+                    db={db}
+                    userProfile={userProfile}
+                    isDarkMode={isDarkMode}
+                    toggleDarkMode={toggleDarkMode}
+                    scores={scores}
+                    pubs={pubs}
+                    criteria={criteria}
                     groupId={groupId}
                 />
-            </Suspense>
+                <main className="with-sidebar page-content" style={{ paddingTop: 'var(--header-height)' }}>
+                    <Suspense fallback={<LoadingScreen text="Loading..." />}>
+                        <RateView
+                            pub={selectedPub}
+                            criteria={criteria}
+                            user={user}
+                            onBack={() => setSelectedPub(null)}
+                            groupRef={groupRef}
+                            groupId={groupId}
+                        />
+                    </Suspense>
+                </main>
+            </div>
         );
     }
 
     return (
-        <>
+        <div className="page-root">
+            {/* ── Fixed sidebar (desktop) + mobile top bar / bottom nav ── */}
             <Header
                 user={user}
                 page={page}
@@ -202,15 +226,26 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                 criteria={criteria}
                 groupId={groupId}
             />
-            <main className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 pt-6">
-                {/* Per-page ErrorBoundary so one broken page can't take down the whole app */}
+
+            {/*
+                .with-sidebar  — margin-left: var(--sidebar-width) on md+, 0 on mobile
+                .page-content  — flex-1, min-height, correct top padding for top-bar
+            */}
+            <main
+                id="main-content"
+                className="with-sidebar page-content"
+                style={{ paddingTop: 'var(--header-height)' }}
+            >
+                {/* Per-page ErrorBoundary so one broken page can’t take down the whole app */}
                 <ErrorBoundary key={page}>
                     <Suspense fallback={<LoadingScreen text="Loading..." />}>
                         {renderPage()}
                     </Suspense>
                 </ErrorBoundary>
             </main>
+
+            {/* Floating check-in FAB — position is relative to viewport, unaffected by shell */}
             <CheckInButton user={user} pubs={pubs} groupId={groupId} db={db} />
-        </>
+        </div>
     );
 }
