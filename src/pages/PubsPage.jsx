@@ -67,7 +67,7 @@ function useSingleWeather(lat, lng) {
 
 // ── WeatherBadge ─────────────────────────────────────────────────────────────
 function WeatherBadge({ weather, loading, tags = [], compact = false }) {
-    if (loading) return <div className={`text-xs text-gray-400 animate-pulse font-bold uppercase tracking-wider ${compact ? 'mb-3' : 'mt-2'}`}>Checking skies...</div>;
+    if (loading) return <div className={`text-xs text-text-faint animate-pulse font-bold uppercase tracking-wider ${compact ? 'mb-3' : 'mt-2'}`}>Checking skies...</div>;
     if (!weather) return null;
     const hasBeerGarden = Array.isArray(tags) && tags.includes('🍺 Beer Garden');
     const isGoodWeather = weather.temp >= 15 && !['Rain','Snow','Thunderstorm','Drizzle'].includes(weather.condition);
@@ -83,7 +83,14 @@ function WeatherBadge({ weather, loading, tags = [], compact = false }) {
                 </div>
             </div>
             {hasBeerGarden && isGoodWeather && (
-                <div className={`inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-900 dark:from-amber-900/40 dark:to-yellow-900/30 dark:text-amber-400 rounded-xl border border-amber-300 dark:border-amber-700/50 font-black uppercase tracking-wider shadow-sm w-fit transform hover:scale-105 transition-transform ${compact ? 'px-2 py-1 text-[9px]' : 'px-4 py-2 text-xs'}`}>
+                <div
+                    className={`inline-flex items-center gap-1.5 rounded-xl border font-black uppercase tracking-wider shadow-sm w-fit transform hover:scale-105 transition-transform ${compact ? 'px-2 py-1 text-[9px]' : 'px-4 py-2 text-xs'}`}
+                    style={{
+                        background: 'color-mix(in srgb, var(--color-copper) 15%, transparent)',
+                        color: 'var(--color-copper)',
+                        borderColor: 'color-mix(in srgb, var(--color-copper) 35%, transparent)',
+                    }}
+                >
                     <span className={`${compact ? 'text-sm' : 'text-xl'} filter drop-shadow-sm`}>☀️</span>
                     {compact ? 'Beer Garden Weather' : 'Prime Beer Garden Weather!'}
                 </div>
@@ -137,7 +144,7 @@ function ReviewCard({ score, currentUser = {}, groupRef, allUsers = {}, canDelet
         <div className="bg-surface-2 border border-border rounded-xl overflow-hidden">
             {/* header row */}
             <div className="flex items-center gap-3 p-3 px-4 border-b border-divider">
-                <div 
+                <div
                     className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center shadow-sm"
                     style={{
                         background: `linear-gradient(135deg, ${color}dd, ${color}88)`,
@@ -152,17 +159,17 @@ function ReviewCard({ score, currentUser = {}, groupRef, allUsers = {}, canDelet
                 </div>
                 <div className="flex gap-2 items-center">
                     {currentUser.uid !== score.userId && onReport && (
-                        <button 
-                            onClick={() => onReport('review', score)} 
-                            className="text-sm opacity-30 hover:opacity-100 bg-none border-none cursor-pointer p-1 transition-opacity" 
+                        <button
+                            onClick={() => onReport('review', score)}
+                            className="text-sm opacity-30 hover:opacity-100 bg-none border-none cursor-pointer p-1 transition-opacity"
                             title="Report Review"
                         >
                             🚩
                         </button>
                     )}
                     {canDelete && (
-                        <button 
-                            onClick={() => onDelete(score)} 
+                        <button
+                            onClick={() => onDelete(score)}
                             className="text-[10px] text-red-600 font-bold uppercase tracking-wider bg-red-600/10 border border-red-600/20 hover:bg-red-600/20 rounded-md px-2 py-1 cursor-pointer transition-colors"
                         >
                             Delete
@@ -178,11 +185,11 @@ function ReviewCard({ score, currentUser = {}, groupRef, allUsers = {}, canDelet
             {(featureFlags?.enableReactions || featureFlags?.enableComments) && (
                 <div className="flex gap-2 px-4 pb-3 flex-wrap">
                     {featureFlags?.enableReactions && (
-                        <button 
-                            onClick={handleToggleReaction} 
+                        <button
+                            onClick={handleToggleReaction}
                             className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full cursor-pointer border transition-all ${
-                                hasReacted 
-                                    ? 'bg-brand-subtle border-brand-border text-brand' 
+                                hasReacted
+                                    ? 'bg-brand-subtle border-brand-border text-brand'
                                     : 'bg-surface-offset border-border text-text-muted hover:bg-surface-2'
                             }`}
                         >
@@ -190,11 +197,11 @@ function ReviewCard({ score, currentUser = {}, groupRef, allUsers = {}, canDelet
                         </button>
                     )}
                     {featureFlags?.enableComments && (
-                        <button 
-                            onClick={() => setShowComments(!showComments)} 
+                        <button
+                            onClick={() => setShowComments(!showComments)}
                             className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full cursor-pointer border transition-all ${
-                                showComments 
-                                    ? 'bg-brand border-brand text-white' 
+                                showComments
+                                    ? 'bg-brand border-brand text-white'
                                     : 'bg-surface-offset border-border text-text-muted hover:bg-surface-2'
                             }`}
                         >
@@ -215,8 +222,8 @@ function ReviewCard({ score, currentUser = {}, groupRef, allUsers = {}, canDelet
                                         <span className="text-text-muted">{c.text}</span>
                                     </span>
                                     {currentUser.uid !== c.userId && onReport && (
-                                        <button 
-                                            onClick={() => onReport('comment', { id: c.id, value: c.text, scoreId: score.id })} 
+                                        <button
+                                            onClick={() => onReport('comment', { id: c.id, value: c.text, scoreId: score.id })}
                                             className="text-xs opacity-30 hover:opacity-100 bg-none border-none cursor-pointer flex-shrink-0 transition-opacity"
                                         >
                                             🚩
@@ -227,16 +234,16 @@ function ReviewCard({ score, currentUser = {}, groupRef, allUsers = {}, canDelet
                         </div>
                     }
                     <form onSubmit={handleAddComment} className="flex gap-2">
-                        <input 
-                            type="text" 
-                            value={newComment} 
-                            onChange={e => setNewComment(e.target.value)} 
-                            placeholder="Write a reply..." 
-                            className="flex-1 px-3 py-1.5 text-xs border border-border rounded-md bg-surface text-text outline-none focus:ring-1 focus:ring-brand focus:border-brand" 
+                        <input
+                            type="text"
+                            value={newComment}
+                            onChange={e => setNewComment(e.target.value)}
+                            placeholder="Write a reply..."
+                            className="flex-1 px-3 py-1.5 text-xs border border-border rounded-md bg-surface text-text outline-none focus:ring-1 focus:ring-brand focus:border-brand"
                         />
-                        <button 
-                            type="submit" 
-                            disabled={isSubmitting || !newComment.trim()} 
+                        <button
+                            type="submit"
+                            disabled={isSubmitting || !newComment.trim()}
                             className={`bg-brand text-white border-none rounded-md px-3.5 py-1.5 font-bold text-xs cursor-pointer transition-opacity ${
                                 (!newComment.trim() || isSubmitting) ? 'opacity-50 cursor-not-allowed' : 'opacity-100 hover:opacity-90'
                             }`}
@@ -257,6 +264,13 @@ function getTier(avg, count) {
     if (avg >= 7.0)  return { tierLabel: 'Great',    color: 'bg-brand-light' };
     if (avg >= 5.0)  return { tierLabel: 'Average',  color: 'bg-yellow-500' };
     return              { tierLabel: 'Avoid',    color: 'bg-red-500' };
+}
+
+function tierBg(avg) {
+    if (avg >= 8.5) return 'var(--color-brand)';
+    if (avg >= 7.0) return 'color-mix(in srgb, var(--color-brand) 75%, #000)';
+    if (avg >= 5.0) return '#6b7280';
+    return '#dc2626';
 }
 
 // ── CriteriaBar ───────────────────────────────────────────────────────────────
@@ -296,14 +310,14 @@ function CriteriaBar({ name, average, scores: scoreList, type, allUsers, current
             {/* fill bar */}
             {(type === 'scale' || type === 'price') && (
                 <div className="h-2 bg-surface-offset rounded-full overflow-hidden mb-2">
-                    <div 
+                    <div
                         className="h-full rounded-full transition-all duration-700"
                         style={{
                             background: `linear-gradient(90deg, ${color}cc, ${color})`,
                             width: animated ? `${pct}%` : '0%',
                             transition: 'width 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)',
                             boxShadow: `0 0 8px ${color}66`,
-                        }} 
+                        }}
                     />
                 </div>
             )}
@@ -316,13 +330,13 @@ function CriteriaBar({ name, average, scores: scoreList, type, allUsers, current
                         const sc = (type === 'scale' || type === 'price') ? scoreChipColor(s.value) : { bg: 'var(--color-surface-offset)', text: 'var(--color-text-muted)', border: 'var(--color-border)' };
                         const uname = allUsers[s.userId]?.nickname || allUsers[s.userId]?.displayName || 'Unknown';
                         return (
-                            <span 
-                                key={i} 
-                                title={uname} 
+                            <span
+                                key={i}
+                                title={uname}
                                 className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full cursor-default border transition-all animate-fadeIn"
                                 style={{
-                                    backgroundColor: sc.bg, 
-                                    borderColor: sc.border, 
+                                    backgroundColor: sc.bg,
+                                    borderColor: sc.border,
                                     color: sc.text,
                                 }}
                             >
@@ -351,9 +365,9 @@ function MemberStrip({ raterIds, allUsers }) {
                     const name = allUsers[uid]?.nickname || allUsers[uid]?.displayName || 'User';
                     const color = avatarColor(name);
                     return (
-                        <div 
-                            key={uid} 
-                            title={name} 
+                        <div
+                            key={uid}
+                            title={name}
                             className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center border-2 border-surface relative shadow-sm"
                             style={{
                                 background: `linear-gradient(135deg, ${color}dd, ${color}88)`,
@@ -365,8 +379,11 @@ function MemberStrip({ raterIds, allUsers }) {
                     );
                 })}
                 {extra > 0 && (
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center bg-surface-offset border-2 border-surface relative z-0 shadow-sm">
-                        <span className="text-[9px] font-black text-text-muted">+{extra}</span>
+                    <div
+                        className="w-7 h-7 rounded-full flex items-center justify-center border-2 border-surface relative z-0 shadow-sm"
+                        style={{ background: 'var(--color-surface-offset)', color: 'var(--color-text-muted)' }}
+                    >
+                        <span className="text-[9px] font-black">+{extra}</span>
                     </div>
                 )}
             </div>
@@ -433,12 +450,10 @@ function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, g
 
     const handleReport = async (type, item) => {
         if (!window.confirm(`Report this ${type}?`)) return;
-        // handled in parent; kept as no-op here since parent passes its own handleReport
     };
 
     const canDeleteScore = (s) => !!(currentUser && currentGroup && (currentGroup.ownerUid === currentUser.uid || currentGroup.managers?.includes(currentUser.uid)));
 
-    // collect unique rater UIDs across all criteria
     const raterIds = useMemo(() => {
         const set = new Set();
         Object.values(breakdown).forEach(d => d.scores.forEach(s => set.add(s.userId)));
@@ -450,29 +465,34 @@ function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, g
         : `https://www.google.com/maps/search/${encodeURIComponent(`${pub.name} ${pub.location || ''}`)}`;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto animate-fadeIn">
-            <div className="bg-surface rounded-xl shadow-lg w-full max-w-2xl max-h-[92vh] overflow-y-auto border border-border relative scroll-x-clean">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md overflow-y-auto animate-fadeIn"
+            style={{ background: 'var(--color-overlay)' }}
+        >
+            <div
+                className="rounded-2xl shadow-lg w-full max-w-2xl max-h-[92vh] overflow-y-auto relative scroll-x-clean"
+                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+            >
 
                 {/* ── hero banner ── */}
-                <div className="relative h-[200px] bg-surface-offset rounded-t-xl overflow-hidden flex-shrink-0">
+                <div className="relative h-[200px] rounded-t-2xl overflow-hidden flex-shrink-0" style={{ background: 'var(--color-surface-offset)' }}>
                     {pub.photoURL
                         ? <img src={pub.photoURL} alt={pub.name} className="w-full h-full object-cover" loading="lazy" />
-                        : <div className="w-full h-full flex items-center justify-center text-8xl bg-surface-offset">🍺</div>
+                        : <div className="w-full h-full flex items-center justify-center text-8xl">🍺</div>
                     }
-                    {/* gradient overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-                    {/* close button */}
-                    <button onClick={onClose} className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white rounded-full w-8 h-8 text-base flex items-center justify-center font-bold cursor-pointer backdrop-blur-xs transition-colors border-none">✕</button>
-                    {/* tier badge */}
+                    <button
+                        onClick={onClose}
+                        className="absolute top-3 right-3 bg-black/50 hover:bg-black/70 text-white rounded-full w-8 h-8 text-base flex items-center justify-center font-bold cursor-pointer backdrop-blur-xs transition-colors border-none"
+                    >✕</button>
                     {pub.ratingCount > 0 && (
-                        <div 
+                        <div
                             className="absolute top-3 left-3 text-white text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-md"
-                            style={{ background: pub.avgScore >= 8.5 ? 'var(--color-brand)' : pub.avgScore >= 7 ? 'color-mix(in srgb, var(--color-brand) 75%, #000)' : pub.avgScore >= 5 ? '#6b7280' : '#dc2626' }}
+                            style={{ background: tierBg(pub.avgScore) }}
                         >
                             {pub.tierLabel}
                         </div>
                     )}
-                    {/* pub name + location over gradient */}
                     <div className="absolute bottom-0 inset-x-0 p-4">
                         <h2 className="text-xl font-black text-white leading-tight font-display drop-shadow-md m-0">{pub.name}</h2>
                         {pub.location && <p className="text-xs text-white/80 mt-0.5">📍 {pub.location}</p>}
@@ -486,17 +506,27 @@ function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, g
                     {Array.isArray(pub.tags) && pub.tags.length > 0 && (
                         <div className="flex flex-wrap gap-2">
                             {pub.tags.map(tag => (
-                                <span key={tag} className="text-xs bg-brand-subtle text-brand border border-brand-border px-2.5 py-0.5 rounded-full font-bold">{tag}</span>
+                                <span
+                                    key={tag}
+                                    className="text-xs px-2.5 py-0.5 rounded-full font-bold border"
+                                    style={{
+                                        background: 'var(--color-brand-subtle)',
+                                        color: 'var(--color-brand)',
+                                        borderColor: 'var(--color-brand-border)',
+                                    }}
+                                >{tag}</span>
                             ))}
                         </div>
                     )}
 
                     {/* score + google stat block */}
                     <div className="grid grid-cols-2 gap-3">
-                        {/* group score */}
-                        <div className="bg-surface-2 border border-border rounded-xl p-4 text-center">
+                        <div
+                            className="rounded-xl p-4 text-center border"
+                            style={{ background: 'var(--color-surface-2)', borderColor: 'var(--color-border)' }}
+                        >
                             <p className="text-[10px] font-extrabold text-text-muted uppercase tracking-wider">Group Score</p>
-                            <p 
+                            <p
                                 className="text-4xl md:text-5xl font-black tabular-nums leading-none font-display mt-1 mb-0"
                                 style={{ color: barColor(pub.avgScore) }}
                             >
@@ -504,8 +534,10 @@ function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, g
                             </p>
                             <p className="text-[11px] text-text-faint mt-0.5">{pub.ratingCount} rating{pub.ratingCount !== 1 ? 's' : ''}</p>
                         </div>
-                        {/* google score */}
-                        <div className="bg-surface-2 border border-border rounded-xl p-4 text-center">
+                        <div
+                            className="rounded-xl p-4 text-center border"
+                            style={{ background: 'var(--color-surface-2)', borderColor: 'var(--color-border)' }}
+                        >
                             <p className="text-[10px] font-extrabold text-text-muted uppercase tracking-wider">Google Rating</p>
                             <p className="text-4xl md:text-5xl font-black text-text tabular-nums leading-none font-display mt-1 mb-0">
                                 {pub.googleRating ? <span className="flex items-center justify-center gap-1"><span className="text-yellow-500 text-2xl md:text-3xl">★</span>{pub.googleRating}</span> : '—'}
@@ -525,26 +557,32 @@ function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, g
 
                     {/* Active Deals & Exclusive Promotions */}
                     {deals.length > 0 && (
-                        <div className="bg-surface-2 border border-border rounded-xl p-4">
+                        <div className="rounded-xl p-4 border" style={{ background: 'var(--color-surface-2)', borderColor: 'var(--color-border)' }}>
                             <p className="font-extrabold text-[10px] text-text-muted uppercase tracking-wider mb-3">🎁 Active Deals & Promotions</p>
                             <div className="flex flex-col gap-3">
                                 {deals.map(deal => {
                                     const isEligible = userCheckinCount >= (deal.minCheckinsRequired || 0);
                                     const isClaimed = claimedDealId === deal.id;
                                     return (
-                                        <div key={deal.id} className="flex flex-col gap-2 p-3 bg-surface border border-divider rounded-lg">
+                                        <div key={deal.id} className="flex flex-col gap-2 p-3 rounded-lg border" style={{ background: 'var(--color-surface)', borderColor: 'var(--color-divider)' }}>
                                             <div className="flex justify-between items-center flex-wrap gap-2">
                                                 <span className="font-extrabold text-sm text-text">{deal.title}</span>
                                                 {deal.minCheckinsRequired > 0 && (
-                                                    <span className="text-[10px] bg-brand-subtle text-brand px-2 py-0.5 rounded-full font-bold">
+                                                    <span
+                                                        className="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                                                        style={{ background: 'var(--color-brand-subtle)', color: 'var(--color-brand)' }}
+                                                    >
                                                         🔑 {deal.minCheckinsRequired}+ Check-ins Required ({userCheckinCount} check-in{userCheckinCount !== 1 ? 's' : ''})
                                                     </span>
                                                 )}
                                             </div>
                                             <p className="text-xs text-text-muted m-0">{deal.description}</p>
-                                            
+
                                             {isClaimed ? (
-                                                <div className="bg-brand-subtle border border-dashed border-brand rounded-md p-2.5 text-center mt-1">
+                                                <div
+                                                    className="rounded-md p-2.5 text-center mt-1 border border-dashed"
+                                                    style={{ background: 'var(--color-brand-subtle)', borderColor: 'var(--color-brand-border)' }}
+                                                >
                                                     <p className="text-[10px] font-extrabold text-brand uppercase m-0">Redemption Code</p>
                                                     <p className="text-base font-black text-text tracking-widest my-0.5">{deal.code}</p>
                                                     <p className="text-[9px] text-text-muted m-0">Show this screen to bartender to redeem.</p>
@@ -579,7 +617,7 @@ function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, g
 
                     {/* photo uploader (managers only) */}
                     {canManageGroup && (
-                        <div className="bg-surface-2 border border-border rounded-xl p-4">
+                        <div className="rounded-xl p-4 border" style={{ background: 'var(--color-surface-2)', borderColor: 'var(--color-border)' }}>
                             <p className="font-bold text-sm text-text mb-3">Pub Photo</p>
                             <ImageUploader
                                 groupId={currentGroup?.id}
@@ -598,7 +636,10 @@ function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, g
 
                     {/* criteria breakdown */}
                     <div>
-                        <h3 className="text-base font-black text-text mb-4 pb-3 border-b border-divider">Detailed Breakdown</h3>
+                        <h3
+                            className="text-base font-black text-text mb-4 pb-3"
+                            style={{ borderBottom: '1px solid var(--color-divider)' }}
+                        >Detailed Breakdown</h3>
                         <div className="flex flex-col gap-5">
                             {Object.values(breakdown).map(data => (
                                 <CriteriaBar
@@ -697,7 +738,6 @@ export default function PubsPage({
         return 0;
     }), [enrichedPubs, searchTerm, tagFilter, yesNoFilter, sortOption, scores]);
 
-    // Build breakdown for selected pub
     const breakdown = useMemo(() => {
         if (!selectedPubForDetail) return null;
         const b = {};
@@ -725,18 +765,50 @@ export default function PubsPage({
 
     return (
         <div className="space-y-6 animate-fadeIn">
+            {/* page heading */}
             <div className="flex justify-between items-end mb-2">
                 <div>
-                    <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Visited Pubs</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Every pint, properly documented.</p>
+                    <h2
+                        className="text-3xl font-bold leading-tight"
+                        style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text)' }}
+                    >Visited Pubs</h2>
+                    <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-muted)' }}>Every pint, properly documented.</p>
                 </div>
             </div>
 
             {/* filter bar */}
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-wrap gap-3">
-                <input type="text" placeholder="Search pubs by name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                    className="flex-1 min-w-[200px] px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white outline-none" />
-                <select value={tagFilter} onChange={e => setTagFilter(e.target.value)} className="px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold outline-none cursor-pointer">
+            <div
+                className="p-4 rounded-2xl flex flex-wrap gap-3"
+                style={{
+                    background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
+                    boxShadow: 'var(--shadow-warm-sm)',
+                }}
+            >
+                <input
+                    type="text"
+                    placeholder="Search pubs by name..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="flex-1 min-w-[200px] px-4 py-2 rounded-lg outline-none focus:ring-2 focus:ring-brand"
+                    style={{
+                        background: 'var(--color-surface-offset)',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text)',
+                        fontFamily: 'var(--font-body)',
+                    }}
+                />
+                <select
+                    value={tagFilter}
+                    onChange={e => setTagFilter(e.target.value)}
+                    className="px-4 py-2 rounded-lg outline-none focus:ring-2 focus:ring-brand font-semibold cursor-pointer"
+                    style={{
+                        background: 'var(--color-surface-offset)',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text)',
+                        fontFamily: 'var(--font-body)',
+                    }}
+                >
                     <option value="">🏷️ All Amenities</option>
                     <option value="🍺 Beer Garden">🍺 Beer Garden</option>
                     <option value="🐕 Dog Friendly">🐕 Dog Friendly</option>
@@ -749,12 +821,32 @@ export default function PubsPage({
                     <option value="🔥 Open Fire">🔥 Open Fire</option>
                 </select>
                 {yesNoCriteria.length > 0 && (
-                    <select value={yesNoFilter} onChange={e => setYesNoFilter(e.target.value)} className="px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold outline-none cursor-pointer">
+                    <select
+                        value={yesNoFilter}
+                        onChange={e => setYesNoFilter(e.target.value)}
+                        className="px-4 py-2 rounded-lg outline-none focus:ring-2 focus:ring-brand font-semibold cursor-pointer"
+                        style={{
+                            background: 'var(--color-surface-offset)',
+                            border: '1px solid var(--color-border)',
+                            color: 'var(--color-text)',
+                            fontFamily: 'var(--font-body)',
+                        }}
+                    >
                         <option value="">✅ Filter by Rating</option>
                         {yesNoCriteria.map(c => <option key={c.id} value={c.id}>Has: {c.name}</option>)}
                     </select>
                 )}
-                <select value={sortOption} onChange={e => setSortOption(e.target.value)} className="px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white font-semibold outline-none cursor-pointer">
+                <select
+                    value={sortOption}
+                    onChange={e => setSortOption(e.target.value)}
+                    className="px-4 py-2 rounded-lg outline-none focus:ring-2 focus:ring-brand font-semibold cursor-pointer"
+                    style={{
+                        background: 'var(--color-surface-offset)',
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text)',
+                        fontFamily: 'var(--font-body)',
+                    }}
+                >
                     <option value="highest">⭐ Highest Rated</option>
                     <option value="google-highest">🌟 Highest Google</option>
                     <option value="lowest">📉 Lowest Rated</option>
@@ -764,57 +856,140 @@ export default function PubsPage({
             </div>
 
             {/* pub card grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {filteredPubs.map(pub => (
-                    <div key={pub.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 flex flex-col group relative">
-                        <div className="h-48 relative bg-gray-200 dark:bg-gray-700 overflow-hidden cursor-pointer" onClick={() => setSelectedPubForDetail(pub)}>
+                    <div
+                        key={pub.id}
+                        className="rounded-2xl overflow-hidden flex flex-col group relative transition-all duration-300 hover:-translate-y-1"
+                        style={{
+                            background: 'var(--color-surface)',
+                            border: '1px solid var(--color-border)',
+                            boxShadow: 'var(--shadow-warm-sm)',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow-warm-lg)'}
+                        onMouseLeave={e => e.currentTarget.style.boxShadow = 'var(--shadow-warm-sm)'}
+                    >
+                        {/* image */}
+                        <div
+                            className="h-48 relative overflow-hidden cursor-pointer"
+                            style={{ background: 'var(--color-surface-offset)' }}
+                            onClick={() => setSelectedPubForDetail(pub)}
+                        >
                             {pub.photoURL
                                 ? <img src={pub.photoURL} alt={pub.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" onError={e => { e.target.style.display = 'none'; }} />
                                 : <div className="w-full h-full flex items-center justify-center text-5xl">🍺</div>
                             }
                             {pub.ratingCount > 0 && (
-                                <div className={`absolute top-3 right-3 text-white text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-lg ${pub.color}`}>{pub.tierLabel}</div>
+                                <div
+                                    className="absolute top-3 right-3 text-white text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-lg"
+                                    style={{ background: tierBg(pub.avgScore) }}
+                                >{pub.tierLabel}</div>
                             )}
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                            <div
+                                className="absolute inset-0 flex items-center justify-center transition-colors"
+                                style={{ background: 'transparent' }}
+                            >
                                 <span className="opacity-0 group-hover:opacity-100 bg-white/90 text-gray-900 font-bold px-4 py-2 rounded-full transform translate-y-4 group-hover:translate-y-0 transition-all shadow-lg">View Full Reviews</span>
                             </div>
                         </div>
-                        <div className="p-5 flex flex-col flex-1 relative">
-                            <button onClick={e => { e.stopPropagation(); handleReport('pub', pub); }} className="absolute top-4 right-4 text-lg opacity-20 hover:opacity-100 transition hover:scale-110" title="Report Pub Name">🚩</button>
-                            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-1 pr-6 truncate">{pub.name}</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 truncate">📍 {pub.location || 'Unknown Location'}</p>
+
+                        {/* card body */}
+                        <div className="p-4 flex flex-col flex-1 relative">
+                            <button
+                                onClick={e => { e.stopPropagation(); handleReport('pub', pub); }}
+                                className="absolute top-4 right-4 text-lg opacity-20 hover:opacity-100 transition hover:scale-110"
+                                title="Report Pub Name"
+                            >🚩</button>
+
+                            <h3
+                                className="text-lg font-bold mb-0.5 pr-6 truncate"
+                                style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text)' }}
+                            >{pub.name}</h3>
+                            <p className="text-sm mb-3 truncate" style={{ color: 'var(--color-text-muted)' }}>📍 {pub.location || 'Unknown Location'}</p>
+
+                            {/* tags */}
                             {Array.isArray(pub.tags) && pub.tags.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mb-2">
                                     {pub.tags.slice(0, 3).map(tag => (
-                                        <span key={tag} className="text-[10px] bg-brand-subtle text-brand px-2 py-0.5 rounded font-bold whitespace-nowrap border border-brand-border">{tag}</span>
+                                        <span
+                                            key={tag}
+                                            className="text-[10px] px-2 py-0.5 rounded font-bold whitespace-nowrap border"
+                                            style={{
+                                                background: 'var(--color-brand-subtle)',
+                                                color: 'var(--color-brand)',
+                                                borderColor: 'var(--color-brand-border)',
+                                            }}
+                                        >{tag}</span>
                                     ))}
-                                    {pub.tags.length > 3 && <span className="text-[10px] bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 px-2 py-0.5 rounded font-bold">+{pub.tags.length - 3}</span>}
+                                    {pub.tags.length > 3 && (
+                                        <span
+                                            className="text-[10px] px-2 py-0.5 rounded font-bold"
+                                            style={{ background: 'var(--color-surface-offset)', color: 'var(--color-text-muted)' }}
+                                        >+{pub.tags.length - 3}</span>
+                                    )}
                                 </div>
                             )}
+
                             <WeatherBadge weather={pageWeather} loading={weatherLoading} tags={pub.tags} compact />
-                            <div className="flex justify-between items-center mb-4 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-100 dark:border-gray-600 mt-auto">
+
+                            {/* score block */}
+                            <div
+                                className="flex justify-between items-center mb-4 p-3 rounded-xl mt-auto"
+                                style={{
+                                    background: 'var(--color-surface-2)',
+                                    border: '1px solid var(--color-border)',
+                                }}
+                            >
                                 <div>
-                                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider mb-0.5">Group Score</p>
-                                    <p className="font-black text-2xl text-brand leading-none">
-                                        {pub.ratingCount > 0 ? pub.avgScore.toFixed(1) : '-'}<span className="text-sm text-gray-400 font-bold">/10</span>
+                                    <p className="text-[10px] text-text-muted font-black uppercase tracking-wider mb-0.5">Group Score</p>
+                                    <p className="font-black text-2xl text-brand leading-none tabular-nums">
+                                        {pub.ratingCount > 0 ? pub.avgScore.toFixed(1) : '-'}<span className="text-sm text-text-faint font-bold">/10</span>
                                     </p>
                                 </div>
-                                <div className="text-right border-l border-gray-200 dark:border-gray-600 pl-4">
-                                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-wider mb-0.5">Google</p>
-                                    <p className="font-bold text-lg text-gray-700 dark:text-gray-300 leading-none">
+                                <div
+                                    className="text-right pl-4"
+                                    style={{ borderLeft: '1px solid var(--color-divider)' }}
+                                >
+                                    <p className="text-[10px] text-text-muted font-black uppercase tracking-wider mb-0.5">Google</p>
+                                    <p className="font-bold text-lg text-text leading-none">
                                         {pub.googleRating
                                             ? <span className="flex items-center gap-1 justify-end"><span className="text-yellow-500 text-sm">★</span> {pub.googleRating}</span>
-                                            : <span className="text-sm text-gray-400 font-medium">N/A</span>
+                                            : <span className="text-sm text-text-faint font-medium">N/A</span>
                                         }
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex gap-2 pt-4 border-t border-gray-100 dark:border-gray-700">
-                                <button onClick={() => onSelectPub(pub)} className="flex-1 bg-brand hover:bg-brand-hover text-white font-bold py-2 rounded-lg transition">Rate</button>
+
+                            {/* action buttons */}
+                            <div
+                                className="flex gap-2 pt-3"
+                                style={{ borderTop: '1px solid var(--color-border)' }}
+                            >
+                                <button
+                                    onClick={() => onSelectPub(pub)}
+                                    className="flex-1 text-white font-bold py-2 rounded-xl transition-opacity hover:opacity-90 border-none cursor-pointer text-sm"
+                                    style={{ background: 'var(--color-brand)', fontFamily: 'var(--font-body)' }}
+                                >Rate</button>
                                 {canManageGroup && (
                                     <>
-                                        <button onClick={() => onSelectPubForEdit(pub)} className="px-3 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 font-bold rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition" title="Edit Pub">✏️</button>
-                                        <button onClick={() => handleDeletePub(pub.id)} className="px-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-bold rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition" title="Delete Pub">🗑️</button>
+                                        <button
+                                            onClick={() => onSelectPubForEdit(pub)}
+                                            className="px-3 font-bold rounded-xl transition-colors cursor-pointer border-none text-sm"
+                                            style={{
+                                                background: 'color-mix(in srgb, #ca8a04 12%, transparent)',
+                                                color: '#ca8a04',
+                                            }}
+                                            title="Edit Pub"
+                                        >✏️</button>
+                                        <button
+                                            onClick={() => handleDeletePub(pub.id)}
+                                            className="px-3 font-bold rounded-xl transition-colors cursor-pointer border-none text-sm"
+                                            style={{
+                                                background: 'color-mix(in srgb, #dc2626 12%, transparent)',
+                                                color: '#dc2626',
+                                            }}
+                                            title="Delete Pub"
+                                        >🗑️</button>
                                     </>
                                 )}
                             </div>
@@ -824,7 +999,7 @@ export default function PubsPage({
             </div>
 
             {filteredPubs.length === 0 && (
-                <div className="text-center py-12 text-gray-500 dark:text-gray-400">No pubs match your search criteria.</div>
+                <div className="text-center py-12" style={{ color: 'var(--color-text-muted)' }}>No pubs match your search criteria.</div>
             )}
 
             {/* detail modal */}
