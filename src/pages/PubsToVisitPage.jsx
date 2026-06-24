@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { firebase } from '../firebase';
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
+// ─── helpers ───────────────────────────────────────────────────────────────────────────────
 function relativeTime(date) {
     if (!date) return '';
     const d = date?.toDate ? date.toDate() : new Date(date);
@@ -12,7 +12,7 @@ function relativeTime(date) {
     return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-// ─── Google Places Autocomplete search ────────────────────────────────────────
+// ─── Google Places Autocomplete search ────────────────────────────────────────────────
 function usePlacesSearch() {
     const [suggestions, setSuggestions] = useState([]);
     const [loading, setLoading]         = useState(false);
@@ -33,7 +33,6 @@ function usePlacesSearch() {
                 const { suggestions: results } = await AutocompleteSuggestion.fetchAutocompleteSuggestions(req);
                 setSuggestions(results || []);
             } catch (err) {
-                // Fallback: text search
                 try {
                     const { Place } = await window.google.maps.importLibrary('places');
                     const { places } = await Place.searchByText({
@@ -53,7 +52,6 @@ function usePlacesSearch() {
     };
 
     const resolve = async (suggestion) => {
-        // Already resolved (fallback path)
         if (suggestion._resolved) return suggestion._resolved;
         try {
             const { Place } = await window.google.maps.importLibrary('places');
@@ -69,23 +67,22 @@ function usePlacesSearch() {
     return { suggestions, loading, search, resolve, clearSuggestions: () => setSuggestions([]) };
 }
 
-// ─── AddPubModal ──────────────────────────────────────────────────────────────
+// ─── AddPubModal ───────────────────────────────────────────────────────────────────────────
 function AddPubModal({ groupRef, db, user, onClose, onAdded }) {
-    const [query, setQuery]         = useState('');
-    const [saving, setSaving]       = useState(false);
-    const [error, setError]         = useState('');
-    const [selected, setSelected]   = useState(null); // resolved Place data
+    const [query, setQuery]           = useState('');
+    const [saving, setSaving]         = useState(false);
+    const [error, setError]           = useState('');
+    const [selected, setSelected]     = useState(null);
     const [manualMode, setManualMode] = useState(false);
     const [manualName, setManualName] = useState('');
     const [manualLocation, setManualLocation] = useState('');
-    const inputRef = useRef(null);
+    const inputRef    = useRef(null);
     const dropdownRef = useRef(null);
 
     const { suggestions, loading: searchLoading, search, resolve, clearSuggestions } = usePlacesSearch();
 
     useEffect(() => { inputRef.current?.focus(); }, []);
 
-    // Close dropdown on outside click
     useEffect(() => {
         const handler = (e) => {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target)) clearSuggestions();
@@ -112,47 +109,36 @@ function AddPubModal({ groupRef, db, user, onClose, onAdded }) {
         try {
             let pubData;
             if (selected) {
-                const lat = selected.location?.lat?.()   ?? selected.location?.lat   ?? null;
-                const lng = selected.location?.lng?.()   ?? selected.location?.lng   ?? null;
+                const lat = selected.location?.lat?.() ?? selected.location?.lat ?? null;
+                const lng = selected.location?.lng?.() ?? selected.location?.lng ?? null;
                 let photoURL = '';
                 try {
-                    if (selected.photos && selected.photos.length > 0) {
-                        photoURL = selected.photos[0].getURI({ maxWidth: 800 });
-                    }
+                    if (selected.photos && selected.photos.length > 0) photoURL = selected.photos[0].getURI({ maxWidth: 800 });
                 } catch (_) {}
                 pubData = {
-                    name:        selected.displayName || query,
-                    location:    selected.formattedAddress || '',
-                    lat,
-                    lng,
-                    photoURL,
-                    googleLink:  selected.googleMapsURI || '',
-                    placeId:     selected.id || '',
+                    name:       selected.displayName || query,
+                    location:   selected.formattedAddress || '',
+                    lat, lng, photoURL,
+                    googleLink: selected.googleMapsURI || '',
+                    placeId:    selected.id || '',
                 };
             } else {
                 pubData = {
                     name:     manualName.trim(),
                     location: manualLocation.trim(),
-                    lat:      null,
-                    lng:      null,
-                    photoURL: '',
-                    googleLink: '',
-                    placeId:  '',
+                    lat: null, lng: null, photoURL: '',
+                    googleLink: '', placeId: '',
                 };
             }
-
             const fullData = {
                 ...pubData,
                 addedBy:   user.uid,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 status:    'to-visit',
             };
-
-            // Write to global pubs collection too
             const globalRef = await db.collection('pubs').add({ ...fullData, isLocked: false });
             await groupRef.collection('pubs').add({ ...fullData, globalId: globalRef.id });
             await groupRef.update({ pubCount: firebase.firestore.FieldValue.increment(1) });
-
             onAdded(pubData.name);
             onClose();
         } catch (e) {
@@ -173,27 +159,28 @@ function AddPubModal({ groupRef, db, user, onClose, onAdded }) {
     };
 
     return (
-        <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn" onClick={onClose}>
+        <div
+            className="fixed inset-0 z-[1000] backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
+            style={{ background: 'var(--color-overlay)' }}
+            onClick={onClose}
+        >
             <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg border border-border/50 p-6" onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
                 <div className="flex justify-between items-center mb-5">
                     <div>
-                        <h2 className="text-lg font-display font-bold text-text">
+                        <h2 className="text-lg font-bold text-text" style={{ fontFamily: 'var(--font-display)' }}>
                             🍺 Add to Hit List
                         </h2>
-                        <p className="text-xs text-muted mt-1">
-                            Search for a pub and we'll pull in the details from Google.
-                        </p>
+                        <p className="text-xs text-muted mt-1">Search for a pub and we’ll pull in the details from Google.</p>
                     </div>
-                    <button onClick={onClose} aria-label="Close" className="text-muted p-2 rounded-md hover:bg-surface-offset transition-colors leading-none">
+                    <button onClick={onClose} aria-label="Close" className="text-muted p-2 rounded-md hover:bg-surface-offset transition-colors leading-none border-none bg-transparent cursor-pointer">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
                     </button>
                 </div>
 
                 {!manualMode ? (
                     <>
-                        {/* Search input */}
                         <div className="relative" ref={dropdownRef}>
                             <div className="relative">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -220,7 +207,6 @@ function AddPubModal({ groupRef, db, user, onClose, onAdded }) {
                                 )}
                             </div>
 
-                            {/* Dropdown suggestions */}
                             {suggestions.length > 0 && (
                                 <div className="absolute top-[calc(100%+0.25rem)] left-0 right-0 z-50 bg-surface border border-border rounded-lg shadow-lg overflow-hidden">
                                     {suggestions.map((s, i) => {
@@ -243,7 +229,6 @@ function AddPubModal({ groupRef, db, user, onClose, onAdded }) {
                             )}
                         </div>
 
-                        {/* Selected place preview */}
                         {selected && (
                             <div className="mt-4 p-4 bg-surface-offset rounded-lg border border-border flex gap-3 items-center">
                                 {(() => {
@@ -266,11 +251,10 @@ function AddPubModal({ groupRef, db, user, onClose, onAdded }) {
 
                         <button onClick={() => setManualMode(true)}
                             className="mt-3 text-xs text-muted bg-transparent border-none cursor-pointer underline font-body p-0 hover:text-text transition-colors">
-                            Can't find it? Add manually
+                            Can’t find it? Add manually
                         </button>
                     </>
                 ) : (
-                    // Manual fallback form
                     <div className="flex flex-col gap-3">
                         <div>
                             <label className="block text-xs font-bold text-muted mb-2 uppercase tracking-wide font-body">Pub Name *</label>
@@ -291,14 +275,27 @@ function AddPubModal({ groupRef, db, user, onClose, onAdded }) {
 
                 {error && <p className="mt-3 text-xs text-error font-bold">{error}</p>}
 
-                {/* Footer actions */}
                 <div className="flex gap-3 mt-6 justify-end">
                     <button onClick={onClose} disabled={saving}
                         className="px-5 py-3 rounded-lg border border-border bg-transparent text-text text-sm font-bold font-body cursor-pointer hover:bg-surface-offset transition-colors">
                         Cancel
                     </button>
-                    <button onClick={handleAdd} disabled={saving || (!selected && !manualMode) || (manualMode && !manualName.trim())}
-                        className={`px-6 py-3 rounded-lg border-none text-white text-sm font-bold font-body transition-colors ${(saving || (!selected && !manualMode) || (manualMode && !manualName.trim())) ? 'bg-surface-dynamic text-faint cursor-not-allowed' : 'bg-brand cursor-pointer hover:bg-brand-dark'}`}>
+                    <button
+                        onClick={handleAdd}
+                        disabled={saving || (!selected && !manualMode) || (manualMode && !manualName.trim())}
+                        className="px-6 py-3 rounded-lg border-none text-white text-sm font-bold font-body transition-colors"
+                        style={{
+                            background: (saving || (!selected && !manualMode) || (manualMode && !manualName.trim()))
+                                ? 'var(--color-surface-offset)'
+                                : 'var(--color-brand)',
+                            color: (saving || (!selected && !manualMode) || (manualMode && !manualName.trim()))
+                                ? 'var(--color-text-faint)'
+                                : 'white',
+                            cursor: (saving || (!selected && !manualMode) || (manualMode && !manualName.trim()))
+                                ? 'not-allowed'
+                                : 'pointer',
+                        }}
+                    >
                         {saving ? (
                             <div className="flex items-center gap-2">
                                 <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />Adding…
@@ -307,21 +304,24 @@ function AddPubModal({ groupRef, db, user, onClose, onAdded }) {
                     </button>
                 </div>
             </div>
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
     );
 }
 
-// ─── ConfirmModal ─────────────────────────────────────────────────────────────
+// ─── ConfirmModal ───────────────────────────────────────────────────────────────────────
 function ConfirmModal({ title, message, confirmLabel, isDestructive, onConfirm, onCancel }) {
     return (
-        <div className="fixed inset-0 z-[1100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn" onClick={onCancel}>
+        <div
+            className="fixed inset-0 z-[1100] backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
+            style={{ background: 'var(--color-overlay)' }}
+            onClick={onCancel}
+        >
             <div className="bg-surface rounded-xl shadow-xl w-full max-w-sm border border-border/50 p-6" onClick={e => e.stopPropagation()}>
-                <h3 className="text-base font-bold font-body text-base mb-2">{title}</h3>
+                <h3 className="text-base font-bold text-text font-body mb-2">{title}</h3>
                 <p className="text-sm text-muted leading-relaxed">{message}</p>
                 <div className="flex gap-3 mt-5 justify-end">
                     <button onClick={onCancel}
-                        className="px-4 py-2 rounded-lg border border-border bg-transparent text-base text-sm font-semibold font-body hover:bg-surface-offset transition-colors">
+                        className="px-4 py-2 rounded-lg border border-border bg-transparent text-text text-sm font-semibold font-body hover:bg-surface-offset transition-colors">
                         Cancel
                     </button>
                     <button onClick={onConfirm}
@@ -334,25 +334,34 @@ function ConfirmModal({ title, message, confirmLabel, isDestructive, onConfirm, 
     );
 }
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
+// ─── Toast ───────────────────────────────────────────────────────────────────────────────────
 function Toast({ message, type = 'success', onDismiss }) {
     useEffect(() => {
         const t = setTimeout(onDismiss, 3500);
         return () => clearTimeout(t);
     }, [onDismiss]);
-    const bgClass = type === 'success' ? 'bg-success text-white' : type === 'error' ? 'bg-error text-white' : 'bg-surface-dynamic text-base';
+
+    const bgStyle = type === 'success'
+        ? { background: 'var(--color-brand)', color: 'white' }
+        : type === 'error'
+        ? { background: 'var(--color-error, #ef4444)', color: 'white' }
+        : { background: 'var(--color-surface-offset)', color: 'var(--color-text)' };
+
     return (
-        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[2000] px-6 py-3 rounded-full shadow-lg text-sm font-bold font-body whitespace-nowrap pointer-events-none animate-[toastIn_0.25s_cubic-bezier(0.16,1,0.3,1)] ${bgClass}`}>
+        <div
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[2000] px-6 py-3 rounded-full shadow-lg text-sm font-bold font-body whitespace-nowrap pointer-events-none animate-[toastIn_0.25s_cubic-bezier(0.16,1,0.3,1)]"
+            style={bgStyle}
+        >
             {message}
             <style>{`@keyframes toastIn { from { opacity:0; transform:translateX(-50%) translateY(12px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }`}</style>
         </div>
     );
 }
 
-// ─── PubCard ──────────────────────────────────────────────────────────────────
+// ─── PubCard ────────────────────────────────────────────────────────────────────────────────
 function PubCard({ pub, canDelete, allUsers, onMarkVisited, onDelete }) {
-    const [visiting, setVisiting] = useState(false);
-    const [deleting, setDeleting] = useState(false);
+    const [visiting, setVisiting]         = useState(false);
+    const [deleting, setDeleting]         = useState(false);
     const [confirmVisit, setConfirmVisit]   = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -383,7 +392,6 @@ function PubCard({ pub, canDelete, allUsers, onMarkVisited, onDelete }) {
                             onError={e => { e.target.style.display = 'none'; }} />
                         : <div className="w-full h-full flex items-center justify-center text-5xl opacity-30">🍺</div>
                     }
-                    {/* Google Maps link */}
                     {pub.googleLink && (
                         <a href={pub.googleLink} target="_blank" rel="noopener noreferrer"
                             className="absolute top-2 right-2 bg-black/55 backdrop-blur-sm rounded-md px-2 py-1 flex items-center gap-1 text-xs font-bold text-white no-underline transition-colors hover:bg-black/80"
@@ -392,7 +400,6 @@ function PubCard({ pub, canDelete, allUsers, onMarkVisited, onDelete }) {
                             Maps
                         </a>
                     )}
-                    {/* Admin delete */}
                     {canDelete && (
                         <button onClick={() => setConfirmDelete(true)}
                             aria-label="Remove from hit list"
@@ -406,11 +413,9 @@ function PubCard({ pub, canDelete, allUsers, onMarkVisited, onDelete }) {
 
                 {/* Body */}
                 <div className="p-4 flex-1 flex flex-col gap-2">
-                    <h3 className="text-base font-bold font-body text-base leading-tight truncate">{pub.name}</h3>
+                    <h3 className="text-base font-bold text-text font-body leading-tight truncate">{pub.name}</h3>
                     {pub.location && (
-                        <p className="text-xs text-muted truncate">
-                            📍 {pub.location}
-                        </p>
+                        <p className="text-xs text-muted truncate">📍 {pub.location}</p>
                     )}
                     <p className="text-xs text-faint mt-auto pt-2">
                         Added by <strong className="text-muted">{addedByName}</strong> · {relativeTime(pub.createdAt)}
@@ -427,7 +432,7 @@ function PubCard({ pub, canDelete, allUsers, onMarkVisited, onDelete }) {
                         {visiting ? (
                             <><div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />Moving…</>
                         ) : (
-                            <>✅ We've Been Here</>
+                            <>✅ We’ve Been Here</>
                         )}
                     </button>
                 </div>
@@ -446,7 +451,7 @@ function PubCard({ pub, canDelete, allUsers, onMarkVisited, onDelete }) {
             {confirmDelete && (
                 <ConfirmModal
                     title="Remove from Hit List?"
-                    message={`"${pub.name}" will be removed from the hit list entirely. This can't be undone.`}
+                    message={`"${pub.name}" will be removed from the hit list entirely. This can’t be undone.`}
                     confirmLabel="Remove"
                     isDestructive={true}
                     onConfirm={handleDelete}
@@ -457,34 +462,30 @@ function PubCard({ pub, canDelete, allUsers, onMarkVisited, onDelete }) {
     );
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
-export function LiveGoogleStatus() { return null; } // kept for import compat
+// ─── Main page ──────────────────────────────────────────────────────────────────────────────
+export function LiveGoogleStatus() { return null; }
 
 export default function PubsToVisitPage({ pubs = [], groupRef, db, user, allUsers = {}, canManageGroup, featureFlags }) {
     const [showAddModal, setShowAddModal] = useState(false);
     const [search, setSearch]             = useState('');
-    const [sort, setSort]                 = useState('newest'); // 'newest' | 'az'
+    const [sort, setSort]                 = useState('newest');
     const [toast, setToast]               = useState(null);
 
     const pubsRef = groupRef?.collection('pubs');
 
-    // Only show to-visit pubs
     const hitList = useMemo(() => {
         return pubs
             .filter(p => p.status === 'to-visit' || p.status === 'toVisit')
             .filter(p => !search.trim() || p.name.toLowerCase().includes(search.toLowerCase()) || (p.location || '').toLowerCase().includes(search.toLowerCase()))
             .sort((a, b) => {
                 if (sort === 'az') return (a.name || '').localeCompare(b.name || '');
-                // newest first
                 const aMs = a.createdAt?.toMillis?.() ?? 0;
                 const bMs = b.createdAt?.toMillis?.() ?? 0;
                 return bMs - aMs;
             });
     }, [pubs, search, sort]);
 
-    const showToast = (msg, type = 'success') => {
-        setToast({ msg, type });
-    };
+    const showToast = (msg, type = 'success') => setToast({ msg, type });
 
     const handleMarkVisited = async (pub) => {
         try {
@@ -513,7 +514,10 @@ export default function PubsToVisitPage({ pubs = [], groupRef, db, user, allUser
             {/* ── Page header ── */}
             <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
                 <div>
-                    <h1 className="text-xl font-display font-bold text-text leading-tight">
+                    <h1
+                        className="text-xl font-bold leading-tight"
+                        style={{ fontFamily: 'var(--font-display)', color: 'var(--color-text)' }}
+                    >
                         🎯 Hit List
                     </h1>
                     <p className="text-sm text-muted mt-1">
@@ -570,14 +574,14 @@ export default function PubsToVisitPage({ pubs = [], groupRef, db, user, allUser
                     {search ? (
                         <>
                             <div className="text-5xl mb-4 opacity-40">🔍</div>
-                            <p className="text-base font-bold text-text mb-2">No results for "{search}"</p>
+                            <p className="text-base font-bold text-text mb-2">No results for “{search}”</p>
                             <p className="text-sm text-muted">Try a different name or clear the search.</p>
                         </>
                     ) : (
                         <>
                             <div className="text-6xl mb-4">🎯</div>
                             <p className="text-base font-bold text-text mb-2">The hit list is empty!</p>
-                            <p className="text-sm text-muted max-w-[32ch] mx-auto mb-6">Start building your group's bucket list of pubs to visit.</p>
+                            <p className="text-sm text-muted max-w-[32ch] mx-auto mb-6">Start building your group’s bucket list of pubs to visit.</p>
                             <button
                                 onClick={() => setShowAddModal(true)}
                                 className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border-none bg-brand text-white text-sm font-bold font-body cursor-pointer hover:bg-brand-dark transition-colors"
