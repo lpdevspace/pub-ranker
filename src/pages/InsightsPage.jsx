@@ -25,7 +25,7 @@ function KpiCard({ icon, label, value, suffix = '', color, delay = 0 }) {
         ? (suffix === '' ? animated.toLocaleString() : animated.toFixed(1)) : value;
     useEffect(() => { const t = setTimeout(() => setVisible(true), delay); return () => clearTimeout(t); }, [delay]);
     return (
-        <div 
+        <div
             className="flex-1 basis-[180px] bg-surface rounded-xl p-6 flex flex-col gap-3 shadow-sm"
             style={{
                 border: `1.5px solid ${color}33`,
@@ -76,7 +76,7 @@ function TopPubsChart({ pubs, scores, criteria }) {
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {tabs.map(tab => (
-                        <button key={tab.id} onClick={() => setActiveTab(tab.id)} 
+                        <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                             className={`px-3 py-1 rounded-full border-[1.5px] font-body font-bold text-xs cursor-pointer transition-all duration-180 ${activeTab === tab.id ? 'border-brand bg-brand text-white' : 'border-border bg-transparent text-muted hover:border-brand'}`}>
                             {tab.name}
                         </button>
@@ -207,7 +207,7 @@ function RaterCard({ name, avg, count, rank, delay = 0 }) {
     const barColor = avg <= 5 ? 'var(--color-error)' : avg <= 7 ? 'var(--color-warning)' : 'var(--color-success)';
     const medals = ['🥇', '🥈', '🥉'];
     return (
-        <div 
+        <div
             className="bg-surface-2 border border-border rounded-xl p-5 flex items-center gap-4"
             style={{
                 opacity: visible ? 1 : 0,
@@ -252,13 +252,13 @@ function DivisivePubRow({ pub, index, animated }) {
                     <span className="text-xs text-muted font-semibold shrink-0 ml-2">avg {pub.mean.toFixed(1)}</span>
                 </div>
                 <div className="relative h-3 bg-surface-2 rounded-full overflow-hidden">
-                    <div className="absolute left-0 top-0 bottom-0 rounded-l-full" style={{ width: animated ? `${leftPct}%` : '50%', background: 'linear-gradient(90deg, #dc262688, #dc2626cc)', transition: `width ${0.5 + index * 0.1}s cubic-bezier(0.16, 1, 0.3, 1)` }} />
-                    <div className="absolute right-0 top-0 bottom-0 rounded-r-full" style={{ width: animated ? `${100 - rightPct}%` : '50%', background: 'linear-gradient(90deg, #16a34acc, #16a34a88)', transition: `width ${0.5 + index * 0.1}s cubic-bezier(0.16, 1, 0.3, 1)` }} />
+                    <div className="absolute left-0 top-0 bottom-0 rounded-l-full" style={{ width: animated ? `${leftPct}%` : '50%', background: 'linear-gradient(90deg, var(--color-error-dim, #dc262688), var(--color-error-mid, #dc2626cc))', transition: `width ${0.5 + index * 0.1}s cubic-bezier(0.16, 1, 0.3, 1)` }} />
+                    <div className="absolute right-0 top-0 bottom-0 rounded-r-full" style={{ width: animated ? `${100 - rightPct}%` : '50%', background: 'linear-gradient(90deg, var(--color-success-mid, #16a34acc), var(--color-success-dim, #16a34a88))', transition: `width ${0.5 + index * 0.1}s cubic-bezier(0.16, 1, 0.3, 1)` }} />
                     <div className="absolute left-1/2 top-0 bottom-0 w-[2px] bg-border -translate-x-1/2 z-[1]" />
                 </div>
                 <div className="flex justify-between mt-1">
-                    <span className="text-[10px] text-[#dc2626] font-bold">👎 Harsh</span>
-                    <span className="text-[10px] text-[#16a34a] font-bold">Generous 👍</span>
+                    <span className="text-[10px] text-error font-bold">👎 Harsh</span>
+                    <span className="text-[10px] text-success font-bold">Generous 👍</span>
                 </div>
             </div>
             <span className="text-xs font-bold bg-brand-highlight text-brand px-2 py-1 rounded-full shrink-0 tabular-nums">var {pub.variance.toFixed(1)}</span>
@@ -347,19 +347,19 @@ export default function InsightsPage({ pubs, scores, users, criteria }) {
                 </div>
             </div>
 
-            {/* STEP 1: KPI bar — 2 primary stats big, 2 in header above */}
+            {/* KPI bar */}
             <div className="flex flex-wrap gap-5">
                 <KpiCard icon="🍺" label="Total Ratings" value={analytics.totalRatings} color="var(--color-brand)"  delay={0}   />
                 <KpiCard icon="⭐" label="Group Average" value={analytics.groupAverage} color="#059669" suffix="/10" delay={120} />
             </div>
 
-            {/* STEP 2: Top pubs chart + Score Distribution side by side on large screens */}
+            {/* Top pubs chart + Score Distribution */}
             <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,28rem),1fr))] gap-6">
                 <TopPubsChart pubs={safePubs} scores={safeScores} criteria={safeCriteria} />
                 <ScoreDistribution pubs={safePubs} scores={safeScores} />
             </div>
 
-            {/* STEP 3: Harshest Critics + Most Divisive side by side */}
+            {/* Harshest Critics + Most Divisive */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className={cardStyle}>
                     <h3 className="text-lg font-black text-text mb-1 font-display">Harshest Critics</h3>
@@ -396,7 +396,7 @@ export default function InsightsPage({ pubs, scores, users, criteria }) {
                 </div>
             </div>
 
-            {/* STEP 4: Category Champions */}
+            {/* Category Champions */}
             <div className={cardStyle}>
                 <h3 className="text-lg font-black text-text mb-2 font-display">🏆 Category Champions</h3>
                 <p className="text-xs text-muted mb-5">The best pub in each scoring category.</p>
