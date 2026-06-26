@@ -1,18 +1,23 @@
+/* App.css — legacy Vite starter scaffold, retained for reference only.
+   All active styles live in src/index.css and src/styles/brand.css.
+   The .counter, .hero, #center, #next-steps etc. blocks below are unused
+   by the live application and will be removed in a future cleanup pass. */
+
 .counter {
   font-size: 16px;
   padding: 5px 10px;
   border-radius: 5px;
-  color: var(--accent);
-  background: var(--accent-bg);
+  color: var(--color-brand);
+  background: var(--color-brand-subtle);
   border: 2px solid transparent;
   transition: border-color 0.3s;
   margin-bottom: 24px;
 
   &:hover {
-    border-color: var(--accent-border);
+    border-color: var(--color-brand-border);
   }
   &:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--color-brand);
     outline-offset: 2px;
   }
 }
@@ -72,7 +77,7 @@
 
 #next-steps {
   display: flex;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--color-divider);
   text-align: left;
 
   & > div {
@@ -96,11 +101,11 @@
 }
 
 #docs {
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--color-divider);
 
   @media (max-width: 1024px) {
     border-right: none;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--color-divider);
   }
 }
 
@@ -116,10 +121,10 @@
   }
 
   a {
-    color: var(--text-h);
+    color: var(--color-text);
     font-size: 16px;
     border-radius: 6px;
-    background: var(--social-bg);
+    background: var(--color-surface);
     display: flex;
     padding: 6px 12px;
     align-items: center;
@@ -128,7 +133,7 @@
     transition: box-shadow 0.3s;
 
     &:hover {
-      box-shadow: var(--shadow);
+      box-shadow: var(--shadow-md);
     }
     .button-icon {
       height: 18px;
@@ -155,7 +160,7 @@
 
 #spacer {
   height: 88px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--color-divider);
   @media (max-width: 1024px) {
     height: 48px;
   }
@@ -175,11 +180,11 @@
 
   &::before {
     left: 0;
-    border-left-color: var(--border);
+    border-left-color: var(--color-divider);
   }
   &::after {
     right: 0;
-    border-right-color: var(--border);
+    border-right-color: var(--color-divider);
   }
 }
 

@@ -10,7 +10,7 @@ function DarkModeToggle({ isDarkMode, onToggle, size = 20 }) {
             aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             style={{ width: 36, height: 36 }}
-            className="flex items-center justify-center rounded-full text-gray-500 hover:bg-brand-subtle dark:hover:bg-brand-highlight hover:text-brand dark:hover:text-brand dark:text-gray-400 transition-all duration-200"
+            className="flex items-center justify-center rounded-full text-text-muted hover:bg-brand-subtle dark:hover:bg-brand-highlight hover:text-brand dark:hover:text-brand dark:text-text-muted transition-all duration-200"
         >
             {isDarkMode ? (
                 <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -236,15 +236,23 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
             {/* ── GLOBAL SEARCH OVERLAY ── */}
             {showSearch && (
                 <div
-                    className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm flex items-start justify-center pt-24 px-4"
+                    className="fixed inset-0 z-[300] backdrop-blur-sm flex items-start justify-center pt-24 px-4"
+                    style={{ backgroundColor: 'var(--color-overlay)' }}
                     onClick={() => setShowSearch(false)}
                 >
                     <div
-                        className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
+                        className="rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
+                        style={{
+                            backgroundColor: 'var(--color-surface)',
+                            border: '1px solid var(--color-border)',
+                        }}
                         onClick={e => e.stopPropagation()}
                     >
-                        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-gray-400 flex-shrink-0" aria-hidden="true">
+                        <div
+                            className="flex items-center gap-3 px-4 py-3"
+                            style={{ borderBottom: '1px solid var(--color-divider)' }}
+                        >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0" style={{ color: 'var(--color-text-faint)' }} aria-hidden="true">
                                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
                             </svg>
                             <input
@@ -253,35 +261,45 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
                                 placeholder="Search pubs by name or location…"
-                                className="flex-1 bg-transparent text-gray-900 dark:text-white placeholder-gray-400 text-base focus:outline-none"
+                                className="flex-1 bg-transparent text-base focus:outline-none"
+                                style={{ color: 'var(--color-text)' }}
                             />
-                            <button onClick={() => setShowSearch(false)} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-bold text-sm transition">ESC</button>
+                            <button
+                                onClick={() => setShowSearch(false)}
+                                className="font-bold text-sm transition"
+                                style={{ color: 'var(--color-text-muted)' }}
+                                onMouseEnter={e => e.currentTarget.style.color = 'var(--color-text)'}
+                                onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
+                            >ESC</button>
                         </div>
                         {searchQuery.length >= 2 && (
                             <div className="max-h-80 overflow-y-auto">
                                 {searchResults.length === 0 ? (
-                                    <div className="px-4 py-8 text-center text-gray-400 text-sm">No pubs found for &ldquo;{searchQuery}&rdquo;</div>
+                                    <div className="px-4 py-8 text-center text-sm" style={{ color: 'var(--color-text-faint)' }}>No pubs found for &ldquo;{searchQuery}&rdquo;</div>
                                 ) : (
                                     searchResults.map(pub => (
                                         <button
                                             key={pub.id}
                                             onClick={() => { setPage(pub.isVisited ? 'pubs' : 'toVisit'); setShowSearch(false); }}
-                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-brand-subtle dark:hover:bg-brand-highlight transition text-left border-b border-gray-50 dark:border-gray-800 last:border-0"
+                                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-brand-subtle dark:hover:bg-brand-highlight transition text-left last:border-0"
+                                            style={{ borderBottom: '1px solid var(--color-divider)' }}
                                         >
                                             {pub.photoURL ? (
                                                 <img src={pub.photoURL} alt={pub.name} className="w-10 h-10 rounded-full object-cover flex-shrink-0" loading="lazy" width="40" height="40" />
                                             ) : (
-                                                <div className="w-10 h-10 rounded-full bg-brand-subtle dark:bg-brand-highlight flex items-center justify-center text-lg flex-shrink-0">🍺</div>
+                                                <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0" style={{ backgroundColor: 'var(--color-brand-subtle)' }}>🍺</div>
                                             )}
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-bold text-gray-900 dark:text-white text-sm truncate">{pub.name}</p>
-                                                <p className="text-xs text-gray-500 truncate">{pub.location || 'No location'}</p>
+                                                <p className="font-bold text-sm truncate" style={{ color: 'var(--color-text)' }}>{pub.name}</p>
+                                                <p className="text-xs truncate" style={{ color: 'var(--color-text-muted)' }}>{pub.location || 'No location'}</p>
                                             </div>
-                                            <span className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                                                pub.isVisited
-                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                    : 'bg-brand-subtle text-brand dark:bg-brand-highlight dark:text-brand'
-                                            }`}>
+                                            <span
+                                                className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                                                style={pub.isVisited
+                                                    ? { backgroundColor: 'var(--color-success-highlight)', color: 'var(--color-success)' }
+                                                    : { backgroundColor: 'var(--color-brand-subtle)', color: 'var(--color-brand)' }
+                                                }
+                                            >
                                                 {pub.isVisited ? 'Visited' : 'To Visit'}
                                             </span>
                                         </button>
@@ -290,7 +308,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                             </div>
                         )}
                         {searchQuery.length < 2 && (
-                            <div className="px-4 py-6 text-center text-gray-400 text-sm">Type at least 2 characters to search</div>
+                            <div className="px-4 py-6 text-center text-sm" style={{ color: 'var(--color-text-faint)' }}>Type at least 2 characters to search</div>
                         )}
                     </div>
                 </div>
@@ -305,7 +323,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                 <div className="sidebar-brand">
                     <span className="text-brand flex-shrink-0"><PintMark size={26} /></span>
                     <div className="flex flex-col justify-center min-w-0">
-                        <span className="text-base font-black text-gray-900 dark:text-white tracking-tight leading-tight truncate">
+                        <span className="text-base font-black tracking-tight leading-tight truncate" style={{ color: 'var(--color-text)' }}>
                             Pub Ranker
                         </span>
                         {groupName && (
@@ -321,7 +339,8 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                     <button
                         onClick={() => setShowSearch(true)}
                         aria-label="Search pubs"
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-400 text-sm hover:bg-brand-subtle dark:hover:bg-brand-highlight hover:text-brand transition"
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm hover:bg-brand-subtle dark:hover:bg-brand-highlight hover:text-brand transition"
+                        style={{ backgroundColor: 'var(--color-surface-offset)', color: 'var(--color-text-muted)' }}
                     >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                             <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
@@ -427,8 +446,8 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                             </div>
                         )}
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate leading-tight">{displayName.split(' ')[0]}</p>
-                            <p className="text-xs text-gray-400 truncate leading-tight">{user?.email}</p>
+                            <p className="text-sm font-bold truncate leading-tight" style={{ color: 'var(--color-text)' }}>{displayName.split(' ')[0]}</p>
+                            <p className="text-xs truncate leading-tight" style={{ color: 'var(--color-text-faint)' }}>{user?.email}</p>
                         </div>
                     </button>
 
@@ -439,7 +458,10 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                         <button
                             onClick={onSwitchGroup}
                             title="Switch Group"
-                            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition"
+                            style={{ color: 'var(--color-text-muted)' }}
+                            onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--color-surface-offset)'}
+                            onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
                                 <path d="M17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
@@ -452,7 +474,10 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                             onClick={handleSignOut}
                             aria-label="Sign out"
                             title="Sign out"
-                            className="flex items-center justify-center w-8 h-8 rounded-lg text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition"
+                            className="flex items-center justify-center w-8 h-8 rounded-lg transition"
+                            style={{ color: 'var(--color-error)' }}
+                            onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-error-highlight)'; e.currentTarget.style.color = 'var(--color-error-hover)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--color-error)'; }}
                         >
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -490,7 +515,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                 <div className="flex items-center gap-2.5 min-w-0">
                     <span className="text-brand flex-shrink-0"><PintMark size={24} /></span>
                     <div className="flex flex-col justify-center min-w-0">
-                        <span className="text-base font-black text-gray-900 dark:text-white tracking-tight leading-tight truncate">Pub Ranker</span>
+                        <span className="text-base font-black tracking-tight leading-tight truncate" style={{ color: 'var(--color-text)' }}>Pub Ranker</span>
                         {groupName && (
                             <span className="text-xs text-brand font-bold uppercase tracking-widest truncate leading-tight">{groupName}</span>
                         )}
@@ -502,7 +527,10 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                     <button
                         onClick={() => setShowSearch(true)}
                         aria-label="Search pubs"
-                        className="flex items-center justify-center w-9 h-9 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                        className="flex items-center justify-center w-9 h-9 rounded-full transition"
+                        style={{ color: 'var(--color-text-muted)' }}
+                        onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--color-surface-offset)'}
+                        onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                             <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
@@ -525,7 +553,14 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
             {/* ══════════════════════════════════════════════════
                 MOBILE BOTTOM NAV
             ══════════════════════════════════════════════════ */}
-            <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-gray-200 dark:border-gray-800 safe-area-bottom" aria-label="Primary navigation">
+            <nav
+                className="md:hidden fixed bottom-0 left-0 right-0 z-[100] backdrop-blur-xl safe-area-bottom"
+                style={{
+                    backgroundColor: 'color-mix(in srgb, var(--color-surface) 95%, transparent)',
+                    borderTop: '1px solid var(--color-divider)',
+                }}
+                aria-label="Primary navigation"
+            >
                 <div className="flex items-stretch h-16">
                     {bottomNavItems.map(item => {
                         if (item.page === '__more__') {
@@ -535,9 +570,8 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                     onClick={() => setIsNavOpen(!isNavOpen)}
                                     aria-label="More navigation options"
                                     aria-expanded={isNavOpen}
-                                    className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
-                                        isNavOpen ? 'text-brand' : 'text-gray-400 dark:text-gray-500'
-                                    }`}
+                                    className="flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors"
+                                    style={{ color: isNavOpen ? 'var(--color-brand)' : 'var(--color-text-faint)' }}
                                 >
                                     <span className="text-xl leading-none">{isNavOpen ? '✕' : '☰'}</span>
                                     <span className="text-xs font-bold uppercase tracking-wider">More</span>
@@ -550,11 +584,10 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                 key={item.page}
                                 onClick={() => { setPage(item.page); setIsNavOpen(false); }}
                                 aria-current={isActive ? 'page' : undefined}
-                                className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors relative ${
-                                    isActive
-                                        ? 'text-brand'
-                                        : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                                }`}
+                                className="flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors relative"
+                                style={{ color: isActive ? 'var(--color-brand)' : 'var(--color-text-faint)' }}
+                                onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'var(--color-text-muted)'; }}
+                                onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'var(--color-text-faint)'; }}
                             >
                                 <span className="text-xl leading-none">{item.icon}</span>
                                 <span className="text-xs font-bold uppercase tracking-wider">{item.label}</span>
@@ -565,7 +598,13 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                 </div>
 
                 {isNavOpen && (
-                    <div className="absolute bottom-16 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shadow-2xl animate-fadeIn">
+                    <div
+                        className="absolute bottom-16 left-0 right-0 shadow-2xl animate-fadeIn"
+                        style={{
+                            backgroundColor: 'var(--color-surface)',
+                            borderTop: '1px solid var(--color-divider)',
+                        }}
+                    >
                         <div className="grid grid-cols-3 gap-1 p-3">
                             {[
                                 { icon: '📱', label: 'Taproom',      page: 'taproom' },
@@ -585,14 +624,17 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                     className="flex flex-col items-center gap-1 p-3 rounded-xl hover:bg-brand-subtle dark:hover:bg-brand-highlight transition"
                                 >
                                     <span className="text-2xl">{item.icon}</span>
-                                    <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{item.label}</span>
+                                    <span className="text-xs font-bold" style={{ color: 'var(--color-text-muted)' }}>{item.label}</span>
                                 </button>
                             ))}
                         </div>
                         <div className="flex gap-2 px-3 pb-3">
                             <button
                                 onClick={() => { toggleDarkMode(); setIsNavOpen(false); }}
-                                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-bold text-gray-700 dark:text-gray-300 transition hover:bg-brand-subtle dark:hover:bg-brand-highlight"
+                                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition"
+                                style={{ backgroundColor: 'var(--color-surface-offset)', color: 'var(--color-text)' }}
+                                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--color-brand-subtle)'}
+                                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--color-surface-offset)'}
                             >
                                 {isDarkMode ? (
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
@@ -611,13 +653,19 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                             </button>
                             <button
                                 onClick={() => { onSwitchGroup(); setIsNavOpen(false); }}
-                                className="flex-1 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-bold text-gray-700 dark:text-gray-300 transition hover:bg-gray-200 dark:hover:bg-gray-700"
+                                className="flex-1 py-2.5 rounded-xl text-sm font-bold transition"
+                                style={{ backgroundColor: 'var(--color-surface-offset)', color: 'var(--color-text)' }}
+                                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--color-surface-dynamic)'}
+                                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--color-surface-offset)'}
                             >
                                 🔄 Switch
                             </button>
                             <button
                                 onClick={handleSignOut}
-                                className="flex-1 py-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 text-sm font-bold text-red-600 dark:text-red-400 transition hover:bg-red-100 dark:hover:bg-red-900/30"
+                                className="flex-1 py-2.5 rounded-xl text-sm font-bold transition"
+                                style={{ backgroundColor: 'var(--color-error-highlight)', color: 'var(--color-error)' }}
+                                onMouseEnter={e => e.currentTarget.style.backgroundColor = 'color-mix(in oklch, var(--color-error) 15%, transparent)'}
+                                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--color-error-highlight)'}
                             >
                                 🚪 Sign Out
                             </button>
@@ -734,59 +782,114 @@ function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pu
     };
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-            <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-3xl shadow-2xl max-w-md w-full border border-gray-100 dark:border-gray-800 relative max-h-[90vh] overflow-y-auto">
-                <button onClick={onClose} aria-label="Close profile" className="absolute top-5 right-5 w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition">✕</button>
-                <h3 className="text-xl font-black text-gray-900 dark:text-white mb-6">Edit Profile</h3>
-                <form onSubmit={handleSave} className="space-y-4 mb-8 border-b border-gray-100 dark:border-gray-800 pb-8">
+        <div
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn"
+            style={{ backgroundColor: 'var(--color-overlay)' }}
+        >
+            <div
+                className="p-6 md:p-8 rounded-3xl shadow-2xl max-w-md w-full relative max-h-[90vh] overflow-y-auto"
+                style={{
+                    backgroundColor: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
+                }}
+            >
+                <button
+                    onClick={onClose}
+                    aria-label="Close profile"
+                    className="absolute top-5 right-5 w-8 h-8 rounded-full flex items-center justify-center transition"
+                    style={{ backgroundColor: 'var(--color-surface-offset)', color: 'var(--color-text-muted)' }}
+                    onMouseEnter={e => e.currentTarget.style.color = 'var(--color-text)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-muted)'}
+                >✕</button>
+                <h3 className="text-xl font-black mb-6" style={{ color: 'var(--color-text)' }}>Edit Profile</h3>
+                <form
+                    onSubmit={handleSave}
+                    className="space-y-4 mb-8 pb-8"
+                    style={{ borderBottom: '1px solid var(--color-divider)' }}
+                >
                     <div className="flex items-center gap-4 mb-2">
                         {avatarUrl ? (
-                            <img src={avatarUrl} alt="Preview" className="w-14 h-14 rounded-full object-cover shadow-sm border-2 border-white dark:border-gray-800" onError={e => e.target.style.display = 'none'} loading="lazy" width="56" height="56" />
+                            <img src={avatarUrl} alt="Preview" className="w-14 h-14 rounded-full object-cover shadow-sm" style={{ border: '2px solid var(--color-border)' }} onError={e => e.target.style.display = 'none'} loading="lazy" width="56" height="56" />
                         ) : (
                             <div className="w-14 h-14 rounded-full bg-brand flex items-center justify-center text-white text-xl font-black shadow-sm">
                                 {(userProfile?.displayName || user?.email || 'U').charAt(0).toUpperCase()}
                             </div>
                         )}
                         <div>
-                            <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-0.5">Account Email</label>
-                            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 truncate max-w-[200px]">{user?.email}</p>
+                            <label className="block text-xs font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--color-text-faint)' }}>Account Email</label>
+                            <p className="text-sm font-semibold truncate max-w-[200px]" style={{ color: 'var(--color-text-muted)' }}>{user?.email}</p>
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Display Name</label>
-                        <input type="text" value={nickname} onChange={e => setNickname(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
+                        <label className="block text-xs font-bold uppercase tracking-wider mb-1.5 ml-1" style={{ color: 'var(--color-text-muted)' }}>Display Name</label>
+                        <input
+                            type="text"
+                            value={nickname}
+                            onChange={e => setNickname(e.target.value)}
+                            className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand transition-colors"
+                            style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-offset)', color: 'var(--color-text)' }}
+                        />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Avatar URL</label>
-                        <input type="text" value={avatarUrl} onChange={e => setAvatarUrl(sanitizeAvatarUrl(e.target.value))} placeholder="https://…" className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
+                        <label className="block text-xs font-bold uppercase tracking-wider mb-1.5 ml-1" style={{ color: 'var(--color-text-muted)' }}>Avatar URL</label>
+                        <input
+                            type="text"
+                            value={avatarUrl}
+                            onChange={e => setAvatarUrl(sanitizeAvatarUrl(e.target.value))}
+                            placeholder="https://…"
+                            className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand transition-colors"
+                            style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-offset)', color: 'var(--color-text)' }}
+                        />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Bio</label>
-                        <input type="text" value={bio} onChange={e => setBio(e.target.value)} maxLength="40" placeholder="e.g. Pale Ale Enthusiast" className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-800 dark:text-white transition-colors" />
+                        <label className="block text-xs font-bold uppercase tracking-wider mb-1.5 ml-1" style={{ color: 'var(--color-text-muted)' }}>Bio</label>
+                        <input
+                            type="text"
+                            value={bio}
+                            onChange={e => setBio(e.target.value)}
+                            maxLength="40"
+                            placeholder="e.g. Pale Ale Enthusiast"
+                            className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand transition-colors"
+                            style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface-offset)', color: 'var(--color-text)' }}
+                        />
                     </div>
                     <div className="pt-3">
-                        <button type="submit" disabled={saving} className="w-full py-3 bg-brand hover:bg-brand-hover active:bg-brand-active text-white rounded-xl font-bold transition shadow-sm disabled:opacity-50">
+                        <button
+                            type="submit"
+                            disabled={saving}
+                            className="w-full py-3 bg-brand hover:bg-brand-hover active:bg-brand-active text-white rounded-xl font-bold transition shadow-sm disabled:opacity-50"
+                        >
                             {saving ? 'Saving…' : 'Save Details'}
                         </button>
                     </div>
                 </form>
-                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 text-center">Your Stats</h4>
+                <h4 className="text-xs font-bold uppercase tracking-wider mb-3 text-center" style={{ color: 'var(--color-text-faint)' }}>Your Stats</h4>
                 <div className="grid grid-cols-3 gap-2 mb-6">
-                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-2xl text-center"><p className="text-xl font-black text-gray-900 dark:text-white">{ratedCount}</p><p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-0.5">Rated</p></div>
-                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-2xl text-center"><p className="text-xl font-black text-gray-900 dark:text-white">{writtenReviews}</p><p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-0.5">Reviews</p></div>
-                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-2xl text-center"><p className="text-xl font-black text-gray-900 dark:text-white">{crawlsCreated}</p><p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-0.5">Crawls</p></div>
+                    {[{ label: 'Rated', value: ratedCount }, { label: 'Reviews', value: writtenReviews }, { label: 'Crawls', value: crawlsCreated }].map(stat => (
+                        <div key={stat.label} className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--color-surface-offset)' }}>
+                            <p className="text-xl font-black" style={{ color: 'var(--color-text)' }}>{stat.value}</p>
+                            <p className="text-xs font-bold uppercase tracking-wider mt-0.5" style={{ color: 'var(--color-text-muted)' }}>{stat.label}</p>
+                        </div>
+                    ))}
                 </div>
                 <div>
-                    <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 text-center">Trophy Cabinet</h4>
+                    <h4 className="text-xs font-bold uppercase tracking-wider mb-3 text-center" style={{ color: 'var(--color-text-faint)' }}>Trophy Cabinet</h4>
                     <div className="grid grid-cols-3 gap-2">
                         {badges.map((badge, idx) => (
                             <div
                                 key={idx}
-                                className={`flex flex-col items-center p-3 rounded-2xl text-center transition-all ${badge.earned ? 'bg-brand-subtle dark:bg-brand-highlight shadow-sm' : 'bg-gray-50 dark:bg-gray-800 opacity-50 grayscale'}`}
+                                className={`flex flex-col items-center p-3 rounded-2xl text-center transition-all ${!badge.earned ? 'opacity-50 grayscale' : ''}`}
+                                style={badge.earned
+                                    ? { backgroundColor: 'var(--color-brand-subtle)', boxShadow: 'var(--shadow-sm)' }
+                                    : { backgroundColor: 'var(--color-surface-offset)' }
+                                }
                                 title={badge.desc}
                             >
                                 <span className="text-2xl mb-1">{badge.emoji}</span>
-                                <span className={`text-xs font-bold uppercase tracking-wider leading-tight ${badge.earned ? 'text-brand' : 'text-gray-400'}`}>{badge.title}</span>
+                                <span
+                                    className="text-xs font-bold uppercase tracking-wider leading-tight"
+                                    style={{ color: badge.earned ? 'var(--color-brand)' : 'var(--color-text-faint)' }}
+                                >{badge.title}</span>
                             </div>
                         ))}
                     </div>
