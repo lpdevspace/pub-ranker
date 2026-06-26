@@ -47,17 +47,17 @@ export default function EditPubView({ pub, onBack, onSave }) {
 
     if (!pub || !pub.id) {
         return (
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md mx-auto text-center border border-gray-200 dark:border-gray-700 mt-12 animate-fadeIn">
+            <div className="bg-surface p-8 rounded-2xl shadow-xl max-w-md mx-auto text-center border border-border mt-12 animate-fadeIn">
                 <span className="text-5xl mb-4 block">🍺</span>
-                <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Loading Pub...</h2>
-                <p className="text-gray-500 dark:text-gray-400 mb-6">If this takes too long, please go back and try again.</p>
-                <button onClick={onBack} className="bg-brand text-white font-bold px-6 py-2 rounded-xl shadow hover:bg-brand-hover transition">Back to Directory</button>
+                <h2 className="text-xl font-bold text-text mb-2">Loading Pub...</h2>
+                <p className="text-muted mb-6">If this takes too long, please go back and try again.</p>
+                <button onClick={onBack} className="bg-brand text-white font-bold px-6 py-2 rounded-xl shadow hover:bg-brand-dark transition">Back to Directory</button>
             </div>
         );
     }
     
     return (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl max-w-2xl mx-auto border border-gray-200 dark:border-gray-700 animate-fadeIn relative overflow-hidden">
+        <div className="bg-surface p-6 rounded-2xl shadow-xl max-w-2xl mx-auto border border-border animate-fadeIn relative overflow-hidden">
             
             {isLocked && (
                 <div className="bg-brand-dark text-white p-3 -mx-6 -mt-6 mb-6 flex items-center justify-center gap-2 shadow-md">
@@ -66,43 +66,49 @@ export default function EditPubView({ pub, onBack, onSave }) {
                 </div>
             )}
 
-            <h2 className="text-2xl font-black text-gray-800 dark:text-white mb-6">Edit Pub Details</h2>
+            <h2 className="text-2xl font-black text-text mb-6">Edit Pub Details</h2>
         
             <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Pub Name</label>
-                        <input type="text" value={name} onChange={(e) => setName(e.target.value)} disabled={isLocked} placeholder="e.g. The Red Lion" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" required />
+                        <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Pub Name</label>
+                        <input type="text" value={name} onChange={(e) => setName(e.target.value)} disabled={isLocked} placeholder="e.g. The Red Lion"
+                            className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-surface-2 text-text disabled:opacity-50 disabled:cursor-not-allowed" required />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Location / Town</label>
-                        <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} disabled={isLocked} placeholder="e.g. Wolverhampton" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" />
+                        <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Location / Town</label>
+                        <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} disabled={isLocked} placeholder="e.g. Wolverhampton"
+                            className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-surface-2 text-text disabled:opacity-50 disabled:cursor-not-allowed" />
                     </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Latitude</label>
-                        <input type="number" step="any" value={lat} onChange={(e) => setLat(e.target.value)} disabled={isLocked} placeholder="52.5" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" />
+                        <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Latitude</label>
+                        <input type="number" step="any" value={lat} onChange={(e) => setLat(e.target.value)} disabled={isLocked} placeholder="52.5"
+                            className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-surface-2 text-text disabled:opacity-50 disabled:cursor-not-allowed" />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Longitude</label>
-                        <input type="number" step="any" value={lng} onChange={(e) => setLng(e.target.value)} disabled={isLocked} placeholder="-2.1" className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" />
+                        <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Longitude</label>
+                        <input type="number" step="any" value={lng} onChange={(e) => setLng(e.target.value)} disabled={isLocked} placeholder="-2.1"
+                            className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-surface-2 text-text disabled:opacity-50 disabled:cursor-not-allowed" />
                     </div>
                 </div>
 
                 <div>
-                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Photo URL</label>
-                    <input type="url" value={photoURL} onChange={(e) => setPhotoURL(e.target.value)} placeholder="https://..." className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white" />
+                    <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Photo URL</label>
+                    <input type="url" value={photoURL} onChange={(e) => setPhotoURL(e.target.value)} placeholder="https://..."
+                        className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-surface-2 text-text" />
                 </div>
 
                 <div>
-                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Google Maps Link</label>
-                    <input type="url" value={googleLink} onChange={(e) => setGoogleLink(e.target.value)} disabled={isLocked} placeholder="https://maps.google.com/..." className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed" />
+                    <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Google Maps Link</label>
+                    <input type="url" value={googleLink} onChange={(e) => setGoogleLink(e.target.value)} disabled={isLocked} placeholder="https://maps.google.com/..."
+                        className="w-full px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand bg-surface-2 text-text disabled:opacity-50 disabled:cursor-not-allowed" />
                 </div>
 
                 <div>
-                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Amenities / Tags</label>
+                    <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-2">Amenities / Tags</label>
                     <div className="flex flex-wrap gap-2">
                         {AVAILABLE_TAGS.map(tag => (
                             <button
@@ -112,7 +118,7 @@ export default function EditPubView({ pub, onBack, onSave }) {
                                 className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition-all ${
                                     tags.includes(tag)
                                         ? 'bg-brand border-brand text-white shadow-sm'
-                                        : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-brand'
+                                        : 'bg-surface-2 border-border text-muted hover:border-brand'
                                 }`}
                             >
                                 {tag}
@@ -122,8 +128,10 @@ export default function EditPubView({ pub, onBack, onSave }) {
                 </div>
 
                 <div className="flex gap-3 pt-2">
-                    <button type="button" onClick={onBack} className="flex-1 py-3 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition">Cancel</button>
-                    <button type="submit" className="flex-1 py-3 rounded-xl bg-brand hover:bg-brand-hover text-white font-black transition shadow-md">Save Changes</button>
+                    <button type="button" onClick={onBack}
+                        className="flex-1 py-3 rounded-xl border border-border text-muted font-bold hover:bg-surface-offset transition">Cancel</button>
+                    <button type="submit"
+                        className="flex-1 py-3 rounded-xl bg-brand hover:bg-brand-dark text-white font-black transition shadow-md">Save Changes</button>
                 </div>
             </form>
         </div>
