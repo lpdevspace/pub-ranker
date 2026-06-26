@@ -46,17 +46,17 @@ function CategoryChampions({ rankedPubs, safeScores, safeCriteria }) {
         {
             key: 'visited', emoji: '👣', title: 'Most Visited', desc: 'Most individual ratings',
             pub: mostVisited, stat: mostVisited?.ratingCount, statLabel: 'ratings',
-            accentColor: '#3b82f6',
+            accentColor: 'var(--color-info)',
         },
         {
             key: 'perfect', emoji: '💯', title: 'Perfection', desc: 'Most 10/10 scores',
             pub: mostPerfect, stat: perfectScores[mostPerfect?.id] || 0, statLabel: 'tens',
-            accentColor: '#10b981',
+            accentColor: 'var(--color-success)',
         },
         mostConsistent && {
             key: 'consistent', emoji: '🎯', title: 'Most Consistent', desc: 'Lowest score variance',
             pub: mostConsistent, stat: consistency[mostConsistent?.id]?.toFixed(1), statLabel: 'σ deviation',
-            accentColor: '#8b5cf6',
+            accentColor: 'var(--color-stat-purple)',
         },
         hiddenGem && {
             key: 'gem', emoji: '💎', title: 'Hidden Gem', desc: 'High score, few ratings',
@@ -260,10 +260,10 @@ function PointsBreakdown({ ratedCount, writtenReviews, pubsAdded, crawlsCreated,
     const ppc = gamification.pointsPerCrawl  || 5;
 
     const segments = [
-        { label: 'Pubs visited', value: ratedCount * ppp,     color: 'var(--color-brand)',  count: ratedCount,     unit: 'pubs'    },
-        { label: 'Reviews',      value: writtenReviews * ppr,  color: '#3b82f6',             count: writtenReviews, unit: 'reviews' },
-        { label: 'Pubs added',   value: pubsAdded * ppa,       color: '#10b981',             count: pubsAdded,      unit: 'added'   },
-        { label: 'Crawls made',  value: crawlsCreated * ppc,   color: '#8b5cf6',             count: crawlsCreated,  unit: 'crawls'  },
+        { label: 'Pubs visited', value: ratedCount * ppp,     color: 'var(--color-brand)',       count: ratedCount,     unit: 'pubs'    },
+        { label: 'Reviews',      value: writtenReviews * ppr,  color: 'var(--color-info)',        count: writtenReviews, unit: 'reviews' },
+        { label: 'Pubs added',   value: pubsAdded * ppa,       color: 'var(--color-success)',     count: pubsAdded,      unit: 'added'   },
+        { label: 'Crawls made',  value: crawlsCreated * ppc,   color: 'var(--color-stat-purple)', count: crawlsCreated,  unit: 'crawls'  },
     ].filter(s => s.value > 0);
 
     const total = segments.reduce((sum, s) => sum + s.value, 0);

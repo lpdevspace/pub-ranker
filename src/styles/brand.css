@@ -49,6 +49,14 @@
   --color-warning:          #d97706;
   --color-warning-bg:       #fef3c7;
 
+  /* Info — used for data-vis accents (e.g. leaderboard category champions) */
+  --color-info:             #3b82f6;
+  --color-info-bg:          #dbeafe;
+
+  /* Stat purple — used for data-vis accents (e.g. consistency champion) */
+  --color-stat-purple:      #8b5cf6;
+  --color-stat-purple-bg:   #ede9fe;
+
   /* Radius */
   --radius-sm:   0.375rem;
   --radius-md:   0.5rem;
@@ -86,6 +94,10 @@
   --shadow-md: 0 4px 12px oklch(0.2 0.04 60 / 0.10);
   --shadow-lg: 0 12px 32px oklch(0.2 0.04 60 / 0.14);
 
+  /* Warm shadow aliases (used in component styles) */
+  --shadow-warm-sm: 0 1px 3px oklch(0.2 0.06 60 / 0.10);
+  --shadow-warm-md: 0 4px 14px oklch(0.2 0.06 60 / 0.14);
+
   /* Transition */
   --transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
 
@@ -93,6 +105,9 @@
   --sidebar-width:   272px;
   --header-height:   56px;
   --content-padding: var(--space-6);
+
+  /* Overlay */
+  --color-overlay: rgba(0, 0, 0, 0.55);
 }
 
 /* DARK MODE */
@@ -132,9 +147,20 @@ html.dark {
   --color-warning:          #fbbf24;
   --color-warning-bg:       #451a03;
 
+  --color-info:             #60a5fa;
+  --color-info-bg:          #1e3a5f;
+
+  --color-stat-purple:      #a78bfa;
+  --color-stat-purple-bg:   #2e1065;
+
   --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.25);
   --shadow-md: 0 4px 12px oklch(0 0 0 / 0.35);
   --shadow-lg: 0 12px 32px oklch(0 0 0 / 0.45);
+
+  --shadow-warm-sm: 0 1px 3px oklch(0 0 0 / 0.30);
+  --shadow-warm-md: 0 4px 14px oklch(0 0 0 / 0.40);
+
+  --color-overlay: rgba(0, 0, 0, 0.72);
 }
 
 /* System dark mode fallback */
@@ -164,9 +190,16 @@ html.dark {
     --color-error-bg:         #450a0a;
     --color-warning:          #fbbf24;
     --color-warning-bg:       #451a03;
+    --color-info:             #60a5fa;
+    --color-info-bg:          #1e3a5f;
+    --color-stat-purple:      #a78bfa;
+    --color-stat-purple-bg:   #2e1065;
     --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.25);
     --shadow-md: 0 4px 12px oklch(0 0 0 / 0.35);
     --shadow-lg: 0 12px 32px oklch(0 0 0 / 0.45);
+    --shadow-warm-sm: 0 1px 3px oklch(0 0 0 / 0.30);
+    --shadow-warm-md: 0 4px 14px oklch(0 0 0 / 0.40);
+    --color-overlay: rgba(0, 0, 0, 0.72);
   }
 }
 
