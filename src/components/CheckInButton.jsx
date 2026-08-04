@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { firebase } from '../firebase';
 import { useToast } from '../hooks/useToast';
 
 /**
@@ -40,7 +41,6 @@ export default function CheckInButton({ user, pubs = [], groupId, db }) {
         if (!selected || saving) return;
         setSaving(true);
         try {
-            const { firebase } = await import('../firebase');
             await db
                 .collection('groups').doc(groupId)
                 .collection('checkIns')

@@ -187,9 +187,7 @@ service cloud.firestore {
 
     match /{path=**}/pubs/{pubId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && isNotBanned()
-        && isValidText(request.resource.data.name, 120)
-        && isValidOptionalText(request.resource.data, 'address', 200);
+      allow create: if canDeleteGlobalPubs();
       allow update: if canDeleteGlobalPubs() || (isSignedIn() && isNotBanned() && (
           resource.data.get('isLocked', false) == false ||
           (resource.data.get('claimedBy', []) is list && request.auth.uid in resource.data.get('claimedBy', []))
@@ -199,8 +197,7 @@ service cloud.firestore {
 
     match /{path=**}/criteria/{critId} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isNotBanned()
-        && isValidOptionalText(request.resource.data, 'name', 80);
+      allow create, update: if canEditConfig();
       allow delete: if canDeleteGlobalPubs();
     }
 
