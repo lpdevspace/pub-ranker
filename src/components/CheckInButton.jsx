@@ -91,11 +91,11 @@ export default function CheckInButton({ user, pubs = [], groupId, db }) {
                 >
                     <div
                         className="
-                            bg-white dark:bg-gray-900
+                            bg-surface
                             w-full sm:max-w-md
                             rounded-t-3xl sm:rounded-3xl
                             shadow-2xl
-                            border border-gray-100 dark:border-gray-800
+                            border border-border
                             overflow-hidden
                             flex flex-col
                             max-h-[90vh]
@@ -103,14 +103,14 @@ export default function CheckInButton({ user, pubs = [], groupId, db }) {
                         onClick={e => e.stopPropagation()}
                     >
                         {/* Header */}
-                        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
+                        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border flex-shrink-0">
                             <div>
-                                <h3 className="text-lg font-black text-gray-900 dark:text-white">📍 Check In</h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Where are you drinking right now?</p>
+                                <h3 className="text-lg font-black text-text font-display">📍 Check In</h3>
+                                <p className="text-xs text-muted mt-0.5">Where are you drinking right now?</p>
                             </div>
                             <button
                                 onClick={handleClose}
-                                className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition"
+                                className="w-8 h-8 rounded-full bg-surface-2 flex items-center justify-center text-muted hover:text-text transition"
                                 aria-label="Close"
                             >
                                 ✕
@@ -129,7 +129,7 @@ export default function CheckInButton({ user, pubs = [], groupId, db }) {
                                     onChange={e => setSearch(e.target.value)}
                                     placeholder="Search visited pubs…"
                                     autoFocus
-                                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand transition"
+                                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-surface-2 text-sm text-text placeholder-faint focus:outline-none focus:ring-2 focus:ring-brand transition"
                                 />
                             </div>
                         </div>
@@ -150,8 +150,8 @@ export default function CheckInButton({ user, pubs = [], groupId, db }) {
                                             transition-all text-left
                                             ${
                                                 selected?.id === pub.id
-                                                    ? 'bg-brand-subtle dark:bg-brand-highlight border-2 border-brand'
-                                                    : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-2 border-transparent'
+                                                    ? 'bg-brand-highlight border-2 border-brand'
+                                                    : 'hover:bg-surface-2 border-2 border-transparent'
                                             }
                                         `}
                                     >
@@ -169,9 +169,9 @@ export default function CheckInButton({ user, pubs = [], groupId, db }) {
                                             </div>
                                         )}
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-sm text-gray-900 dark:text-white truncate">{pub.name}</p>
+                                            <p className="font-bold text-sm text-text truncate">{pub.name}</p>
                                             {pub.location && (
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{pub.location}</p>
+                                                <p className="text-xs text-muted truncate">{pub.location}</p>
                                             )}
                                         </div>
                                         {selected?.id === pub.id && (
@@ -183,14 +183,14 @@ export default function CheckInButton({ user, pubs = [], groupId, db }) {
                         </div>
 
                         {/* Note + submit */}
-                        <div className="px-5 pb-6 pt-3 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 space-y-3">
+                        <div className="px-5 pb-6 pt-3 border-t border-border flex-shrink-0 space-y-3">
                             <input
                                 type="text"
                                 value={note}
                                 onChange={e => setNote(e.target.value)}
                                 maxLength={120}
                                 placeholder="Add a note… (optional)"
-                                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand transition"
+                                className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface-2 text-sm text-text placeholder-faint focus:outline-none focus:ring-2 focus:ring-brand transition"
                             />
                             <button
                                 onClick={handleSubmit}

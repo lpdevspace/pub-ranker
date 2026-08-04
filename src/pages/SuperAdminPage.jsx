@@ -867,7 +867,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                             <span className="ml-auto bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-pulse">{reportsList.length}</span>
                                         )}
                                         {item.showBadge === 'feedbackCount' && feedbackList.filter(f => !f.resolved).length > 0 && (
-                                            <span className="ml-auto bg-brand text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                                            <span className="btn-premium">
                                                 {feedbackList.filter(f => !f.resolved).length}
                                             </span>
                                         )}
@@ -893,7 +893,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
 
             {managingGroup && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-2xl max-w-2xl w-full border border-gray-200 dark:border-gray-700 relative max-h-[90vh] flex flex-col">
+                    <div className="card-premium p-6 rounded-2xl shadow-2xl max-w-2xl w-full border border-gray-200 dark:border-gray-700 relative max-h-[90vh] flex flex-col">
                         <button onClick={() => setManagingGroup(null)} className="absolute top-4 right-4 w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white transition cursor-pointer">✕</button>
                         <h3 className="text-2xl font-black text-gray-800 dark:text-white mb-1 pr-10 truncate">{managingGroup.groupName}</h3>
                         <p className="text-sm text-gray-500 mb-6 font-bold uppercase tracking-wider">Member Management</p>
@@ -940,7 +940,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
             </div>
 
             {/* Mobile: top bar with hamburger */}
-            <div className="flex items-center gap-3 mb-4 md:hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-2.5 rounded-2xl shadow-sm">
+            <div className="flex items-center gap-3 mb-4 md:hidden card-premium border border-gray-200 dark:border-gray-700 p-2.5 rounded-2xl shadow-sm">
                 <button
                     onClick={() => setSidebarOpen(o => !o)}
                     className="p-2 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-750 text-gray-650 dark:text-gray-300 transition cursor-pointer border border-gray-200 dark:border-gray-655"
@@ -957,7 +957,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
 
             {/* Mobile: slide-down sidebar */}
             {sidebarOpen && (
-                <div className="md:hidden mb-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden animate-fadeIn">
+                <div className="md:hidden mb-4 card-premium rounded-2xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden animate-fadeIn">
                     <SidebarContent />
                 </div>
             )}
@@ -966,12 +966,12 @@ export default function SuperAdminPage({ db, userProfile, user }) {
             <div className="flex flex-col md:flex-row gap-6 items-start">
                 
                 {/* Desktop Sidebar */}
-                <aside className="hidden md:block w-56 shrink-0 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm sticky top-20 overflow-hidden">
+                <aside className="hidden md:block w-56 shrink-0 card-premium rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm sticky top-20 overflow-hidden">
                     <SidebarContent />
                 </aside>
 
                 {/* Sub-view Content Container */}
-                <div className="flex-1 min-w-0 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 min-h-[520px] w-full">
+                <div className="flex-1 min-w-0 card-premium rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 min-h-[520px] w-full">
                     
                     {/* OVERVIEW TAB */}
                     {activeTab === 'overview' && (
@@ -979,7 +979,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                             
                             {/* Maintenance Warning lockout alert banner */}
                             {isTrueSuperAdmin && (
-                                <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-red-200 dark:border-red-900/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3.5 bg-red-50/10">
+                                <div className="card-premium p-4 rounded-2xl shadow-sm border border-red-200 dark:border-red-900/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3.5 bg-red-50/10">
                                     <div>
                                         <h4 className="text-sm font-bold text-gray-800 dark:text-white">Emergency Lockdown Mode</h4>
                                         <p className="text-xs text-gray-500 dark:text-gray-400">Instantly lock all non-admin users out of the active app sessions.</p>
@@ -1008,7 +1008,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                     {isAdmin && <button onClick={() => setActiveTab('users')} className="text-xs font-bold text-brand hover:underline mt-2 text-left cursor-pointer">Manage Users →</button>}
                                 </div>
                                 {/* Total Groups */}
-                                <div className="bg-white dark:bg-gray-850 p-4 rounded-2xl border border-gray-200/60 dark:border-gray-750 shadow-sm flex flex-col justify-between hover:border-purple-500/20 transition-colors">
+                                <div className="card-premium p-4 rounded-2xl border border-gray-200/60 dark:border-gray-750 shadow-sm flex flex-col justify-between hover:border-purple-500/20 transition-colors">
                                     <div>
                                         <span className="text-[10px] font-bold text-gray-450 dark:text-gray-500 uppercase tracking-wider">Active Groups</span>
                                         <p className="text-3xl font-black text-gray-850 dark:text-white mt-1 tabular-nums">{stats.groups}</p>
@@ -1016,7 +1016,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                     <span className="text-xs text-gray-400 dark:text-gray-550 mt-2 select-none">Database Synced</span>
                                 </div>
                                 {/* Total Pubs */}
-                                <div className="bg-white dark:bg-gray-850 p-4 rounded-2xl border border-gray-200/60 dark:border-gray-750 shadow-sm flex flex-col justify-between hover:border-rose-500/20 transition-colors">
+                                <div className="card-premium p-4 rounded-2xl border border-gray-200/60 dark:border-gray-750 shadow-sm flex flex-col justify-between hover:border-rose-500/20 transition-colors">
                                     <div>
                                         <span className="text-[10px] font-bold text-gray-450 dark:text-gray-550 uppercase tracking-wider">Master Pubs</span>
                                         <p className="text-3xl font-black text-gray-850 dark:text-white mt-1 tabular-nums">{stats.pubs}</p>
@@ -1024,7 +1024,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                     {isAdmin && <button onClick={() => setActiveTab('pubs')} className="text-xs font-bold text-brand hover:underline mt-2 text-left cursor-pointer">Pub Directory →</button>}
                                 </div>
                                 {/* Claims Queue */}
-                                <div className="bg-white dark:bg-gray-850 p-4 rounded-2xl border border-gray-200/60 dark:border-gray-750 shadow-sm flex flex-col justify-between hover:border-teal-505/20 transition-colors">
+                                <div className="card-premium p-4 rounded-2xl border border-gray-200/60 dark:border-gray-750 shadow-sm flex flex-col justify-between hover:border-teal-505/20 transition-colors">
                                     <div>
                                         <span className="text-[10px] font-bold text-gray-450 dark:text-gray-550 uppercase tracking-wider">Claims Pending</span>
                                         <p className={`text-3xl font-black mt-1 tabular-nums ${venueClaimsList.length > 0 ? 'text-teal-650 dark:text-teal-400' : 'text-gray-850 dark:text-white'}`}>{venueClaimsList.length}</p>
@@ -1044,7 +1044,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                     <button onClick={() => setActiveTab('moderation')} className="text-xs font-bold text-brand hover:underline mt-2 text-left cursor-pointer">Reports Queue →</button>
                                 </div>
                                 {/* Feedback Inbox */}
-                                <div className="bg-white dark:bg-gray-850 p-4 rounded-2xl border border-gray-200/60 dark:border-gray-750 shadow-sm flex flex-col justify-between hover:border-cyan-500/20 transition-colors">
+                                <div className="card-premium p-4 rounded-2xl border border-gray-200/60 dark:border-gray-750 shadow-sm flex flex-col justify-between hover:border-cyan-500/20 transition-colors">
                                     <div>
                                         <span className="text-[10px] font-bold text-gray-450 dark:text-gray-550 uppercase tracking-wider">Inbox Message</span>
                                         <p className={`text-3xl font-black mt-1 tabular-nums ${feedbackList.filter(f => !f.resolved).length > 0 ? 'text-cyan-650 dark:text-cyan-400' : 'text-gray-850 dark:text-white'}`}>{feedbackList.filter(f => !f.resolved).length}</p>
@@ -1057,17 +1057,17 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                 {/* System Configuration & Flags */}
                                 {isAdmin && (
-                                    <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col gap-4">
+                                    <div className="card-premium p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col gap-4">
                                         <div>
                                             <h4 className="text-sm font-bold text-gray-800 dark:text-white">App Configuration</h4>
                                             <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Toggle Global Feature Flags</p>
                                         </div>
                                         <div className="space-y-2 flex-1">
-                                            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-750/30 rounded-xl border border-gray-150 dark:border-gray-750">
+                                            <div className="flex justify-between items-center p-3 bg-surface-offset/30 rounded-xl border border-gray-150 dark:border-gray-750">
                                                 <p className="text-xs font-bold text-gray-805 dark:text-gray-200">Enable Comments</p>
                                                 <input type="checkbox" checked={featureFlags.enableComments || false} onChange={() => handleToggleFlag('enableComments')} className="w-4 h-4 cursor-pointer accent-brand" />
                                             </div>
-                                            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-750/30 rounded-xl border border-gray-150 dark:border-gray-750">
+                                            <div className="flex justify-between items-center p-3 bg-surface-offset/30 rounded-xl border border-gray-150 dark:border-gray-750">
                                                 <p className="text-xs font-bold text-gray-805 dark:text-gray-200">Enable Reactions</p>
                                                 <input type="checkbox" checked={featureFlags.enableReactions || false} onChange={() => handleToggleFlag('enableReactions')} className="w-4 h-4 cursor-pointer accent-brand" />
                                             </div>
@@ -1084,7 +1084,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
 
                                 {/* Global Announcement */}
                                 {isAdmin && (
-                                    <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between gap-3">
+                                    <div className="card-premium p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between gap-3">
                                         <div>
                                             <h4 className="text-sm font-bold text-gray-800 dark:text-white">Announcement Broadcast</h4>
                                             <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Global User Alert Banner</p>
@@ -1093,13 +1093,13 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                             value={announcement}
                                             onChange={(e) => setAnnouncement(e.target.value)}
                                             placeholder="Type an announcement to display to all users..."
-                                            className="flex-1 w-full p-3 text-xs border dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-brand bg-gray-50 dark:bg-gray-750 dark:text-white resize-none min-h-[90px] outline-none"
+                                            className="flex-1 w-full p-3 text-xs border dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-brand bg-surface-offset dark:text-white resize-none min-h-[90px] outline-none"
                                         />
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={handlePublishAnnouncement}
                                                 disabled={isPublishing || !announcement.trim()}
-                                                className="flex-1 py-2 bg-brand text-white font-bold text-xs rounded-xl hover:opacity-85 disabled:opacity-50 transition cursor-pointer"
+                                                className="btn-premium"
                                             >
                                                 Broadcast Alert
                                             </button>
@@ -1116,7 +1116,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
 
                                 {/* Default Criteria Configuration */}
                                 {isAdmin && (
-                                    <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between gap-3">
+                                    <div className="card-premium p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col justify-between gap-3">
                                         <div>
                                             <h4 className="text-sm font-bold text-gray-800 dark:text-white">Default Group Criteria</h4>
                                             <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Applied to newly created groups</p>
@@ -1127,7 +1127,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                                 <p className="text-xs text-gray-500 italic">No defaults set.</p>
                                             ) : (
                                                 defaultCriteria.map((crit, idx) => (
-                                                    <div key={idx} className="flex justify-between items-center bg-gray-50 dark:bg-gray-750 p-2 rounded-lg border border-gray-200/50 dark:border-gray-700">
+                                                    <div key={idx} className="flex justify-between items-center bg-surface-offset p-2 rounded-lg border border-gray-200/50 dark:border-gray-700">
                                                         <div>
                                                             <span className="font-bold text-xs text-gray-850 dark:text-white mr-2">{crit.name}</span>
                                                             <span className="text-[9px] uppercase font-bold tracking-wider bg-blue-100 dark:bg-blue-900/30 text-blue-805 dark:text-blue-300 px-1.5 py-0.5 rounded">
@@ -1148,7 +1148,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                                 value={newDefCritName}
                                                 onChange={e => setNewDefCritName(e.target.value)}
                                                 placeholder="e.g. Price"
-                                                className="flex-1 px-3 py-2 text-xs border dark:border-gray-600 rounded-xl bg-gray-55 dark:bg-gray-750 dark:text-white focus:ring-2 focus:ring-brand outline-none"
+                                                className="flex-1 px-3 py-2 text-xs border dark:border-gray-600 rounded-xl bg-surface-offset dark:text-white focus:ring-2 focus:ring-brand outline-none"
                                                 required
                                             />
                                             <select
@@ -1161,7 +1161,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                                 <option value="yes-no">Y/N</option>
                                                 <option value="text">Review</option>
                                             </select>
-                                            <button type="submit" className="bg-brand text-white px-3 py-2 text-xs rounded-xl font-bold hover:opacity-85 transition cursor-pointer">
+                                            <button type="submit" className="btn-premium">
                                                 Add
                                             </button>
                                         </form>
@@ -1171,7 +1171,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
 
                             {/* Active Groups System Database Table */}
                             {isAdmin && (
-                                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                                <div className="card-premium rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/20 gap-3">
                                         <div>
                                             <h4 className="text-sm font-bold text-gray-800 dark:text-white">Active Groups System Database</h4>
@@ -1186,7 +1186,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                     </div>
                                     <div className="overflow-x-auto max-h-[320px] p-2">
                                         <table className="w-full text-left border-collapse text-xs">
-                                            <thead className="bg-gray-50 dark:bg-gray-750 text-gray-555 dark:text-gray-400 sticky top-0 font-bold border-b border-gray-200 dark:border-gray-700">
+                                            <thead className="bg-surface-offset text-gray-555 dark:text-gray-400 sticky top-0 font-bold border-b border-gray-200 dark:border-gray-700">
                                                 <tr>
                                                     <th className="p-4">Group Name</th>
                                                     <th className="p-4 text-center">Members</th>
@@ -1229,7 +1229,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                     {/* CLAIMS TAB */}
                     {activeTab === 'claims' && isAdmin && (
                         <div className="space-y-6 animate-fadeIn">
-                            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                            <div className="card-premium rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
                                 <div className="p-5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/20">
                                     <h4 className="text-sm font-bold text-gray-800 dark:text-white">Venue Verification Queue</h4>
                                     <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Managers requesting ownership of venue profiles</p>
@@ -1263,7 +1263,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                                         </td>
                                                         <td className="p-4 text-gray-505">
                                                             {claim.requestedAt && typeof claim.requestedAt.toDate === 'function'
-                                                                ? new Date(claim.requestedAt.toDate()).toLocaleDateString('en-GB')
+                                                                ? new Date(claim.requestedAt.toDate ? claim.requestedAt.toDate() : claim.requestedAt).toLocaleDateString('en-GB')
                                                                 : 'Recent'}
                                                         </td>
                                                         <td className="p-4 text-right">
@@ -1289,7 +1289,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                     {/* TAGS TAB */}
                     {activeTab === 'tags' && isAdmin && (
                         <div className="space-y-6 animate-fadeIn">
-                            <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                            <div className="card-premium p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
                                 <div>
                                     <h4 className="text-sm font-bold text-gray-800 dark:text-white">Global Pub Tags</h4>
                                     <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Master directory of tags users can assign to venues</p>
@@ -1304,14 +1304,14 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                                 value={editingTag ? editingTag.name : newTagName}
                                                 onChange={e => editingTag ? setEditingTag({ ...editingTag, name: e.target.value }) : setNewTagName(e.target.value)}
                                                 placeholder="e.g. Beer Garden"
-                                                className="w-full px-3 py-2 text-xs border dark:border-gray-600 rounded-xl bg-white dark:bg-gray-850 dark:text-white focus:ring-2 focus:ring-brand outline-none"
+                                                className="w-full px-3 py-2 text-xs border dark:border-gray-600 rounded-xl card-premium dark:text-white focus:ring-2 focus:ring-brand outline-none"
                                                 required
                                             />
                                         </div>
                                         <div className="w-full md:w-auto">
                                             <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-550 uppercase tracking-wider mb-1.5">Tag Icon Image</label>
                                             <div className="flex items-center gap-3">
-                                                <label className="flex flex-col items-center justify-center w-10 h-10 rounded-xl border border-dashed border-gray-300 dark:border-gray-650 hover:border-brand cursor-pointer bg-white dark:bg-gray-800 transition overflow-hidden">
+                                                <label className="flex flex-col items-center justify-center w-10 h-10 rounded-xl border border-dashed border-gray-300 dark:border-gray-650 hover:border-brand cursor-pointer card-premium transition overflow-hidden">
                                                     {isUploadingTagIcon ? (
                                                         <span className="text-brand animate-spin text-xs">🌀</span>
                                                     ) : (editingTag ? editingTag.iconUrl : newTagIcon) ? (
@@ -1332,7 +1332,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                             <button
                                                 type="submit"
                                                 disabled={isSavingTag || isUploadingTagIcon}
-                                                className="w-full md:w-auto px-4 py-2 bg-brand text-white font-bold text-xs rounded-xl hover:opacity-85 transition disabled:opacity-50 cursor-pointer"
+                                                className="btn-premium"
                                             >
                                                 {isSavingTag ? 'Saving...' : editingTag ? 'Update Tag' : 'Create Tag'}
                                             </button>
@@ -1354,7 +1354,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                         <p className="text-gray-500 italic col-span-full text-center py-6 text-xs">No global tags created yet.</p>
                                     ) : (
                                         tagsList.map(tag => (
-                                            <div key={tag.id} className="flex items-center justify-between p-3 border border-gray-250 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-850 shadow-sm group hover:border-brand transition">
+                                            <div key={tag.id} className="flex items-center justify-between p-3 border border-gray-250 dark:border-gray-700 rounded-xl card-premium shadow-sm group hover:border-brand transition">
                                                 <div className="flex items-center gap-2.5 min-w-0">
                                                     {tag.iconUrl ? (
                                                         <img src={tag.iconUrl} alt={tag.name} className="w-7 h-7 rounded-full object-cover shadow-sm border border-gray-100 dark:border-gray-700 flex-shrink-0" />
@@ -1380,7 +1380,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                     {/* ROLES TAB */}
                     {activeTab === 'roles' && isTrueSuperAdmin && (
                         <div className="space-y-6 animate-fadeIn">
-                            <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                            <div className="card-premium p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
                                 <div>
                                     <h4 className="text-sm font-bold text-gray-800 dark:text-white">Create Custom Roles</h4>
                                     <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Define permission levels for staff accounts</p>
@@ -1394,7 +1394,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                             value={newRoleName}
                                             onChange={e => setNewRoleName(e.target.value)}
                                             placeholder="e.g. Content Moderator"
-                                            className="w-full px-3 py-2 text-xs border dark:border-gray-600 rounded-xl bg-white dark:bg-gray-850 dark:text-white focus:ring-2 focus:ring-brand outline-none"
+                                            className="w-full px-3 py-2 text-xs border dark:border-gray-600 rounded-xl card-premium dark:text-white focus:ring-2 focus:ring-brand outline-none"
                                             required
                                         />
                                     </div>
@@ -1402,7 +1402,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                     <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Granted Permissions</label>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-4">
                                         {Object.keys(defaultPermissions).map(perm => (
-                                            <label key={perm} className="flex items-center gap-2.5 p-3 bg-white dark:bg-gray-850 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:border-brand/40 transition select-none">
+                                            <label key={perm} className="flex items-center gap-2.5 p-3 card-premium rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:border-brand/40 transition select-none">
                                                 <input type="checkbox" checked={editingRolePermissions[perm]} onChange={e => setEditingRolePermissions({ ...editingRolePermissions, [perm]: e.target.checked })} className="w-4 h-4 accent-brand cursor-pointer" />
                                                 <span className="font-semibold text-xs text-gray-700 dark:text-gray-200 capitalize">
                                                     {perm.replace('can', 'Can ')}
@@ -1411,7 +1411,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                         ))}
                                     </div>
                                     
-                                    <button type="submit" className="w-full py-2.5 bg-brand text-white font-bold text-xs rounded-xl hover:opacity-85 transition cursor-pointer">
+                                    <button type="submit" className="w-full btn-premium">
                                         Save Custom Role
                                     </button>
                                 </form>
@@ -1450,7 +1450,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                     {/* USERS TAB */}
                     {activeTab === 'users' && isAdmin && (
                         <div className="space-y-6 animate-fadeIn">
-                            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                            <div className="card-premium rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/20 gap-3">
                                     <div>
                                         <h4 className="text-sm font-bold text-gray-800 dark:text-white">Registered User Directory</h4>
@@ -1568,7 +1568,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                     {/* GAMIFICATION TAB */}
                     {activeTab === 'gamification' && isAdmin && (
                         <div className="space-y-6 animate-fadeIn">
-                            <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                            <div className="card-premium p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
                                 <div>
                                     <h4 className="text-sm font-bold text-gray-800 dark:text-white">Global Gamification Engine</h4>
                                     <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Control scoring metrics & milestone achievement awards</p>
@@ -1579,20 +1579,20 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                     <div className="space-y-4">
                                         <h5 className="font-bold text-xs text-gray-750 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2 uppercase tracking-wider">Scoring Configurations</h5>
                                         {[['pointsPerPub','Points per Pub Scored'],['pointsPerReview','Points per Written Review'],['pointsPerAdd','Points per Pub Created'],['pointsPerCrawl','Points per Crawl Started']].map(([key, label]) => (
-                                            <div key={key} className="flex items-center justify-between bg-gray-55 dark:bg-gray-750/30 p-2.5 rounded-xl border border-gray-150 dark:border-gray-700">
+                                            <div key={key} className="flex items-center justify-between bg-surface-offset/30 p-2.5 rounded-xl border border-gray-150 dark:border-gray-700">
                                                 <span className="text-xs font-bold text-gray-600 dark:text-gray-400">{label}</span>
                                                 <input
                                                     type="number"
                                                     value={gamification[key]}
                                                     onChange={e => setGamification({ ...gamification, [key]: e.target.value })}
-                                                    className="w-16 px-2 py-1 text-xs border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-850 dark:text-white text-center font-bold outline-none"
+                                                    className="w-16 px-2 py-1 text-xs border dark:border-gray-600 rounded-lg card-premium dark:text-white text-center font-bold outline-none"
                                                 />
                                             </div>
                                         ))}
                                         <button
                                             onClick={handleSavePointRules}
                                             disabled={isSavingGamification}
-                                            className="w-full bg-brand text-white font-bold py-2 rounded-xl text-xs hover:opacity-85 transition disabled:opacity-50 cursor-pointer"
+                                            className="btn-premium"
                                         >
                                             {isSavingGamification ? 'Saving...' : 'Update Points Engine'}
                                         </button>
@@ -1602,13 +1602,13 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                     <div>
                                         <h5 className="font-bold text-xs text-gray-755 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2 mb-4 uppercase tracking-wider">Achievement Badges</h5>
                                         
-                                        <form onSubmit={handleAddBadge} className="bg-gray-55 dark:bg-gray-750/40 p-3 rounded-xl border border-gray-200 dark:border-gray-750 mb-4 space-y-2">
+                                        <form onSubmit={handleAddBadge} className="bg-surface-offset/40 p-3 rounded-xl border border-gray-200 dark:border-gray-750 mb-4 space-y-2">
                                             <div className="flex gap-2">
                                                 <input
                                                     type="text"
                                                     value={newBadge.emoji}
                                                     onChange={e => setNewBadge({ ...newBadge, emoji: e.target.value })}
-                                                    className="w-10 text-center px-2 py-1.5 text-xs border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-white"
+                                                    className="w-10 text-center px-2 py-1.5 text-xs border dark:border-gray-600 rounded-lg card-premium dark:text-white"
                                                     placeholder="🏆"
                                                     maxLength="2"
                                                     required
@@ -1617,7 +1617,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                                     type="text"
                                                     value={newBadge.title}
                                                     onChange={e => setNewBadge({ ...newBadge, title: e.target.value })}
-                                                    className="flex-1 px-3 py-1.5 text-xs border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-white font-bold"
+                                                    className="flex-1 px-3 py-1.5 text-xs border dark:border-gray-600 rounded-lg card-premium dark:text-white font-bold"
                                                     placeholder="Badge Name (e.g. Pub Legend)"
                                                     required
                                                 />
@@ -1626,7 +1626,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                                 type="text"
                                                 value={newBadge.desc}
                                                 onChange={e => setNewBadge({ ...newBadge, desc: e.target.value })}
-                                                className="w-full px-3 py-1.5 text-xs border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-white"
+                                                className="w-full px-3 py-1.5 text-xs border dark:border-gray-600 rounded-lg card-premium dark:text-white"
                                                 placeholder="Short description of badge achievement..."
                                                 required
                                             />
@@ -1635,7 +1635,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                                 <select
                                                     value={newBadge.metric}
                                                     onChange={e => setNewBadge({ ...newBadge, metric: e.target.value })}
-                                                    className="flex-1 text-[10px] px-2 py-1 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 dark:text-white font-bold cursor-pointer"
+                                                    className="flex-1 text-[10px] px-2 py-1 border dark:border-gray-600 rounded-lg card-premium dark:text-white font-bold cursor-pointer"
                                                 >
                                                     <option value="rated">Pubs Rated</option>
                                                     <option value="reviews">Reviews Written</option>
@@ -1648,12 +1648,12 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                                     type="number"
                                                     value={newBadge.threshold}
                                                     onChange={e => setNewBadge({ ...newBadge, threshold: e.target.value })}
-                                                    className="w-12 px-2 py-1 text-xs border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-850 dark:text-white text-center font-bold"
+                                                    className="w-12 px-2 py-1 text-xs border dark:border-gray-600 rounded-lg card-premium dark:text-white text-center font-bold"
                                                     min="1"
                                                     required
                                                 />
                                             </div>
-                                            <button type="submit" className="w-full bg-brand text-white font-bold py-1.5 rounded-lg text-xs hover:opacity-85 transition cursor-pointer">
+                                            <button type="submit" className="w-full btn-premium">
                                                 Add Badge Reward
                                             </button>
                                         </form>
@@ -1689,7 +1689,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                     {/* PUBS TAB */}
                     {activeTab === 'pubs' && isAdmin && (
                         <div className="space-y-6 animate-fadeIn">
-                            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                            <div className="card-premium rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/20 gap-3">
                                     <div>
                                         <h4 className="text-sm font-bold text-gray-800 dark:text-white">Global Master Pub Directory</h4>
@@ -1775,7 +1775,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                     {activeTab === 'moderation' && (
                         <div className="space-y-8 animate-fadeIn">
                             {/* Reports Queue */}
-                            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-red-200 dark:border-red-900/30 shadow-sm overflow-hidden">
+                            <div className="card-premium rounded-2xl border border-red-200 dark:border-red-900/30 shadow-sm overflow-hidden">
                                 <div className="flex justify-between items-center p-5 border-b border-red-250 dark:border-red-900/40 bg-red-50/30 dark:bg-red-955/10">
                                     <div>
                                         <h4 className="text-sm font-bold text-red-800 dark:text-red-305">Community Reports Queue</h4>
@@ -1816,7 +1816,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                                         </td>
                                                         <td className="p-4 text-gray-405">
                                                             {report.createdAt && typeof report.createdAt.toDate === 'function'
-                                                                ? new Date(report.createdAt.toDate()).toLocaleDateString('en-GB')
+                                                                ? new Date(report.createdAt.toDate ? report.createdAt.toDate() : report.createdAt).toLocaleDateString('en-GB')
                                                                 : 'Recent'}
                                                         </td>
                                                         <td className="p-4 text-right">
@@ -1838,7 +1838,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                             </div>
 
                             {/* Public Leaderboard review */}
-                            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-purple-200 dark:border-purple-900/30 shadow-sm overflow-hidden">
+                            <div className="card-premium rounded-2xl border border-purple-200 dark:border-purple-900/30 shadow-sm overflow-hidden">
                                 <div className="p-5 border-b border-purple-200 dark:border-purple-900/40 bg-purple-55/20 dark:bg-purple-955/10">
                                     <h4 className="text-sm font-bold text-purple-855 dark:text-purple-305">Public Leaderboard Status</h4>
                                     <p className="text-[10px] text-purple-655 dark:text-purple-400 mt-0.5">Groups opted into the public city leaderboard</p>
@@ -1846,7 +1846,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                 
                                 <div className="overflow-x-auto max-h-80 p-2">
                                     <table className="w-full text-left border-collapse text-xs">
-                                        <thead className="bg-gray-55 dark:bg-gray-750 text-gray-555 dark:text-gray-400 font-bold border-b border-gray-250 dark:border-gray-700">
+                                        <thead className="bg-surface-offset text-gray-555 dark:text-gray-400 font-bold border-b border-gray-250 dark:border-gray-700">
                                             <tr>
                                                 <th className="p-4">Group Name</th>
                                                 <th className="p-4">City</th>
@@ -1885,7 +1885,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                             </div>
 
                             {/* Photo Moderation Queue */}
-                            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-blue-200 dark:border-blue-900/30 shadow-sm overflow-hidden">
+                            <div className="card-premium rounded-2xl border border-blue-200 dark:border-blue-900/30 shadow-sm overflow-hidden">
                                 <div className="p-5 border-b border-blue-200 dark:border-blue-900/40 bg-blue-55/20 dark:bg-blue-955/10">
                                     <h4 className="text-sm font-bold text-blue-805 dark:text-blue-305">Photo Moderation Feed</h4>
                                     <p className="text-[10px] text-blue-655 dark:text-blue-400 mt-0.5">Scrub user uploaded imagery violating guidelines</p>
@@ -1921,7 +1921,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
 
                             {/* Merge duplicates */}
                             {isAdmin && (
-                                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-orange-200 dark:border-orange-900/30 shadow-sm overflow-hidden">
+                                <div className="card-premium rounded-2xl border border-orange-200 dark:border-orange-900/30 shadow-sm overflow-hidden">
                                     <div className="p-5 border-b border-orange-200 dark:border-orange-900/40 bg-orange-55/20 dark:bg-orange-955/10">
                                         <h4 className="text-sm font-bold text-orange-855 dark:text-orange-305">Merge Duplicate Venues</h4>
                                         <p className="text-[10px] text-orange-655 dark:text-orange-400 mt-0.5">Combine duplicate entries and transfer reviews globally</p>
@@ -1934,7 +1934,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                                 <select
                                                     value={mergePrimary}
                                                     onChange={(e) => setMergePrimary(e.target.value)}
-                                                    className="w-full px-3 py-2 text-xs border border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-750 dark:text-white focus:ring-2 focus:ring-brand cursor-pointer outline-none"
+                                                    className="w-full px-3 py-2 text-xs border border-gray-300 dark:border-gray-700 rounded-xl bg-surface-offset dark:text-white focus:ring-2 focus:ring-brand cursor-pointer outline-none"
                                                 >
                                                     <option value="">-- Choose Master Venue --</option>
                                                     {sortedPubsForDropdown.map(p => (
@@ -1974,7 +1974,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                     {/* FEEDBACK TAB */}
                     {activeTab === 'feedback' && (
                         <div className="space-y-6 animate-fadeIn">
-                            <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                            <div className="card-premium p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
                                 <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
                                     <div>
                                         <h4 className="text-sm font-bold text-gray-800 dark:text-white">Feedback & Bug Reports Inbox</h4>
@@ -1997,7 +1997,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                                 className={`p-4 rounded-xl border-l-4 transition-all shadow-sm ${
                                                     item.resolved
                                                         ? 'bg-gray-50/50 dark:bg-gray-850/50 border-gray-300 dark:border-gray-700 opacity-60'
-                                                        : 'bg-white dark:bg-gray-850 border-brand'
+                                                        : 'card-premium border-brand'
                                                 }`}
                                             >
                                                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3">
@@ -2035,7 +2035,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                                 </p>
                                                 <p className="text-[9px] text-gray-400 mt-3 font-medium">
                                                     {item.createdAt && typeof item.createdAt.toDate === 'function'
-                                                        ? new Date(item.createdAt.toDate()).toLocaleString('en-GB')
+                                                        ? new Date(item.createdAt.toDate ? item.createdAt.toDate() : item.createdAt).toLocaleString('en-GB')
                                                         : 'Recent'}
                                                 </p>
                                             </div>

@@ -221,7 +221,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                             criterionId: c.criterionId,
                             comment: c.textComment,
                             ownerReply: c.ownerReply || null,
-                            date: c.createdAt ? new Date(c.createdAt.toDate()).toLocaleDateString() : 'Recent'
+                            date: c.createdAt ? new Date(c.createdAt.toDate ? c.createdAt.toDate() : c.createdAt).toLocaleDateString() : 'Recent'
                         });
                     }
                 });
@@ -511,7 +511,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
             <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto">
                 <ToastContainer toasts={toasts} />
                 
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div className="card-premium p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
                     <h3 className="text-xl font-bold text-gray-855 dark:text-white flex items-center gap-2">
                         <PortalIcon type="claim" className="w-5 h-5 text-brand" />
                         Pub Venue Verification Portal
@@ -520,13 +520,13 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                         Are you a pub owner or business manager? Submit a verification request to take profile ownership. Once approved, you can customize your listing details, view visitor check-ins, unlock deep analytical reports, and publish promotional deals directly to local customers.
                     </p>
 
-                    <form onSubmit={handleRequestClaim} className="bg-gray-55 dark:bg-gray-750/30 p-5 rounded-xl border border-gray-150 dark:border-gray-750 my-6 space-y-4">
+                    <form onSubmit={handleRequestClaim} className="bg-surface-offset/30 p-5 rounded-xl border border-gray-150 dark:border-gray-750 my-6 space-y-4">
                         <div>
                             <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">1. Select Your Venue Listing</label>
                             <select
                                 value={selectedPubId}
                                 onChange={e => setSelectedPubId(e.target.value)}
-                                className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-brand cursor-pointer outline-none"
+                                className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-700 rounded-xl card-premium dark:text-white focus:ring-2 focus:ring-brand cursor-pointer outline-none"
                                 required
                             >
                                 <option value="">-- Choose Pub Profile --</option>
@@ -543,7 +543,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                                 value={claimEmail}
                                 onChange={e => setClaimEmail(e.target.value)}
                                 placeholder="manager@yourpubname.co.uk"
-                                className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-brand outline-none"
+                                className="w-full px-3 py-2 text-xs border border-gray-200 dark:border-gray-700 rounded-xl card-premium dark:text-white focus:ring-2 focus:ring-brand outline-none"
                                 required
                             />
                         </div>
@@ -551,7 +551,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                         <button
                             type="submit"
                             disabled={isSubmittingClaim}
-                            className="w-full py-2.5 bg-brand text-white font-bold text-xs rounded-xl hover:opacity-85 disabled:opacity-50 transition cursor-pointer"
+                            className="btn-premium"
                         >
                             {isSubmittingClaim ? 'Submitting Verification Claim...' : 'Request Venue Verification'}
                         </button>
@@ -559,7 +559,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                 </div>
 
                 {/* Submitted claims queue */}
-                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                <div className="card-premium rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
                     <div className="p-5 border-b border-gray-200 dark:border-gray-700 bg-gray-55 dark:bg-gray-700/20">
                         <h4 className="text-sm font-bold text-gray-855 dark:text-white">Your Submitted Claim Requests</h4>
                         <p className="text-[10px] text-gray-450 uppercase tracking-wider mt-0.5">Track verification progress</p>
@@ -585,7 +585,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                                             <td className="p-4 font-mono select-all text-[11px]">{claim.contactEmail}</td>
                                             <td className="p-4 text-gray-450">
                                                 {claim.requestedAt && typeof claim.requestedAt.toDate === 'function'
-                                                    ? new Date(claim.requestedAt.toDate()).toLocaleDateString()
+                                                    ? new Date(claim.requestedAt.toDate ? claim.requestedAt.toDate() : claim.requestedAt).toLocaleDateString()
                                                     : 'Recent'}
                                             </td>
                                             <td className="p-4 text-right">
@@ -617,7 +617,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
             {/* Stripe checkout unavailable banner (shown when keys aren't configured yet) */}
             {checkoutUnavailable && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" data-testid="checkout-unavailable-modal">
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 relative space-y-4 text-center">
+                    <div className="card-premium p-6 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 relative space-y-4 text-center">
                         <button
                             type="button"
                             onClick={() => setCheckoutUnavailable(false)}
@@ -633,14 +633,14 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                         </p>
                         <button
                             onClick={() => setCheckoutUnavailable(false)}
-                            className="px-6 py-2.5 bg-brand text-white font-bold text-xs rounded-xl hover:opacity-85 transition cursor-pointer"
+                            className="btn-premium"
                         >Got it</button>
                     </div>
                 </div>
             )}
 
             {/* Portal Page Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 card-premium p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
                 <div className="min-w-0">
                     <span className="text-[10px] font-black uppercase tracking-widest text-brand bg-brand-subtle dark:bg-brand-highlight/30 px-2.5 py-0.5 rounded-full select-none">Business console</span>
                     <h3 className="text-2xl font-black text-gray-855 dark:text-white mt-1 pr-4 truncate">{activeVenue?.name}</h3>
@@ -676,14 +676,14 @@ export default function VenuePortalPage({ db, user, userProfile }) {
             <div className="flex flex-col md:flex-row gap-6 items-start">
                 
                 {/* Desktop sidebar */}
-                <aside className="w-full md:w-52 shrink-0 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm sticky top-20 overflow-hidden">
+                <aside className="w-full md:w-52 shrink-0 card-premium rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm sticky top-20 overflow-hidden">
                     {/* Plan badge */}
                     <div className="px-4 pt-4 pb-3 border-b border-gray-150 dark:border-gray-750">
                         <p className="text-[9px] uppercase tracking-wider font-bold text-gray-400">Current plan</p>
                         <p className="text-sm font-black text-gray-850 dark:text-white flex items-center gap-2">
                             {plan.label}
                             {plan.key === 'pubPlus' && <span className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded font-bold">PLUS</span>}
-                            {plan.key === 'pubPro'  && <span className="text-[9px] bg-brand text-white px-1.5 py-0.5 rounded font-bold">PRO</span>}
+                            {plan.key === 'pubPro'  && <span className="btn-premium">PRO</span>}
                         </p>
                     </div>
                     <nav className="p-3.5 space-y-1" data-testid="venue-sidebar-nav">
@@ -700,7 +700,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                 </aside>
 
                 {/* Sub-view Content Container */}
-                <div className="flex-1 min-w-0 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 min-h-[520px] w-full">
+                <div className="flex-1 min-w-0 card-premium rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 min-h-[520px] w-full">
                     
                     {/* INSIGHTS TAB */}
                     {activeTab === 'insights' && (
@@ -708,19 +708,19 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                             
                             {/* Metric KPI cards */}
                             <div className="grid grid-cols-3 gap-4">
-                                <div className="bg-white dark:bg-gray-850 p-4 rounded-xl border border-gray-150 dark:border-gray-750 shadow-sm" data-testid="kpi-checkins">
+                                <div className="card-premium p-4 rounded-xl border border-gray-150 dark:border-gray-750 shadow-sm" data-testid="kpi-checkins">
                                     <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block">Total Reviews</span>
                                     <p className="text-2xl font-black text-gray-850 dark:text-white mt-1 tabular-nums">
                                         {loadingStats ? '...' : venueStats.totalCheckins}
                                     </p>
                                 </div>
-                                <div className="bg-white dark:bg-gray-850 p-4 rounded-xl border border-gray-150 dark:border-gray-750 shadow-sm" data-testid="kpi-avg">
+                                <div className="card-premium p-4 rounded-xl border border-gray-150 dark:border-gray-750 shadow-sm" data-testid="kpi-avg">
                                     <span className="text-[10px] font-bold text-gray-400 dark:text-gray-550 uppercase tracking-wider block">Average Rating</span>
                                     <p className="text-2xl font-black text-brand mt-1 tabular-nums">
                                         {loadingStats ? '...' : `${venueStats.averageRating} / 10`}
                                     </p>
                                 </div>
-                                <div className="bg-white dark:bg-gray-850 p-4 rounded-xl border border-gray-150 dark:border-gray-750 shadow-sm" data-testid="kpi-votes">
+                                <div className="card-premium p-4 rounded-xl border border-gray-150 dark:border-gray-750 shadow-sm" data-testid="kpi-votes">
                                     <span className="text-[10px] font-bold text-gray-400 dark:text-gray-555 uppercase tracking-wider block">Leaderboard upvotes</span>
                                     <p className="text-2xl font-black text-gray-850 dark:text-white mt-1 tabular-nums">
                                         {loadingStats ? '...' : `${venueStats.upvotesCount}`}
@@ -805,7 +805,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                                     Reply publicly to show you care · {can('reviewResponses') ? 'Replies enabled' : 'Upgrade to enable replies'}
                                 </p>
                             </div>
-                            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
+                            <div className="card-premium border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-sm">
                                 {venueStats.recentReviews.length === 0 ? (
                                     <p className="p-6 text-center text-xs text-gray-500 italic">No written reviews yet. Once customers leave comments, they&apos;ll appear here.</p>
                                 ) : (
@@ -861,11 +861,11 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                     {/* DEALS TAB */}
                     {activeTab === 'deals' && (
                         <div className="space-y-6 animate-fadeIn">
-                            <div className="bg-white dark:bg-gray-800 rounded-xl">
+                            <div className="card-premium rounded-xl">
                                 <h4 className="text-sm font-bold text-gray-800 dark:text-white">Venue Promotions Campaign Panel</h4>
                                 <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Publish offers directly to user search detail cards</p>
                                 
-                                <form onSubmit={handleSaveNewDeal} className="bg-gray-50 dark:bg-gray-750/30 p-4 rounded-xl border border-gray-200 dark:border-gray-750 my-5 space-y-3.5">
+                                <form onSubmit={handleSaveNewDeal} className="bg-surface-offset/30 p-4 rounded-xl border border-gray-200 dark:border-gray-750 my-5 space-y-3.5">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Offer Title</label>
@@ -874,7 +874,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                                                 value={newDeal.title}
                                                 onChange={e => setNewDeal({ ...newDeal, title: e.target.value })}
                                                 placeholder="e.g. Free packet of crisps with any pint"
-                                                className="w-full px-3 py-2 text-xs border dark:border-gray-650 rounded-xl bg-white dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-brand outline-none"
+                                                className="w-full px-3 py-2 text-xs border dark:border-gray-650 rounded-xl card-premium dark:text-white focus:ring-2 focus:ring-brand outline-none"
                                                 required
                                             />
                                         </div>
@@ -885,7 +885,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                                                 value={newDeal.code}
                                                 onChange={e => setNewDeal({ ...newDeal, code: e.target.value })}
                                                 placeholder="e.g. OAKBARFREE"
-                                                className="w-full px-3 py-2 text-xs border dark:border-gray-655 rounded-xl bg-white dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-brand outline-none font-mono uppercase"
+                                                className="w-full px-3 py-2 text-xs border dark:border-gray-655 rounded-xl card-premium dark:text-white focus:ring-2 focus:ring-brand outline-none font-mono uppercase"
                                                 required
                                             />
                                         </div>
@@ -897,7 +897,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                                             value={newDeal.description}
                                             onChange={e => setNewDeal({ ...newDeal, description: e.target.value })}
                                             placeholder="Write brief description showing terms or how to redeem (e.g. Show this screen to bartender on order)."
-                                            className="w-full p-3 text-xs border dark:border-gray-650 rounded-xl focus:ring-2 focus:ring-brand bg-white dark:bg-gray-800 dark:text-white resize-none h-16 outline-none"
+                                            className="w-full p-3 text-xs border dark:border-gray-650 rounded-xl focus:ring-2 focus:ring-brand card-premium dark:text-white resize-none h-16 outline-none"
                                             required
                                         />
                                     </div>
@@ -910,7 +910,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                                                 value={newDeal.minCheckinsRequired}
                                                 onChange={e => setNewDeal({ ...newDeal, minCheckinsRequired: e.target.value })}
                                                 placeholder="0 for all users"
-                                                className="w-full px-3 py-2 text-xs border dark:border-gray-650 rounded-xl bg-white dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-brand outline-none"
+                                                className="w-full px-3 py-2 text-xs border dark:border-gray-650 rounded-xl card-premium dark:text-white focus:ring-2 focus:ring-brand outline-none"
                                                 min="0"
                                                 required
                                             />
@@ -920,7 +920,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                                             <select
                                                 value={newDeal.daysValid}
                                                 onChange={e => setNewDeal({ ...newDeal, daysValid: e.target.value })}
-                                                className="w-full px-2.5 py-2 text-xs border dark:border-gray-650 rounded-xl bg-white dark:bg-gray-800 dark:text-white cursor-pointer outline-none"
+                                                className="w-full px-2.5 py-2 text-xs border dark:border-gray-650 rounded-xl card-premium dark:text-white cursor-pointer outline-none"
                                             >
                                                 <option value="1">1 Day</option>
                                                 <option value="3">3 Days</option>
@@ -933,7 +933,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                                     <button
                                         type="submit"
                                         disabled={isSavingDeal}
-                                        className="w-full py-2.5 bg-brand text-white font-bold text-xs rounded-xl hover:opacity-85 disabled:opacity-50 transition cursor-pointer"
+                                        className="btn-premium"
                                     >
                                         {isSavingDeal ? 'Publishing Deal...' : 'Publish Marketing Offer'}
                                     </button>
@@ -945,7 +945,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                                         <p className="text-xs text-gray-500 italic py-6 text-center">No promotions active. Fill out the builder form to publish an offer!</p>
                                     ) : (
                                         dealsList.map(deal => (
-                                            <div key={deal.id} className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-850 shadow-sm relative group flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                            <div key={deal.id} className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 card-premium shadow-sm relative group flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                                                 <div className="space-y-1">
                                                     <div className="flex items-center gap-2.5 flex-wrap">
                                                         <span className="font-bold text-xs text-gray-855 dark:text-white">{deal.title}</span>
@@ -984,7 +984,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                     {/* PROFILE MANAGER TAB */}
                     {activeTab === 'profile' && (
                         <div className="space-y-6 animate-fadeIn">
-                            <div className="bg-white dark:bg-gray-800 rounded-xl">
+                            <div className="card-premium rounded-xl">
                                 <h4 className="text-sm font-bold text-gray-800 dark:text-white">Venue Profile Settings</h4>
                                 <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Customize how your venue renders globally to directory users</p>
 
@@ -995,7 +995,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                                             type="text"
                                             value={profileForm.name}
                                             onChange={e => setProfileForm({ ...profileForm, name: e.target.value })}
-                                            className="w-full px-3 py-2.5 text-xs border dark:border-gray-600 rounded-xl bg-gray-55 dark:bg-gray-750 dark:text-white focus:ring-2 focus:ring-brand outline-none"
+                                            className="w-full px-3 py-2.5 text-xs border dark:border-gray-600 rounded-xl bg-surface-offset dark:text-white focus:ring-2 focus:ring-brand outline-none"
                                             required
                                         />
                                     </div>
@@ -1006,7 +1006,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                                             type="text"
                                             value={profileForm.location}
                                             onChange={e => setProfileForm({ ...profileForm, location: e.target.value })}
-                                            className="w-full px-3 py-2.5 text-xs border dark:border-gray-655 rounded-xl bg-gray-55 dark:bg-gray-750 dark:text-white focus:ring-2 focus:ring-brand outline-none"
+                                            className="w-full px-3 py-2.5 text-xs border dark:border-gray-655 rounded-xl bg-surface-offset dark:text-white focus:ring-2 focus:ring-brand outline-none"
                                             required
                                         />
                                     </div>
@@ -1017,7 +1017,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                                             type="text"
                                             value={profileForm.address}
                                             onChange={e => setProfileForm({ ...profileForm, address: e.target.value })}
-                                            className="w-full px-3 py-2.5 text-xs border dark:border-gray-655 rounded-xl bg-gray-55 dark:bg-gray-750 dark:text-white focus:ring-2 focus:ring-brand outline-none"
+                                            className="w-full px-3 py-2.5 text-xs border dark:border-gray-655 rounded-xl bg-surface-offset dark:text-white focus:ring-2 focus:ring-brand outline-none"
                                             required
                                         />
                                     </div>
@@ -1029,14 +1029,14 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                                             value={profileForm.photoURL}
                                             onChange={e => setProfileForm({ ...profileForm, photoURL: e.target.value })}
                                             placeholder="https://..."
-                                            className="w-full px-3 py-2.5 text-xs border dark:border-gray-655 rounded-xl bg-gray-55 dark:bg-gray-750 dark:text-white focus:ring-2 focus:ring-brand outline-none font-mono"
+                                            className="w-full px-3 py-2.5 text-xs border dark:border-gray-655 rounded-xl bg-surface-offset dark:text-white focus:ring-2 focus:ring-brand outline-none font-mono"
                                         />
                                     </div>
 
                                     <button
                                         type="submit"
                                         disabled={isSavingProfile}
-                                        className="w-full py-2.5 bg-brand text-white font-bold text-xs rounded-xl hover:opacity-85 disabled:opacity-50 transition cursor-pointer"
+                                        className="btn-premium"
                                     >
                                         {isSavingProfile ? 'Saving Changes...' : 'Save Profile Details'}
                                     </button>

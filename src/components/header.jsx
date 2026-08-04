@@ -147,12 +147,77 @@ function NavIcon({ type }) {
     }
 }
 
+function NavDropdown({ label, icon, items, activePage, setPage }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        const handler = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    const isAnyActive = items.some(item => item.page === activePage);
+
+    return (
+        <div
+            ref={dropdownRef}
+            className="relative"
+            onMouseEnter={() => setIsOpen(true)}
+            onMouseLeave={() => setIsOpen(false)}
+        >
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-full transition-all focus:outline-none ${
+                    isAnyActive
+                        ? 'bg-brand/10 text-brand font-black border border-brand/20'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent'
+                }`}
+            >
+                <span>{icon}</span>
+                <span>{label}</span>
+                <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+            </button>
+
+            {isOpen && (
+                <div className="absolute left-0 mt-1 w-48 rounded-xl bg-surface border border-border shadow-lg py-1.5 z-[150] animate-fadeIn">
+                    {items.map(item => {
+                        const isActive = activePage === item.page;
+                        return (
+                            <button
+                                key={item.page}
+                                onClick={() => { setPage(item.page); setIsOpen(false); }}
+                                className={`w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-left transition ${
+                                    isActive
+                                        ? 'bg-brand/10 text-brand font-black'
+                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-brand-subtle dark:hover:bg-brand-highlight'
+                                }`}
+                            >
+                                <NavIcon type={item.page} />
+                                <span>{item.name}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function Header({ user, page, setPage, canManageGroup, groupName, onSwitchGroup, auth, db, userProfile, isDarkMode, toggleDarkMode, scores = {}, pubs = [], criteria = [], groupId }) {
     const [showProfile, setShowProfile] = useState(false);
+    const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [isNavOpen, setIsNavOpen] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const searchInputRef = useRef(null);
+    const profileMenuRef = useRef(null);
 
     const isStaff = userProfile?.isSuperAdmin || userProfile?.isAdmin || userProfile?.isModerator;
     const displayName = userProfile?.nickname || userProfile?.displayName || user?.email || 'User';
@@ -178,6 +243,16 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
         return () => window.removeEventListener('keydown', handler);
     }, []);
 
+    useEffect(() => {
+        const handleOutsideClick = (e) => {
+            if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
+                setShowProfileMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutsideClick);
+        return () => document.removeEventListener('mousedown', handleOutsideClick);
+    }, []);
+
     const handleSignOut = async () => {
         try { await auth.signOut(); }
         catch (e) { console.error('Error signing out', e); }
@@ -188,10 +263,10 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
         return (
             <button
                 onClick={() => setPage(targetPage)}
-                className={`relative flex items-center gap-2 px-4 py-3 text-sm font-semibold transition-all duration-150 whitespace-nowrap border-b-2 -mb-[1px] focus:outline-none ${
+                className={`flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-full transition-all focus:outline-none ${
                     isActive
-                        ? 'border-brand text-brand font-black'
-                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-200 dark:hover:border-gray-700'
+                        ? 'bg-brand/10 text-brand font-black border border-brand/20'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent'
                 }`}
             >
                 <NavIcon type={targetPage} />
@@ -278,7 +353,7 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
                     {/* Top Bar */}
-                    <div className="flex justify-between items-center h-14">
+                    <div className="flex justify-between items-center h-16">
 
                         {/* Logo */}
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -297,8 +372,38 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                             </div>
                         </div>
 
-                        {/* Desktop Controls */}
-                        <div className="hidden md:flex items-center gap-1 flex-shrink-0">
+                        {/* Desktop Center Navigation */}
+                        <div className="hidden md:flex items-center gap-1.5 lg:gap-2.5 mx-4 flex-1 justify-center">
+                            <NavButton name="Dashboard" targetPage="dashboard" />
+                            <NavButton name="Directory" targetPage="pubs" />
+                            <NavButton name="Map" targetPage="map" />
+                            <NavButton name="Leaderboard" targetPage="leaderboard" />
+                            <NavButton name="Activity" targetPage="activity" />
+                            
+                            <NavDropdown
+                                label="Community"
+                                icon="👥"
+                                activePage={page}
+                                setPage={setPage}
+                                items={[
+                                    { name: "Events", page: "events" },
+                                    { name: "Feedback", page: "feedback" }
+                                ]}
+                            />
+
+                            <NavDropdown
+                                label="Features"
+                                icon="✨"
+                                activePage={page}
+                                setPage={setPage}
+                                items={[
+                                    { name: "Spin Wheel", page: "spin" }
+                                ]}
+                            />
+                        </div>
+
+                        {/* Unified Right Controls */}
+                        <div className="flex items-center gap-1.5 md:gap-2.5 flex-shrink-0">
                             <button
                                 onClick={() => setShowSearch(true)}
                                 aria-label="Search pubs"
@@ -312,143 +417,81 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
 
                             <DarkModeToggle isDarkMode={isDarkMode} onToggle={toggleDarkMode} />
 
-                            {canManageGroup && (
+                            <div className="hidden md:block w-px h-5 bg-gray-200/85 dark:bg-gray-800/60 mx-1" />
+
+                            <div className="relative" ref={profileMenuRef}>
                                 <button
-                                    onClick={() => setPage('admin')}
-                                    aria-label="Group admin"
-                                    title="Group Admin"
-                                    className={`flex items-center justify-center w-9 h-9 rounded-full transition ${
-                                        page === 'admin'
-                                            ? 'bg-brand-subtle text-brand dark:bg-brand-highlight dark:text-brand'
-                                            : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400'
-                                    }`}
+                                    onClick={() => setShowProfileMenu(prev => !prev)}
+                                    className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition border border-transparent hover:border-gray-200 dark:hover:border-gray-700 focus:outline-none"
+                                    aria-label="Open profile menu"
+                                    aria-expanded={showProfileMenu}
                                 >
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                                        <circle cx="12" cy="12" r="3" />
-                                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M4.93 4.93a10 10 0 0 0 0 14.14" />
+                                    {avatarUrl ? (
+                                        <img src={avatarUrl} alt="Avatar" className="w-7 h-7 rounded-full object-cover shadow-sm" loading="lazy" width="28" height="28" />
+                                    ) : (
+                                        <div className="w-7 h-7 rounded-full bg-brand flex items-center justify-center text-white font-bold text-xs shadow-sm">
+                                            {displayName.charAt(0).toUpperCase()}
+                                        </div>
+                                    )}
+                                    <span className="hidden sm:inline font-semibold text-sm text-gray-700 dark:text-gray-200 truncate max-w-[80px]">
+                                        {displayName.split(' ')[0]}
+                                    </span>
+                                    <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                                     </svg>
                                 </button>
-                            )}
 
-                            {isStaff && (
-                                <button
-                                    onClick={() => setPage('superadmin')}
-                                    aria-label="Staff menu"
-                                    title="Staff Menu"
-                                    className={`flex items-center justify-center w-9 h-9 rounded-full transition ${
-                                        page === 'superadmin'
-                                            ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
-                                            : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400'
-                                    }`}
-                                >
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                                    </svg>
-                                </button>
-                            )}
-
-                            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1" />
-
-                            <button
-                                onClick={onSwitchGroup}
-                                title="Switch Group"
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                            >
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                                    <path d="M17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" />
-                                    <path d="M7 23 3 19l4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
-                                </svg>
-                                <span className="hidden lg:inline">Switch</span>
-                            </button>
-
-                            <button
-                                onClick={() => setPage('business')}
-                                className="px-3 py-1.5 bg-brand hover:bg-brand-hover active:bg-brand-active text-white rounded-full text-xs font-black uppercase tracking-wider transition shadow-sm"
-                            >
-                                For Venues
-                            </button>
-
-                            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1" />
-
-                            <button
-                                onClick={() => setShowProfile(true)}
-                                className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
-                                aria-label="Open profile"
-                            >
-                                {avatarUrl ? (
-                                    <img src={avatarUrl} alt="Avatar" className="w-7 h-7 rounded-full object-cover shadow-sm" loading="lazy" width="28" height="28" />
-                                ) : (
-                                    <div className="w-7 h-7 rounded-full bg-brand flex items-center justify-center text-white font-bold text-xs shadow-sm">
-                                        {displayName.charAt(0).toUpperCase()}
+                                {showProfileMenu && (
+                                    <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-surface border border-border shadow-lg py-1.5 z-[250] text-sm animate-fadeIn">
+                                        <div className="px-4 py-2 border-b border-divider">
+                                            <p className="font-bold text-gray-900 dark:text-white truncate">{displayName}</p>
+                                            <p className="text-[10px] text-gray-500 truncate">{user?.email}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => { setShowProfile(true); setShowProfileMenu(false); }}
+                                            className="w-full text-left px-4 py-2 hover:bg-brand-subtle dark:hover:bg-brand-highlight text-gray-700 dark:text-gray-300 font-semibold transition"
+                                        >
+                                            👤 Edit Profile
+                                        </button>
+                                        <button
+                                            onClick={() => { setPage('business'); setShowProfileMenu(false); }}
+                                            className="w-full text-left px-4 py-2 hover:bg-brand-subtle dark:hover:bg-brand-highlight text-gray-700 dark:text-gray-300 font-semibold transition"
+                                        >
+                                            🏢 For Venues
+                                        </button>
+                                        <button
+                                            onClick={() => { onSwitchGroup(); setShowProfileMenu(false); }}
+                                            className="w-full text-left px-4 py-2 hover:bg-brand-subtle dark:hover:bg-brand-highlight text-gray-700 dark:text-gray-300 font-semibold transition"
+                                        >
+                                            🔄 Switch Group
+                                        </button>
+                                        {canManageGroup && (
+                                            <button
+                                                onClick={() => { setPage('admin'); setShowProfileMenu(false); }}
+                                                className="w-full text-left px-4 py-2 hover:bg-brand-subtle dark:hover:bg-brand-highlight text-gray-700 dark:text-gray-300 font-semibold transition"
+                                            >
+                                                ⚙️ Group Admin
+                                            </button>
+                                        )}
+                                        {isStaff && (
+                                            <button
+                                                onClick={() => { setPage('superadmin'); setShowProfileMenu(false); }}
+                                                className="w-full text-left px-4 py-2 hover:bg-brand-subtle dark:hover:bg-brand-highlight text-gray-700 dark:text-gray-300 font-semibold transition"
+                                            >
+                                                🛡️ Staff Menu
+                                            </button>
+                                        )}
+                                        <div className="border-t border-divider my-1"></div>
+                                        <button
+                                            onClick={() => { handleSignOut(); setShowProfileMenu(false); }}
+                                            className="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 dark:text-red-400 font-semibold transition"
+                                        >
+                                            🚪 Sign Out
+                                        </button>
                                     </div>
                                 )}
-                                <span className="font-semibold text-sm text-gray-700 dark:text-gray-200 truncate max-w-[100px]">
-                                    {displayName.split(' ')[0]}
-                                </span>
-                            </button>
-
-                            <button
-                                onClick={handleSignOut}
-                                aria-label="Sign out"
-                                title="Sign out"
-                                className="flex items-center justify-center w-9 h-9 rounded-full text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition"
-                            >
-                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                                    <polyline points="16 17 21 12 16 7" />
-                                    <line x1="21" y1="12" x2="9" y2="12" />
-                                </svg>
-                            </button>
+                            </div>
                         </div>
-
-                        {/* Mobile Controls */}
-                        <div className="md:hidden flex items-center gap-1 flex-shrink-0">
-                            <button
-                                onClick={() => setShowSearch(true)}
-                                aria-label="Search pubs"
-                                className="flex items-center justify-center w-9 h-9 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                            >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                                    <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-                                </svg>
-                            </button>
-                            <DarkModeToggle isDarkMode={isDarkMode} onToggle={toggleDarkMode} size={18} />
-                            <button
-                                onClick={() => setShowProfile(true)}
-                                aria-label="Open profile"
-                                className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shadow-sm"
-                            >
-                                {avatarUrl
-                                    ? <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" loading="lazy" width="32" height="32" />
-                                    : <div className="w-full h-full bg-brand flex items-center justify-center text-white font-bold text-xs">{displayName.charAt(0).toUpperCase()}</div>
-                                }
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Nav row */}
-                    <div className="flex overflow-x-auto gap-0 hide-scrollbar items-center border-t border-b border-gray-100 dark:border-gray-800/50">
-                        {[
-                            { name: "Dashboard",    page: "dashboard" },
-                            { name: "Taproom",      page: "taproom" },
-                            { name: "Directory",    page: "pubs" },
-                            { name: "Hit List",     page: "toVisit" },
-                            { name: "Insights",     page: "insights" },
-                            { name: "Events",       page: "events" },
-                            { name: "Map",          page: "map" },
-                            { name: "Leaderboard",  page: "leaderboard" },
-                            { name: "Versus",       page: "individual" },
-                            { name: "Achievements", page: "achievements" },
-                            { name: "Spin",         page: "spin" },
-                            { name: "Feedback",     page: "feedback" }
-                        ].map((btn, idx, arr) => (
-                            <React.Fragment key={btn.page}>
-                                <NavButton name={btn.name} targetPage={btn.page} />
-                                {idx < arr.length - 1 && (
-                                    <div className="w-px h-3 bg-gray-200/80 dark:bg-gray-800/40 flex-shrink-0" aria-hidden="true" />
-                                )}
-                            </React.Fragment>
-                        ))}
                     </div>
                 </div>
             </header>
@@ -497,13 +540,8 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                     <div className="absolute bottom-16 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shadow-2xl animate-fadeIn">
                         <div className="grid grid-cols-3 gap-1 p-3">
                             {[
-                                { icon: '📱', label: 'Taproom',      page: 'taproom' },
-                                { icon: '🎯', label: 'Hit List',     page: 'toVisit' },
-                                { icon: '📈', label: 'Insights',     page: 'insights' },
                                 { icon: '📅', label: 'Events',       page: 'events' },
-                                { icon: '🥊', label: 'Versus',       page: 'individual' },
-                                { icon: '🎖️', label: 'Achievements', page: 'achievements' },
-                                { icon: '🎡', label: 'Spin',         page: 'spin' },
+                                { icon: '🎡', label: 'Spin Wheel',   page: 'spin' },
                                 { icon: '💬', label: 'Feedback',     page: 'feedback' },
                                 ...(canManageGroup ? [{ icon: '⚙️', label: 'Admin', page: 'admin' }] : []),
                                 ...(isStaff ? [{ icon: '🛡️', label: 'Staff', page: 'superadmin' }] : []),

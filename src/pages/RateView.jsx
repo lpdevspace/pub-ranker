@@ -94,87 +94,79 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
 
     if (!pub) {
         return (
-            <div style={{ background: 'var(--color-surface)', padding: 'var(--space-6)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)', textAlign: 'center' }} className="animate-pulse">
-                <p style={{ color: 'var(--color-text-muted)', marginBottom: 'var(--space-4)' }}>Loading pub details...</p>
-                <button onClick={onBack} style={{ background: 'var(--color-surface-dynamic)', color: 'var(--color-text)', padding: 'var(--space-2) var(--space-6)', borderRadius: 'var(--radius-lg)', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Back</button>
+            <div className="bg-surface p-6 rounded-lg shadow-lg text-center animate-pulse">
+                <p className="text-text-muted mb-4">Loading pub details...</p>
+                <button onClick={onBack} className="bg-surface-dynamic text-text px-6 py-2 rounded-lg border-none cursor-pointer font-semibold">Back</button>
             </div>
         );
     }
 
     if (!criteria || criteria.length === 0) {
         return (
-            <div style={{ background: 'var(--color-surface)', padding: 'var(--space-6)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)', textAlign: 'center' }}>
-                <p style={{ color: 'var(--color-text-muted)', marginBottom: 'var(--space-4)' }}>No criteria available for rating.</p>
-                <button onClick={onBack} style={{ background: 'var(--color-surface-dynamic)', color: 'var(--color-text)', padding: 'var(--space-2) var(--space-6)', borderRadius: 'var(--radius-lg)', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Back</button>
+            <div className="bg-surface p-6 rounded-lg shadow-lg text-center">
+                <p className="text-text-muted mb-4">No criteria available for rating.</p>
+                <button onClick={onBack} className="bg-surface-dynamic text-text px-6 py-2 rounded-lg border-none cursor-pointer font-semibold">Back</button>
             </div>
         );
     }
 
     return (
-        <div style={{ maxWidth: '42rem', margin: '0 auto', paddingBottom: 'var(--space-24)' }} className="animate-fadeIn">
+        <div className="max-w-2xl mx-auto pb-24 animate-fadeIn">
             {/* Hero image */}
-            <div style={{ position: 'relative', height: '16rem', background: '#111', borderRadius: '0 0 var(--radius-xl) var(--radius-xl)', overflow: 'hidden', margin: '0 -1rem 2rem', boxShadow: 'var(--shadow-lg)' }} className="md:h-80 sm:mx-0">
-                {pub.photoURL ? (
-                    <img src={pub.photoURL} alt={pub.name} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6 }} />
-                ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '5rem', opacity: 0.5 }}>🍻</div>
-                )}
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 50%, transparent 100%)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 'var(--space-6)' }}>
-                    <button onClick={onBack} style={{ width: '2.5rem', height: '2.5rem', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', border: 'none', cursor: 'pointer', transition: 'background var(--transition-interactive)' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.35)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}>
-                        <svg style={{ width: '1.5rem', height: '1.5rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+            <div className="relative h-64 md:h-80 bg-gray-900 rounded-b-xl overflow-hidden -mx-4 sm:mx-0 mb-8 shadow-lg">
+                <img src={pub.photoURL || 'https://placehold.co/600x400/1e293b/ffffff?text=No+Photo'} alt={pub.name} className="w-full h-full object-cover opacity-60" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex flex-col justify-between p-6">
+                    <button onClick={onBack} className="w-10 h-10 bg-white/20 hover:bg-white/35 backdrop-blur-md rounded-full flex items-center justify-center text-white border-none cursor-pointer transition-colors">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
                     </button>
                     <div>
-                        <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 900, color: '#fff', marginBottom: 'var(--space-1)', fontFamily: 'var(--font-display)', textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>{pub.name}</h2>
-                        <p style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>📍 {pub.location || 'Unknown Location'}</p>
+                        <h2 className="text-2xl font-black text-white mb-1 font-display drop-shadow-md">{pub.name}</h2>
+                        <p className="text-white/80 font-medium flex items-center gap-2">📍 {pub.location || 'Unknown Location'}</p>
                     </div>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', padding: '0 var(--space-4)' }} className="sm:px-0">
-                <div style={{ textAlign: 'center', marginBottom: 'var(--space-6)' }}>
-                    <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text)' }}>What's your verdict?</h3>
-                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>Be honest. Your group is counting on you.</p>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6 px-4 sm:px-0">
+                <div className="text-center mb-6">
+                    <h3 className="text-lg font-bold text-text">What's your verdict?</h3>
+                    <p className="text-sm text-text-muted">Be honest. Your group is counting on you.</p>
                 </div>
 
                 {criteria.map((crit) => (
-                    <div key={crit.id} style={{ background: 'var(--color-surface)', padding: 'var(--space-6)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-sm)', border: '1px solid var(--color-border)' }}>
-                        <label style={{ display: 'block', fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--color-text)', marginBottom: 'var(--space-4)' }}>{crit.name}</label>
+                    <div key={crit.id} className="bg-surface p-6 rounded-xl shadow-sm border border-border">
+                        <label className="block text-lg font-bold text-text mb-4">{crit.name}</label>
 
                         {crit.type === 'scale' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--color-surface-offset)', padding: 'var(--space-3)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)' }}>
-                                    <span style={{ fontSize: '2rem' }}>{getScoreEmoji(ratings[crit.id])}</span>
-                                    <span style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--color-brand)', fontVariantNumeric: 'tabular-nums' }}>
-                                        {ratings[crit.id] ? ratings[crit.id] : '-'}<span style={{ fontSize: 'var(--text-lg)', color: 'var(--color-text-muted)' }}>/10</span>
+                            <div className="flex flex-col gap-4">
+                                <div className="flex justify-between items-center bg-surface-offset p-3 rounded-lg border border-border">
+                                    <span className="text-3xl">{getScoreEmoji(ratings[crit.id])}</span>
+                                    <span className="text-xl font-black text-brand tabular-nums">
+                                        {ratings[crit.id] ? ratings[crit.id] : '-'}<span className="text-lg text-text-muted">/10</span>
                                     </span>
                                 </div>
                                 <input
                                     type="range" min="1" max="10" step="0.5"
                                     value={ratings[crit.id] || 5}
                                     onChange={(e) => handleRate(crit.id, parseFloat(e.target.value))}
-                                    style={{ width: '100%', height: '0.75rem', borderRadius: 'var(--radius-full)', appearance: 'none', cursor: 'pointer', accentColor: 'var(--color-brand)', background: 'var(--color-surface-dynamic)' }}
+                                    className="w-full h-3 rounded-full appearance-none cursor-pointer bg-surface-dynamic accent-brand"
                                 />
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+                                <div className="flex justify-between text-xs font-bold text-text-muted uppercase">
                                     <span>Awful</span><span>Average</span><span>Perfect</span>
                                 </div>
                             </div>
                         )}
 
                         {crit.type === 'price' && (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+                            <div className="flex justify-between gap-2">
                                 {[1, 2, 3, 4, 5].map(num => (
                                     <button
                                         key={num} type="button"
                                         onClick={() => handleRate(crit.id, num)}
-                                        style={{
-                                            flex: 1, padding: 'var(--space-3) 0', borderRadius: 'var(--radius-lg)', fontSize: 'var(--text-lg)', fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'all var(--transition-interactive)',
-                                            background: ratings[crit.id] === num ? 'var(--color-success)' : 'var(--color-surface-offset)',
-                                            color: ratings[crit.id] === num ? '#fff' : 'var(--color-text-muted)',
-                                            transform: ratings[crit.id] === num ? 'scale(1.05)' : 'none',
-                                            boxShadow: ratings[crit.id] === num ? 'var(--shadow-md)' : 'none'
-                                        }}
+                                        className={`flex-1 py-3 rounded-lg text-lg font-bold border-none cursor-pointer transition-all ${
+                                            ratings[crit.id] === num 
+                                            ? 'bg-success text-white scale-105 shadow-md' 
+                                            : 'bg-surface-offset text-text-muted hover:bg-surface-2'
+                                        }`}
                                     >
                                         {'£'.repeat(num)}
                                     </button>
@@ -183,23 +175,21 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
                         )}
 
                         {crit.type === 'yes-no' && (
-                            <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
+                            <div className="flex gap-4">
                                 <button type="button" onClick={() => handleRate(crit.id, true)}
-                                    style={{
-                                        flex: 1, padding: 'var(--space-3) 0', borderRadius: 'var(--radius-lg)', fontSize: 'var(--text-lg)', fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'all var(--transition-interactive)',
-                                        background: ratings[crit.id] === true ? 'var(--color-success)' : 'var(--color-surface-offset)',
-                                        color: ratings[crit.id] === true ? '#fff' : 'var(--color-text-muted)',
-                                        transform: ratings[crit.id] === true ? 'scale(1.05)' : 'none'
-                                    }}>
+                                    className={`flex-1 py-3 rounded-lg text-lg font-bold border-none cursor-pointer transition-all ${
+                                        ratings[crit.id] === true
+                                        ? 'bg-success text-white scale-105 shadow-md'
+                                        : 'bg-surface-offset text-text-muted hover:bg-surface-2'
+                                    }`}>
                                     👍 Yes
                                 </button>
                                 <button type="button" onClick={() => handleRate(crit.id, false)}
-                                    style={{
-                                        flex: 1, padding: 'var(--space-3) 0', borderRadius: 'var(--radius-lg)', fontSize: 'var(--text-lg)', fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'all var(--transition-interactive)',
-                                        background: ratings[crit.id] === false ? 'var(--color-error)' : 'var(--color-surface-offset)',
-                                        color: ratings[crit.id] === false ? '#fff' : 'var(--color-text-muted)',
-                                        transform: ratings[crit.id] === false ? 'scale(1.05)' : 'none'
-                                    }}>
+                                    className={`flex-1 py-3 rounded-lg text-lg font-bold border-none cursor-pointer transition-all ${
+                                        ratings[crit.id] === false
+                                        ? 'bg-error text-white scale-105 shadow-md'
+                                        : 'bg-surface-offset text-text-muted hover:bg-surface-2'
+                                    }`}>
                                     👎 No
                                 </button>
                             </div>
@@ -208,17 +198,15 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
                 ))}
 
                 {/* Fixed bottom bar */}
-                <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: 'var(--space-4)', background: 'color-mix(in oklch, var(--color-surface) 90%, transparent)', backdropFilter: 'blur(12px)', borderTop: '1px solid var(--color-border)', display: 'flex', gap: 'var(--space-3)', zIndex: 40 }}>
+                <div className="fixed bottom-0 left-0 right-0 p-4 bg-surface/90 backdrop-blur-md border-t border-border flex gap-3 z-40">
                     <button type="button" onClick={onBack}
-                        style={{ flex: 1, background: 'var(--color-surface-offset)', color: 'var(--color-text)', fontSize: 'var(--text-lg)', fontWeight: 900, borderRadius: 'var(--radius-lg)', padding: 'var(--space-4) 0', border: 'none', cursor: 'pointer', transition: 'background var(--transition-interactive)' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-surface-dynamic)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'var(--color-surface-offset)'}>
+                        className="flex-1 bg-surface-offset hover:bg-surface-dynamic text-text text-lg font-black rounded-lg py-4 border-none cursor-pointer transition-colors">
                         Cancel
                     </button>
                     <button onClick={handleSubmit} disabled={isSubmitting}
-                        style={{ flex: 1, background: 'var(--color-brand)', color: '#fff', fontSize: 'var(--text-lg)', fontWeight: 900, borderRadius: 'var(--radius-lg)', padding: 'var(--space-4) 0', border: 'none', cursor: isSubmitting ? 'not-allowed' : 'pointer', opacity: isSubmitting ? 0.5 : 1, boxShadow: 'var(--shadow-md)', transition: 'background var(--transition-interactive)' }}
-                        onMouseEnter={e => { if (!isSubmitting) e.currentTarget.style.background = 'var(--color-brand-dark)'; }}
-                        onMouseLeave={e => e.currentTarget.style.background = 'var(--color-brand)'}>
+                        className={`flex-1 bg-brand text-white text-lg font-black rounded-lg py-4 border-none shadow-md transition-colors ${
+                            isSubmitting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-brand-dark'
+                        }`}>
                         {isSubmitting ? 'Saving...' : '🍺 Submit Ratings'}
                     </button>
                 </div>

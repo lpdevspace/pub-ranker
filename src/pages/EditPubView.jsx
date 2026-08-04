@@ -47,17 +47,17 @@ export default function EditPubView({ pub, onBack, onSave }) {
 
     if (!pub || !pub.id) {
         return (
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md mx-auto text-center border border-gray-200 dark:border-gray-700 mt-12 animate-fadeIn">
+            <div className="card-premium p-8 max-w-md mx-auto text-center mt-12 animate-fadeIn">
                 <span className="text-5xl mb-4 block">🍺</span>
                 <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Loading Pub...</h2>
                 <p className="text-gray-500 dark:text-gray-400 mb-6">If this takes too long, please go back and try again.</p>
-                <button onClick={onBack} className="bg-brand text-white font-bold px-6 py-2 rounded-xl shadow hover:bg-brand-hover transition">Back to Directory</button>
+                <button onClick={onBack} className="btn-premium">Back to Directory</button>
             </div>
         );
     }
     
     return (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl max-w-2xl mx-auto border border-gray-200 dark:border-gray-700 animate-fadeIn relative overflow-hidden">
+        <div className="card-premium p-6 max-w-2xl mx-auto animate-fadeIn relative overflow-hidden">
             
             {isLocked && (
                 <div className="bg-brand-dark text-white p-3 -mx-6 -mt-6 mb-6 flex items-center justify-center gap-2 shadow-md">
@@ -122,8 +122,8 @@ export default function EditPubView({ pub, onBack, onSave }) {
                 </div>
 
                 <div className="flex gap-3 pt-2">
-                    <button type="button" onClick={onBack} className="flex-1 py-3 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition">Cancel</button>
-                    <button type="submit" className="flex-1 py-3 rounded-xl bg-brand hover:bg-brand-hover text-white font-black transition shadow-md">Save Changes</button>
+                    <button type="button" onClick={onBack} className="flex-1 py-3 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer">Cancel</button>
+                    <button type="submit" className="flex-1 btn-premium">Save Changes</button>
                 </div>
             </form>
         </div>

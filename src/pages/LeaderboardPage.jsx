@@ -4,10 +4,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 function CategoryChampions({ rankedPubs, safeScores, safeCriteria }) {
     if (rankedPubs.length === 0) return null;
 
-    // Most visited = highest ratingCount
     const mostVisited = [...rankedPubs].sort((a, b) => b.ratingCount - a.ratingCount)[0];
 
-    // Perfect scores = how many 10s each pub has received
     const perfectScores = {};
     rankedPubs.forEach(pub => {
         let tens = 0;
@@ -20,7 +18,6 @@ function CategoryChampions({ rankedPubs, safeScores, safeCriteria }) {
     });
     const mostPerfect = [...rankedPubs].sort((a, b) => (perfectScores[b.id] || 0) - (perfectScores[a.id] || 0))[0];
 
-    // Most consistent = lowest std deviation (min 3 ratings)
     const consistency = {};
     rankedPubs.forEach(pub => {
         const allVals = [];
@@ -36,135 +33,32 @@ function CategoryChampions({ rankedPubs, safeScores, safeCriteria }) {
         }
     });
     const consistentPubs = rankedPubs.filter(p => consistency[p.id] !== undefined);
-    const mostConsistent = consistentPubs.length > 0
-        ? consistentPubs.sort((a, b) => consistency[a.id] - consistency[b.id])[0]
-        : null;
+    const mostConsistent = consistentPubs.length > 0 ? consistentPubs.sort((a, b) => consistency[a.id] - consistency[b.id])[0] : null;
 
-    // Hidden gem = high avg score but low ratingCount (score ≥ 7, fewest ratings)
     const hiddenGem = rankedPubs.filter(p => p.avgScore >= 7 && p.ratingCount <= 3).length > 0
-        ? rankedPubs.filter(p => p.avgScore >= 7).sort((a, b) => a.ratingCount - b.ratingCount)[0]
-        : null;
+        ? rankedPubs.filter(p => p.avgScore >= 7).sort((a, b) => a.ratingCount - b.ratingCount)[0] : null;
 
     const champions = [
-        {
-            key: 'top',
-            emoji: '🏆',
-            title: 'Top Rated',
-            desc: 'Highest average score',
-            pub: rankedPubs[0],
-            stat: rankedPubs[0]?.avgScore.toFixed(1),
-            statLabel: 'avg',
-            gradient: 'from-yellow-400 to-amber-500',
-            border: 'border-yellow-300 dark:border-yellow-700',
-            bg: 'bg-yellow-50 dark:bg-yellow-900/20',
-            textAccent: 'text-yellow-700 dark:text-yellow-400',
-        },
-        {
-            key: 'visited',
-            emoji: '👣',
-            title: 'Most Visited',
-            desc: 'Most individual ratings',
-            pub: mostVisited,
-            stat: mostVisited?.ratingCount,
-            statLabel: 'ratings',
-            gradient: 'from-blue-400 to-blue-600',
-            border: 'border-blue-200 dark:border-blue-700',
-            bg: 'bg-blue-50 dark:bg-blue-900/20',
-            textAccent: 'text-blue-700 dark:text-blue-400',
-        },
-        {
-            key: 'perfect',
-            emoji: '💯',
-            title: 'Perfection',
-            desc: 'Most 10/10 scores',
-            pub: mostPerfect,
-            stat: perfectScores[mostPerfect?.id] || 0,
-            statLabel: 'tens',
-            gradient: 'from-green-400 to-emerald-600',
-            border: 'border-green-200 dark:border-green-700',
-            bg: 'bg-green-50 dark:bg-green-900/20',
-            textAccent: 'text-green-700 dark:text-green-400',
-        },
-        mostConsistent && {
-            key: 'consistent',
-            emoji: '🎯',
-            title: 'Most Consistent',
-            desc: 'Lowest score variance',
-            pub: mostConsistent,
-            stat: consistency[mostConsistent?.id]?.toFixed(1),
-            statLabel: 'σ deviation',
-            gradient: 'from-purple-400 to-purple-600',
-            border: 'border-purple-200 dark:border-purple-700',
-            bg: 'bg-purple-50 dark:bg-purple-900/20',
-            textAccent: 'text-purple-700 dark:text-purple-400',
-        },
-        hiddenGem && {
-            key: 'gem',
-            emoji: '💎',
-            title: 'Hidden Gem',
-            desc: 'High score, few ratings',
-            pub: hiddenGem,
-            stat: hiddenGem?.avgScore.toFixed(1),
-            statLabel: 'avg',
-            gradient: 'from-pink-400 to-rose-500',
-            border: 'border-pink-200 dark:border-pink-700',
-            bg: 'bg-pink-50 dark:bg-pink-900/20',
-            textAccent: 'text-pink-700 dark:text-pink-400',
-        },
+        { key: 'top', emoji: '🏆', title: 'Top Rated', desc: 'Highest average', pub: rankedPubs[0], stat: rankedPubs[0]?.avgScore.toFixed(1), statLabel: 'avg' },
+        { key: 'visited', emoji: '👣', title: 'Most Visited', desc: 'Most ratings', pub: mostVisited, stat: mostVisited?.ratingCount, statLabel: 'ratings' },
+        { key: 'perfect', emoji: '💯', title: 'Perfection', desc: 'Most 10s', pub: mostPerfect, stat: perfectScores[mostPerfect?.id] || 0, statLabel: 'tens' },
+        mostConsistent && { key: 'consistent', emoji: '🎯', title: 'Consistent', desc: 'Lowest variance', pub: mostConsistent, stat: consistency[mostConsistent?.id]?.toFixed(1), statLabel: 'var' },
+        hiddenGem && { key: 'gem', emoji: '💎', title: 'Hidden Gem', desc: 'High score, low traffic', pub: hiddenGem, stat: hiddenGem?.avgScore.toFixed(1), statLabel: 'avg' },
     ].filter(Boolean);
 
     return (
-        <div className="px-4 sm:px-6 pt-4 pb-2">
-            <div className="flex items-center gap-3 mb-4">
-                <div className="flex-1 h-px bg-gray-100 dark:bg-gray-700" />
-                <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Category Champions</span>
-                <div className="flex-1 h-px bg-gray-100 dark:bg-gray-700" />
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="mb-8">
+            <h3 className="text-sm font-bold text-muted uppercase tracking-wider mb-4 border-b border-divider pb-2">Category Champions</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
                 {champions.map(champ => (
-                    <div
-                        key={champ.key}
-                        className={`relative flex flex-col items-center text-center p-3 rounded-2xl border ${champ.border} ${champ.bg} shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5 overflow-hidden`}
-                    >
-                        {/* Gradient top stripe */}
-                        <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${champ.gradient} rounded-t-2xl`} />
-
-                        {/* Pub image or emoji fallback */}
-                        <div className="mt-2 mb-2 relative">
-                            {champ.pub?.photoURL ? (
-                                <img
-                                    src={champ.pub.photoURL}
-                                    alt={champ.pub.name}
-                                    className="w-12 h-12 rounded-full object-cover ring-2 ring-white dark:ring-gray-700 shadow-sm"
-                                    loading="lazy"
-                                    width="48"
-                                    height="48"
-                                />
-                            ) : (
-                                <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-2xl ring-2 ring-white dark:ring-gray-700">
-                                    🍺
-                                </div>
-                            )}
-                            {/* Trophy badge overlay */}
-                            <span className="absolute -bottom-1 -right-1 text-base leading-none">{champ.emoji}</span>
+                    <div key={champ.key} className="bg-surface-offset rounded-xl p-5 flex flex-col items-center text-center border border-border shadow-inner">
+                        <div className="relative mb-3">
+                            <img src={champ.pub?.photoURL || 'https://placehold.co/600x400/1e293b/ffffff?text=No+Photo'} alt={champ.pub?.name || 'Placeholder'} className="w-14 h-14 rounded-full object-cover shadow-sm" />
+                            <span className="absolute -bottom-1 -right-1 text-xl">{champ.emoji}</span>
                         </div>
-
-                        {/* Category label */}
-                        <p className={`text-[9px] font-black uppercase tracking-widest mb-0.5 ${champ.textAccent}`}>{champ.title}</p>
-
-                        {/* Pub name */}
-                        <p className="text-xs font-black text-gray-800 dark:text-white leading-tight line-clamp-2 mb-1 px-1">
-                            {champ.pub?.name || '—'}
-                        </p>
-
-                        {/* Stat */}
-                        <div className={`text-sm font-black ${champ.textAccent}`}>
-                            {champ.stat}
-                            <span className="text-[9px] font-bold text-gray-400 ml-0.5">{champ.statLabel}</span>
-                        </div>
-
-                        {/* Desc */}
-                        <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5 leading-tight">{champ.desc}</p>
+                        <p className="font-body text-[10px] font-bold text-muted uppercase tracking-wider mb-1">{champ.title}</p>
+                        <p className="font-display text-sm font-bold text-text line-clamp-1 mb-2 w-full">{champ.pub?.name || '—'}</p>
+                        <p className="font-display text-lg font-black text-brand tabular-nums leading-none">{champ.stat}<span className="font-body text-[9px] font-bold text-text-faint ml-1">{champ.statLabel}</span></p>
                     </div>
                 ))}
             </div>
@@ -172,92 +66,47 @@ function CategoryChampions({ rankedPubs, safeScores, safeCriteria }) {
     );
 }
 
-/* ── Pub Podium ─────────────────────────────────────────────────── */
-function PubPodium({ pubs }) {
-    if (pubs.length === 0) return null;
-
-    const order = [pubs[1], pubs[0], pubs[2]].filter(Boolean);
-    const podiumConfig = {
-        0: { height: 'h-20', bg: 'bg-gray-100 dark:bg-gray-600/50', border: 'border-gray-300 dark:border-gray-500', text: 'text-gray-500 dark:text-gray-300', label: '2nd', emoji: '🥈', ringColor: 'ring-gray-300 dark:ring-gray-500' },
-        1: { height: 'h-28', bg: 'bg-yellow-50 dark:bg-yellow-900/20', border: 'border-yellow-300 dark:border-yellow-700', text: 'text-yellow-700 dark:text-yellow-400', label: '1st', emoji: '🥇', ringColor: 'ring-yellow-400 dark:ring-yellow-600' },
-        2: { height: 'h-14', bg: 'bg-orange-50 dark:bg-orange-900/10', border: 'border-orange-200 dark:border-orange-800/50', text: 'text-orange-600 dark:text-orange-400', label: '3rd', emoji: '🥉', ringColor: 'ring-orange-300 dark:ring-orange-700' },
+/* ── Podiums ─────────────────────────────────────────────────── */
+function Podium({ items, type, onSelect }) {
+    if (items.length === 0) return null;
+    const order = [items[1], items[0], items[2]].filter(Boolean);
+    const cfg = {
+        0: { h: 'h-24', label: '2ND', emoji: '🥈' },
+        1: { h: 'h-32', label: '1ST', emoji: '👑' },
+        2: { h: 'h-16', label: '3RD', emoji: '🥉' }
     };
-    const slotForOrderIndex = [pubs[1] ? 0 : null, 1, pubs[2] ? 2 : null];
+    const slotIdx = [items[1] ? 0 : null, 1, items[2] ? 2 : null];
 
     return (
-        <div className="flex items-end justify-center gap-3 sm:gap-6 px-4 pt-6 pb-2">
-            {order.map((pub, orderIdx) => {
-                const slot = slotForOrderIndex[orderIdx];
-                if (slot === null || !pub) return null;
-                const cfg = podiumConfig[slot];
+        <div className="flex items-end justify-center gap-2 sm:gap-4 pt-6 pb-4 border-b border-divider mb-6">
+            {order.map((item, idx) => {
+                const slot = slotIdx[idx];
+                if (slot === null || !item) return null;
+                const config = cfg[slot];
+                
+                const isMember = type === 'members';
+                const name = isMember ? (item.user?.nickname || item.user?.displayName || 'Unknown') : item.name;
+                const img = isMember ? item.user?.avatarUrl : item.photoURL;
+                const stat = isMember ? item.totalPoints : item.avgScore.toFixed(1);
+                const statLabel = isMember ? 'pts' : 'avg';
+
                 return (
-                    <div key={pub.id} className="flex flex-col items-center flex-1 max-w-[140px]">
-                        <div className={`mb-2 ring-4 ${cfg.ringColor} rounded-full`}>
-                            {pub.photoURL ? (
-                                <img src={pub.photoURL} alt={pub.name} className="w-16 h-16 rounded-full object-cover" loading="lazy" width="64" height="64" />
-                            ) : (
-                                <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-3xl">🍺</div>
-                            )}
+                    <div 
+                        key={item.id || item.uid} 
+                        className={`flex flex-col items-center flex-1 max-w-[120px] ${isMember ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                        onClick={() => isMember && onSelect && onSelect(item)}
+                    >
+                        {slot === 1 && <span className="text-2xl mb-2 animate-bounce">👑</span>}
+                        <div className="mb-3">
+                                <img src={img || (!isMember ? 'https://placehold.co/600x400/1e293b/ffffff?text=No+Photo' : 'https://placehold.co/100x100/1e293b/ffffff?text=' + name.charAt(0).toUpperCase())} alt={name} className="w-14 h-14 rounded-full object-cover shadow-sm" />
                         </div>
-                        <p className="text-center text-xs font-black text-gray-800 dark:text-white leading-tight mb-1 line-clamp-2 px-1">{pub.name}</p>
-                        <span className={`text-lg font-black ${cfg.text} mb-2`}>{pub.avgScore.toFixed(1)}</span>
-                        <div className={`w-full ${cfg.height} ${cfg.bg} border-t-4 ${cfg.border} rounded-t-lg flex flex-col items-center justify-start pt-2 gap-1`}>
-                            <span className="text-xl">{cfg.emoji}</span>
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${cfg.text}`}>{cfg.label}</span>
+                        <p className="text-xs font-bold text-text text-center line-clamp-1 w-full px-1 mb-1">{name}</p>
+                        <p className="text-sm font-black text-brand mb-3">{stat}<span className="text-[9px] font-bold text-text-faint ml-0.5">{statLabel}</span></p>
+                        
+                        <div className={`w-full ${config.h} bg-surface-offset border-t-2 ${slot === 1 ? 'border-brand' : 'border-divider'} rounded-t-md flex flex-col items-center justify-start pt-3 gap-1`}>
+                            <span className="text-[10px] font-black text-muted uppercase tracking-wider">{config.label}</span>
                         </div>
                     </div>
-                );
-            })}
-        </div>
-    );
-}
-
-/* ── Member Podium ──────────────────────────────────────────────── */
-function MemberPodium({ members, onSelect }) {
-    if (members.length === 0) return null;
-
-    const order = [members[1], members[0], members[2]].filter(Boolean);
-    const podiumConfig = {
-        0: { height: 'h-20', bg: 'bg-gray-100 dark:bg-gray-600/50', border: 'border-gray-300 dark:border-gray-500', text: 'text-gray-500 dark:text-gray-300', label: '2nd', emoji: '🥈', ringColor: 'ring-gray-300 dark:ring-gray-500', crownBg: 'bg-gray-200 dark:bg-gray-600' },
-        1: { height: 'h-28', bg: 'bg-yellow-50 dark:bg-yellow-900/20', border: 'border-yellow-300 dark:border-yellow-700', text: 'text-yellow-700 dark:text-yellow-400', label: '1st', emoji: '👑', ringColor: 'ring-yellow-400 dark:ring-yellow-600', crownBg: 'bg-yellow-100 dark:bg-yellow-900/40' },
-        2: { height: 'h-14', bg: 'bg-orange-50 dark:bg-orange-900/10', border: 'border-orange-200 dark:border-orange-800/50', text: 'text-orange-600 dark:text-orange-400', label: '3rd', emoji: '🥉', ringColor: 'ring-orange-300 dark:ring-orange-700', crownBg: 'bg-orange-100 dark:bg-orange-900/30' },
-    };
-    const slotForOrderIndex = [members[1] ? 0 : null, 1, members[2] ? 2 : null];
-
-    return (
-        <div className="flex items-end justify-center gap-3 sm:gap-6 px-4 pt-6 pb-2">
-            {order.map((member, orderIdx) => {
-                const slot = slotForOrderIndex[orderIdx];
-                if (slot === null || !member) return null;
-                const cfg = podiumConfig[slot];
-                const displayName = member.user?.nickname || member.user?.displayName || member.user?.email || 'Unknown';
-                return (
-                    <button
-                        key={member.uid}
-                        onClick={() => onSelect(member)}
-                        className="flex flex-col items-center flex-1 max-w-[140px] group cursor-pointer bg-transparent border-0 p-0"
-                    >
-                        {slot === 1 && (
-                            <span className="text-2xl mb-1 animate-bounce" style={{ animationDuration: '2s' }}>👑</span>
-                        )}
-                        <div className={`mb-2 ring-4 ${cfg.ringColor} rounded-full transition-transform group-hover:scale-105`}>
-                            {member.user?.avatarUrl ? (
-                                <img src={member.user.avatarUrl} alt={displayName} className="w-16 h-16 rounded-full object-cover" loading="lazy" width="64" height="64" />
-                            ) : (
-                                <div className="w-16 h-16 rounded-full bg-brand flex items-center justify-center text-white text-2xl font-black">
-                                    {displayName.charAt(0).toUpperCase()}
-                                </div>
-                            )}
-                        </div>
-                        <p className="text-center text-xs font-black text-gray-800 dark:text-white leading-tight mb-1 line-clamp-2 px-1">{displayName}</p>
-                        <span className={`text-base font-black ${cfg.text} mb-2`}>
-                            {member.totalPoints} <span className="text-[10px] font-bold">pts</span>
-                        </span>
-                        <div className={`w-full ${cfg.height} ${cfg.bg} border-t-4 ${cfg.border} rounded-t-lg flex flex-col items-center justify-start pt-2 gap-1`}>
-                            <span className="text-xl">{slot !== 1 ? cfg.emoji : '🏆'}</span>
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${cfg.text}`}>{cfg.label}</span>
-                        </div>
-                    </button>
                 );
             })}
         </div>
@@ -266,102 +115,81 @@ function MemberPodium({ members, onSelect }) {
 
 /* ── Points Breakdown Bar ───────────────────────────────────────── */
 function PointsBreakdown({ ratedCount, writtenReviews, pubsAdded, crawlsCreated, gamification }) {
-    const ppp = gamification.pointsPerPub    || 5;
-    const ppr = gamification.pointsPerReview || 2;
-    const ppa = gamification.pointsPerAdd    || 3;
-    const ppc = gamification.pointsPerCrawl  || 5;
+    const ppp = gamification?.pointsPerPub || 5;
+    const ppr = gamification?.pointsPerReview || 2;
+    const ppa = gamification?.pointsPerAdd || 3;
+    const ppc = gamification?.pointsPerCrawl || 5;
 
     const segments = [
-        { label: 'Pubs visited', value: ratedCount * ppp,    color: 'bg-brand',  count: ratedCount,    unit: 'pubs'   },
-        { label: 'Reviews',      value: writtenReviews * ppr, color: 'bg-blue-400',   count: writtenReviews, unit: 'reviews' },
-        { label: 'Pubs added',   value: pubsAdded * ppa,      color: 'bg-green-500',  count: pubsAdded,      unit: 'added'  },
-        { label: 'Crawls made',  value: crawlsCreated * ppc,  color: 'bg-purple-400', count: crawlsCreated,  unit: 'crawls' },
+        { label: 'Pubs visited', value: ratedCount * ppp, color: 'bg-brand' },
+        { label: 'Reviews', value: writtenReviews * ppr, color: 'bg-indigo-500' },
+        { label: 'Pubs added', value: pubsAdded * ppa, color: 'bg-emerald-500' },
+        { label: 'Crawls made', value: crawlsCreated * ppc, color: 'bg-purple-500' },
     ].filter(s => s.value > 0);
 
     const total = segments.reduce((sum, s) => sum + s.value, 0);
     if (total === 0) return null;
 
     return (
-        <div className="mt-2">
-            <div className="flex h-2 rounded-full overflow-hidden gap-px">
-                {segments.map(seg => (
-                    <div
-                        key={seg.label}
-                        className={`${seg.color} transition-all duration-500`}
-                        style={{ width: `${(seg.value / total) * 100}%` }}
-                        title={`${seg.label}: ${seg.value} pts`}
-                    />
-                ))}
-            </div>
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
-                {segments.map(seg => (
-                    <span key={seg.label} className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400">
-                        <span className={`inline-block w-2 h-2 rounded-full ${seg.color}`} />
-                        {seg.count} {seg.unit}
-                    </span>
-                ))}
+        <div className="w-full">
+            <div className="flex h-1.5 rounded-full overflow-hidden gap-0.5">
+                {segments.map(seg => <div key={seg.label} className={seg.color} style={{ width: `${(seg.value / total) * 100}%` }} title={`${seg.label}: ${seg.value} pts`} />)}
             </div>
         </div>
     );
 }
 
 /* ── Public Profile Modal ───────────────────────────────────────── */
-function PublicProfileModal({ member, onClose, customBadges }) {
+function PublicProfileModal({ member, onClose, gamification }) {
     if (!member) return null;
 
-    const { user, ratedCount, perfectTens, writtenReviews, pubsAdded, crawlsCreated, topPubs, totalPoints } = member;
+    const { user, ratedCount, writtenReviews, pubsAdded, crawlsCreated, topPubs, totalPoints } = member;
     const displayName = user?.nickname || user?.displayName || user?.email || 'Unknown User';
 
-    const badges = customBadges && customBadges.length > 0 ? customBadges.map(b => {
-        let earned = false;
-        if (b.metric === 'rated')        earned = ratedCount      >= b.threshold;
-        else if (b.metric === 'reviews') earned = writtenReviews  >= b.threshold;
-        else if (b.metric === 'added')   earned = pubsAdded       >= b.threshold;
-        else if (b.metric === 'tens')    earned = perfectTens     >= b.threshold;
-        else if (b.metric === 'crawls')  earned = crawlsCreated   >= b.threshold;
-        return { ...b, earned };
-    }) : [
-        { emoji: '🍺', title: 'First Pint',  desc: 'Rated your first pub', earned: ratedCount >= 1 },
-        { emoji: '🏅', title: 'Gold Pint',   desc: 'Rated 20+ pubs',       earned: ratedCount >= 20 },
+    const badges = [
+        { emoji: '🍺', title: 'First Pint', earned: ratedCount >= 1 },
+        { emoji: '🏅', title: 'Gold Pint', earned: ratedCount >= 20 },
+        { emoji: '🗣️', title: 'Critic', earned: writtenReviews >= 10 },
+        { emoji: '🗺️', title: 'Explorer', earned: pubsAdded >= 5 },
     ];
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn" onClick={onClose}>
-            <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-700 relative max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white transition">✕</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={onClose}>
+            <div className="card-premium p-6 md:p-8 max-w-sm w-full relative" onClick={e => e.stopPropagation()}>
+                <button onClick={onClose} className="absolute top-4 right-4 text-text-muted hover:text-text bg-transparent border-none text-xl cursor-pointer">✕</button>
 
                 <div className="flex flex-col items-center mb-6">
                     {user?.avatarUrl ? (
-                        <img src={user.avatarUrl} alt="Avatar" className="w-24 h-24 rounded-full object-cover shadow-md border-4 border-brand mb-3" onError={e => { e.target.style.display = 'none'; }} />
+                        <img src={user.avatarUrl} alt="Avatar" className="w-20 h-20 rounded-full object-cover mb-3" />
                     ) : (
-                        <div className="w-24 h-24 rounded-full bg-brand flex items-center justify-center text-white text-4xl font-black shadow-md mb-3">
+                        <div className="w-20 h-20 rounded-full bg-surface-offset flex items-center justify-center text-3xl font-black mb-3 border border-divider">
                             {displayName.charAt(0).toUpperCase()}
                         </div>
                     )}
-                    <h3 className="text-2xl font-black text-gray-800 dark:text-white text-center">{displayName}</h3>
-                    {user?.bio && <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center italic">"{user.bio}"</p>}
-                    <div className="mt-4 bg-brand-subtle dark:bg-brand-highlight/20 px-4 py-2 rounded-full border border-brand-border dark:border-brand-border">
-                        <span className="font-black text-brand">{totalPoints}</span>{' '}
-                        <span className="text-xs text-brand font-bold uppercase tracking-wider">Total Points</span>
+                    <h3 className="text-xl font-bold text-text">{displayName}</h3>
+                    {user?.bio && <p className="text-xs text-muted mt-1 italic text-center">"{user.bio}"</p>}
+                    
+                    <div className="mt-3 bg-brand text-white px-3 py-1 rounded-full text-sm font-black">
+                        {totalPoints} pts
                     </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3 mb-6">
-                    {[['Pubs Rated', ratedCount], ['Reviews', writtenReviews], ['Crawls Made', crawlsCreated]].map(([label, val]) => (
-                        <div key={label} className="bg-gray-50 dark:bg-gray-700/50 p-2 rounded-xl border border-gray-100 dark:border-gray-600 text-center">
-                            <p className="text-xl font-black text-gray-800 dark:text-white">{val}</p>
-                            <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">{label}</p>
+                    {[['Rated', ratedCount], ['Reviews', writtenReviews], ['Crawls', crawlsCreated]].map(([label, val]) => (
+                        <div key={label} className="bg-surface-offset p-2 rounded-lg text-center border border-divider">
+                            <p className="text-lg font-black text-text">{val}</p>
+                            <p className="text-[9px] text-muted font-bold uppercase tracking-wider">{label}</p>
                         </div>
                     ))}
                 </div>
 
                 <div className="mb-6">
-                    <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 text-center">Trophy Cabinet</h4>
-                    <div className="grid grid-cols-3 gap-3">
-                        {badges.map((badge, idx) => (
-                            <div key={idx} title={badge.desc} className={`flex flex-col items-center p-2 rounded-xl border text-center transition-all ${ badge.earned ? 'bg-gradient-to-br from-brand-light to-brand-subtle border-brand-border dark:from-brand-highlight/30 dark:to-brand-highlight/10 dark:border-brand-border shadow-sm' : 'bg-gray-50 border-gray-100 dark:bg-gray-800/50 dark:border-gray-700 opacity-50 grayscale' }`}>
-                                <span className="text-2xl mb-1">{badge.emoji}</span>
-                                <span className={`text-[9px] font-black uppercase tracking-wider leading-tight ${ badge.earned ? 'text-brand dark:text-brand-light' : 'text-gray-500 dark:text-gray-400' }`}>{badge.title}</span>
+                    <h4 className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2 text-center">Trophies</h4>
+                    <div className="grid grid-cols-4 gap-2">
+                        {badges.map((b, i) => (
+                            <div key={i} className={`flex flex-col items-center p-2 rounded-lg border text-center ${b.earned ? 'bg-surface border-brand-border' : 'bg-surface-offset border-divider opacity-40 grayscale'}`}>
+                                <span className="text-lg mb-1">{b.emoji}</span>
+                                <span className="text-[8px] font-bold uppercase tracking-wider text-text line-clamp-1 w-full">{b.title}</span>
                             </div>
                         ))}
                     </div>
@@ -369,15 +197,15 @@ function PublicProfileModal({ member, onClose, customBadges }) {
 
                 {topPubs && topPubs.length > 0 && (
                     <div>
-                        <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 text-center">Personal Top 3 Pubs</h4>
-                        <div className="space-y-2">
+                        <h4 className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2 text-center">Top 3 Pubs</h4>
+                        <div className="flex flex-col gap-2">
                             {topPubs.map((tp, idx) => (
-                                <div key={tp.pubId} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border border-gray-100 dark:border-gray-600">
-                                    <div className="flex items-center gap-3 truncate">
-                                        <span className="text-lg font-black text-gray-400">#{idx + 1}</span>
-                                        <span className="font-bold text-gray-800 dark:text-white truncate">{tp.pub?.name || 'Unknown Pub'}</span>
+                                <div key={tp.pubId} className="flex justify-between items-center bg-surface-offset p-2 rounded-lg border border-divider">
+                                    <div className="flex items-center gap-2 truncate">
+                                        <span className="text-xs font-black text-text-faint">#{idx + 1}</span>
+                                        <span className="text-xs font-bold text-text truncate">{tp.pub?.name || 'Unknown'}</span>
                                     </div>
-                                    <span className="font-black text-brand bg-brand-subtle dark:bg-brand-highlight px-2 py-1 rounded text-sm border border-brand-border">{tp.avg.toFixed(1)}</span>
+                                    <span className="text-xs font-black text-brand">{tp.avg.toFixed(1)}</span>
                                 </div>
                             ))}
                         </div>
@@ -391,28 +219,24 @@ function PublicProfileModal({ member, onClose, customBadges }) {
 export default function LeaderboardPage({ scores, users, pubs, criteria, db, groupId }) {
     const [activeTab, setActiveTab] = useState('pubs');
     const [selectedUserForProfile, setSelectedUserForProfile] = useState(null);
-    const [gamification, setGamification] = useState({ pointsPerPub: 5, pointsPerReview: 2, pointsPerAdd: 3, pointsPerCrawl: 5, badges: [] });
+    const [gamification, setGamification] = useState({ pointsPerPub: 5, pointsPerReview: 2, pointsPerAdd: 3, pointsPerCrawl: 5 });
     const [crawlsList, setCrawlsList] = useState([]);
 
     const safePubs     = pubs     || [];
     const safeScores   = scores   || {};
-    // Normalise users: useGroupData may pass an array; rankedMembers needs a { [uid]: user } map.
-    const safeUsers    = Array.isArray(users)
-        ? Object.fromEntries(users.map(u => [u.uid || u.id, u]))
-        : (users || {});
+    const safeUsers    = Array.isArray(users) ? Object.fromEntries(users.map(u => [u.uid || u.id, u])) : (users || {});
     const safeCriteria = criteria || [];
 
     useEffect(() => {
         if (!db) return;
         db.collection('global').doc('gamification').get()
             .then(doc => { if (doc.exists && doc.data()) setGamification(prev => ({ ...prev, ...doc.data() })); })
-            .catch(e => console.error('Error fetching gamification:', e));
+            .catch(e => console.error(e));
     }, [db]);
 
     useEffect(() => {
         if (!db || !groupId) return;
-        const unsub = db.collection('crawls').where('groupId', '==', groupId)
-            .onSnapshot(snap => setCrawlsList(snap.docs.map(d => d.data())));
+        const unsub = db.collection('crawls').where('groupId', '==', groupId).onSnapshot(snap => setCrawlsList(snap.docs.map(d => d.data())));
         return () => unsub();
     }, [db, groupId]);
 
@@ -420,9 +244,7 @@ export default function LeaderboardPage({ scores, users, pubs, criteria, db, gro
         const enriched = safePubs.map(pub => {
             let totalScore = 0, count = 0;
             safeCriteria.filter(c => c.type === 'scale').forEach(c => {
-                (safeScores[pub.id]?.[c.id] || []).forEach(s => {
-                    if (s.value != null && !isNaN(s.value)) { totalScore += s.value; count++; }
-                });
+                (safeScores[pub.id]?.[c.id] || []).forEach(s => { if (s.value != null && !isNaN(s.value)) { totalScore += s.value; count++; } });
             });
             return { ...pub, avgScore: count > 0 ? totalScore / count : 0, ratingCount: count };
         });
@@ -436,6 +258,7 @@ export default function LeaderboardPage({ scores, users, pubs, criteria, db, gro
         });
         crawlsList.forEach(c => { if (c.createdBy && stats[c.createdBy]) stats[c.createdBy].crawlsCreated++; });
         safePubs.forEach(pub => { if (pub.addedBy && stats[pub.addedBy]) stats[pub.addedBy].pubsAdded++; });
+        
         Object.entries(safeScores).forEach(([pubId, pubCriteria]) => {
             Object.entries(pubCriteria || {}).forEach(([, critScores]) => {
                 (critScores || []).forEach(s => {
@@ -448,170 +271,101 @@ export default function LeaderboardPage({ scores, users, pubs, criteria, db, gro
                         st.personalPubScores[pubId].total += s.value;
                         st.personalPubScores[pubId].count++;
                     }
-                    if (s.type === 'text' && s.value?.toString().trim().length > 0) st.writtenReviews++;
+                    if (s.type === 'text' && s.value?.trim()) st.writtenReviews++;
                 });
             });
         });
+
+        const ppp = gamification.pointsPerPub;
+        const ppr = gamification.pointsPerReview;
+        const ppa = gamification.pointsPerAdd;
+        const ppc = gamification.pointsPerCrawl;
+
         return Object.values(stats).map(st => {
-            const topPubs = Object.entries(st.personalPubScores)
-                .map(([pId, data]) => ({ pubId: pId, avg: data.total / data.count }))
-                .sort((a, b) => b.avg - a.avg).slice(0, 3)
-                .map(tp => ({ ...tp, pub: safePubs.find(p => p.id === tp.pubId) }));
-            const ratedCount = st.pubsRated.size;
-            const totalPoints =
-                (ratedCount          * (gamification.pointsPerPub    || 5)) +
-                (st.writtenReviews   * (gamification.pointsPerReview || 2)) +
-                (st.pubsAdded        * (gamification.pointsPerAdd    || 3)) +
-                (st.crawlsCreated    * (gamification.pointsPerCrawl  || 5));
-            return { ...st, ratedCount, topPubs, totalPoints };
-        }).filter(st => st.totalPoints > 0).sort((a, b) => b.totalPoints - a.totalPoints);
-    }, [safeScores, safePubs, safeUsers, gamification, crawlsList]);
+            st.ratedCount = st.pubsRated.size;
+            st.totalPoints = (st.ratedCount * ppp) + (st.writtenReviews * ppr) + (st.pubsAdded * ppa) + (st.crawlsCreated * ppc);
+            st.topPubs = Object.entries(st.personalPubScores)
+                .map(([pid, data]) => ({ pubId: pid, avg: data.total / data.count, pub: safePubs.find(p => p.id === pid) }))
+                .filter(x => x.pub).sort((a, b) => b.avg - a.avg).slice(0, 3);
+            return st;
+        }).sort((a, b) => b.totalPoints - a.totalPoints);
+    }, [safeUsers, safePubs, safeScores, crawlsList, gamification]);
 
     return (
-        <div className="space-y-6 animate-fadeIn relative">
-            {selectedUserForProfile && (
-                <PublicProfileModal
-                    member={selectedUserForProfile}
-                    onClose={() => setSelectedUserForProfile(null)}
-                    customBadges={gamification.badges}
-                />
-            )}
-
-            <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-4">
-                <div>
-                    <h2 className="text-3xl font-black text-gray-800 dark:text-white">Leaderboards</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">See the top pints, and the top pintmen.</p>
+        <div className="space-y-8 animate-fadeIn pb-24">
+            <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                <div className="relative z-10">
+                    <h2 className="font-display text-3xl md:text-4xl font-bold mb-1 text-text">Leaderboards</h2>
+                    <p className="font-body text-sm font-semibold text-muted">Rankings for pubs and group members.</p>
                 </div>
             </div>
 
-            <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-xl max-w-md mx-auto shadow-inner">
-                {[['pubs', '🍺 Top Pubs'], ['members', '🏆 Top Members']].map(([key, label]) => (
-                    <button
-                        key={key}
-                        onClick={() => setActiveTab(key)}
-                        className={`flex-1 py-2 text-sm font-black rounded-lg transition-all ${
-                            activeTab === key
-                                ? 'bg-white dark:bg-gray-800 text-brand shadow-sm'
-                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                        }`}
-                    >
-                        {label}
-                    </button>
-                ))}
+            <div className="flex p-1.5 bg-surface-offset rounded-xl border border-border max-w-sm shadow-inner">
+                <button onClick={() => setActiveTab('pubs')} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all border-none cursor-pointer ${activeTab === 'pubs' ? 'bg-surface text-text shadow-sm' : 'bg-transparent text-muted hover:text-text'}`}>🍺 Top Pubs</button>
+                <button onClick={() => setActiveTab('members')} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all border-none cursor-pointer ${activeTab === 'members' ? 'bg-surface text-text shadow-sm' : 'bg-transparent text-muted hover:text-text'}`}>👤 Top Members</button>
             </div>
 
-            {/* ── PUBS TAB ── */}
-            {activeTab === 'pubs' && (
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fadeIn">
-                    <div className="bg-gradient-to-r from-brand-dark to-brand p-6 text-white text-center">
-                        <h3 className="text-2xl font-black">🏆 Hall of Fame</h3>
-                        <p className="text-sm font-medium opacity-90">The absolute best pubs, ranked by average score.</p>
-                    </div>
-                    {rankedPubs.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500 font-medium">No pubs have been rated yet. Start drinking!</div>
-                    ) : (
-                        <>
-                            <PubPodium pubs={rankedPubs.slice(0, 3)} />
-
-                            {/* Category Champions */}
-                            <CategoryChampions
-                                rankedPubs={rankedPubs}
-                                safeScores={safeScores}
-                                safeCriteria={safeCriteria}
-                            />
-
-                            {rankedPubs.length > 3 && (
-                                <div className="flex items-center gap-3 px-4 sm:px-6 py-3">
-                                    <div className="flex-1 h-px bg-gray-100 dark:bg-gray-700" />
-                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">The Rest</span>
-                                    <div className="flex-1 h-px bg-gray-100 dark:bg-gray-700" />
-                                </div>
-                            )}
-                            <div className="p-2 sm:p-4 space-y-3 pt-0">
-                                {rankedPubs.slice(3).map((pub, index) => (
-                                    <div key={pub.id} className="flex items-center p-4 rounded-xl border border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 shadow-sm transition-transform hover:-translate-y-0.5">
-                                        <div className="w-10 flex-shrink-0 text-center font-black text-base text-gray-400 dark:text-gray-500">#{index + 4}</div>
-                                        {pub.photoURL ? (
-                                            <img src={pub.photoURL} alt={pub.name} className="w-10 h-10 rounded-full object-cover ml-2 mr-3 shadow-sm border-2 border-white dark:border-gray-700" loading="lazy" width="40" height="40" />
-                                        ) : (
-                                            <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-lg ml-2 mr-3 shadow-sm">🍺</div>
-                                        )}
-                                        <div className="flex-1 min-w-0 pr-4">
-                                            <h4 className="text-base font-bold text-gray-800 dark:text-white truncate leading-tight mb-0.5">{pub.name}</h4>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{pub.location || 'Unknown'}</p>
-                                        </div>
-                                        <div className="text-right flex-shrink-0">
-                                            <span className="block text-xl font-black text-brand">{pub.avgScore.toFixed(1)}</span>
-                                            <span className="block text-[10px] text-gray-500 font-bold uppercase tracking-wider">{pub.ratingCount} Ratings</span>
-                                        </div>
+            <div className="card-premium p-6 md:p-8">
+                {activeTab === 'pubs' ? (
+                    <>
+                        <Podium items={rankedPubs.slice(0, 3)} type="pubs" />
+                        <CategoryChampions rankedPubs={rankedPubs} safeScores={safeScores} safeCriteria={safeCriteria} />
+                        
+                        <h3 className="text-sm font-bold text-muted uppercase tracking-wider mb-4">All Ranked Pubs</h3>
+                        <div className="flex flex-col gap-3">
+                            {rankedPubs.slice(3).map((pub, i) => (
+                                <div key={pub.id} className="flex items-center gap-3 md:gap-4 p-3 bg-surface-offset rounded-lg border border-divider">
+                                    <span className="text-sm font-black text-text-faint w-6 text-center">#{i + 4}</span>
+                                    <img src={pub.photoURL || 'https://placehold.co/600x400/1e293b/ffffff?text=No+Photo'} alt={pub.name} className="w-10 h-10 rounded-lg object-cover" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-bold text-text truncate">{pub.name}</p>
+                                        <p className="text-[10px] text-muted truncate">{pub.ratingCount} ratings</p>
                                     </div>
-                                ))}
-                            </div>
-                        </>
-                    )}
-                </div>
-            )}
-
-            {/* ── MEMBERS TAB ── */}
-            {activeTab === 'members' && (
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-fadeIn">
-                    <div className="bg-gradient-to-r from-brand-dark to-brand p-6 text-white text-center">
-                        <h3 className="text-2xl font-black">🍻 Top Crawlers</h3>
-                        <p className="text-sm font-medium opacity-90">Ranked by pubs visited, reviews written, and contributions.</p>
-                    </div>
-
-                    {rankedMembers.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500 font-medium">No active members yet. Invite some friends!</div>
-                    ) : (
-                        <>
-                            <MemberPodium members={rankedMembers.slice(0, 3)} onSelect={setSelectedUserForProfile} />
-
-                            {rankedMembers.length > 3 && (
-                                <div className="flex items-center gap-3 px-4 sm:px-6 py-3">
-                                    <div className="flex-1 h-px bg-gray-100 dark:bg-gray-700" />
-                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">The Rest</span>
-                                    <div className="flex-1 h-px bg-gray-100 dark:bg-gray-700" />
+                                    <div className="text-lg font-black text-brand tabular-nums">{pub.avgScore.toFixed(1)}</div>
                                 </div>
-                            )}
-
-                            <div className="p-2 sm:p-4 space-y-3 pt-0">
-                                {rankedMembers.slice(3).map((member, index) => {
-                                    const { user, totalPoints, ratedCount, writtenReviews, pubsAdded, crawlsCreated } = member;
-                                    const displayName = user?.nickname || user?.displayName || user?.email || 'Unknown User';
-                                    return (
-                                        <div
-                                            key={member.uid}
-                                            onClick={() => setSelectedUserForProfile(member)}
-                                            className="flex items-start p-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50 shadow-sm hover:border-brand-border dark:hover:border-brand hover:shadow-md transition cursor-pointer gap-3"
-                                        >
-                                            <div className="w-8 flex-shrink-0 text-center font-black text-base text-gray-400 dark:text-gray-500 mt-1">#{index + 4}</div>
-                                            {user?.avatarUrl ? (
-                                                <img src={user.avatarUrl} alt={displayName} className="w-10 h-10 rounded-full object-cover flex-shrink-0 border-2 border-white dark:border-gray-600" loading="lazy" width="40" height="40" />
+                            ))}
+                            {rankedPubs.length <= 3 && <p className="text-sm text-text-faint text-center py-4">No more pubs to display.</p>}
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <Podium items={rankedMembers.slice(0, 3)} type="members" onSelect={setSelectedUserForProfile} />
+                        
+                        <h3 className="text-sm font-bold text-muted uppercase tracking-wider mb-4">All Members</h3>
+                        <div className="flex flex-col gap-3">
+                            {rankedMembers.map((member, i) => {
+                                const name = member.user?.nickname || member.user?.displayName || 'Unknown';
+                                return (
+                                    <div key={member.uid} className="flex flex-col gap-2 p-3 bg-surface-offset rounded-lg border border-divider cursor-pointer hover:border-brand/40 transition-colors" onClick={() => setSelectedUserForProfile(member)}>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-sm font-black text-text-faint w-6 text-center">#{i + 1}</span>
+                                            {member.user?.avatarUrl ? (
+                                                <img src={member.user.avatarUrl} alt={name} className="w-10 h-10 rounded-full object-cover" />
                                             ) : (
-                                                <div className="w-10 h-10 rounded-full bg-brand flex items-center justify-center text-white font-black flex-shrink-0">
-                                                    {displayName.charAt(0).toUpperCase()}
-                                                </div>
+                                                <div className="w-10 h-10 rounded-full bg-surface flex items-center justify-center text-lg border border-divider">{name.charAt(0).toUpperCase()}</div>
                                             )}
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <h4 className="text-base font-bold text-gray-800 dark:text-white truncate">{displayName}</h4>
-                                                    <span className="text-lg font-black text-brand ml-3 flex-shrink-0">{totalPoints} <span className="text-[10px] font-bold text-gray-400">pts</span></span>
-                                                </div>
-                                                <PointsBreakdown
-                                                    ratedCount={ratedCount}
-                                                    writtenReviews={writtenReviews}
-                                                    pubsAdded={pubsAdded}
-                                                    crawlsCreated={crawlsCreated}
-                                                    gamification={gamification}
-                                                />
+                                                <p className="text-sm font-bold text-text truncate">{name}</p>
                                             </div>
+                                            <div className="text-base font-black text-brand tabular-nums">{member.totalPoints} <span className="text-[9px] font-bold text-text-faint">pts</span></div>
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        </>
-                    )}
-                </div>
+                                        <div className="pl-12 w-full">
+                                            <PointsBreakdown ratedCount={member.ratedCount} writtenReviews={member.writtenReviews} pubsAdded={member.pubsAdded} crawlsCreated={member.crawlsCreated} gamification={gamification} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </>
+                )}
+            </div>
+
+            {selectedUserForProfile && (
+                <PublicProfileModal 
+                    member={selectedUserForProfile} 
+                    gamification={gamification}
+                    onClose={() => setSelectedUserForProfile(null)} 
+                />
             )}
         </div>
     );

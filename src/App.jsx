@@ -225,7 +225,9 @@ export default function App() {
                     📢 {globalAnnouncement}
                 </div>
             )}
-            {currentScreen}
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+                {currentScreen}
+            </div>
             <ToastContainer />
         </ToastProvider>
     );

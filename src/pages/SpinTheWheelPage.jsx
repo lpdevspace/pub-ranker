@@ -389,14 +389,14 @@ export default function SpinTheWheelPage({ pubs, newPubs, criteria, scores }) {
                             </div>
                             <div>
                                 <p style={{ fontFamily:'var(--font-body)', fontWeight:600, fontSize:'var(--text-xs)', color:'var(--color-text-muted)', marginBottom:'var(--space-2)' }}>Rating criterion</p>
-                                <select value={criterionId} onChange={e => setCriterionId(e.target.value)} style={{ width:'100%', padding:'var(--space-2) var(--space-3)', border:'1.5px solid var(--color-border)', borderRadius:'var(--radius-lg)', background:'var(--color-surface-2)', color:'var(--color-text)', fontFamily:'var(--font-body)', fontWeight:600, fontSize:'var(--text-xs)', cursor:'pointer', outline:'none' }}>
+                                <select value={criterionId} onChange={e => setCriterionId(e.target.value)} style={{ width:'100%', padding:'var(--space-2) var(--space-3)', paddingRight: 'var(--space-8)', border:'1.5px solid var(--color-border)', borderRadius:'var(--radius-lg)', background:'var(--color-surface-2)', color:'var(--color-text)', fontFamily:'var(--font-body)', fontWeight:600, fontSize:'var(--text-xs)', cursor:'pointer', outline:'none' }}>
                                     <option value="">All pubs</option>
                                     {yesNoCriteria.map(c => <option key={c.id} value={c.id}>Must have: {c.name}</option>)}
                                 </select>
                             </div>
                             <div>
                                 <p style={{ fontFamily:'var(--font-body)', fontWeight:600, fontSize:'var(--text-xs)', color:'var(--color-text-muted)', marginBottom:'var(--space-2)' }}>Amenity</p>
-                                <select value={tagFilter} onChange={e => setTagFilter(e.target.value)} style={{ width:'100%', padding:'var(--space-2) var(--space-3)', border:'1.5px solid var(--color-border)', borderRadius:'var(--radius-lg)', background:'var(--color-surface-2)', color:'var(--color-text)', fontFamily:'var(--font-body)', fontWeight:600, fontSize:'var(--text-xs)', cursor:'pointer', outline:'none' }}>
+                                <select value={tagFilter} onChange={e => setTagFilter(e.target.value)} style={{ width:'100%', padding:'var(--space-2) var(--space-3)', paddingRight: 'var(--space-8)', border:'1.5px solid var(--color-border)', borderRadius:'var(--radius-lg)', background:'var(--color-surface-2)', color:'var(--color-text)', fontFamily:'var(--font-body)', fontWeight:600, fontSize:'var(--text-xs)', cursor:'pointer', outline:'none' }}>
                                     <option value="">Any amenity</option>
                                     {AVAILABLE_TAGS.map(tag => <option key={tag} value={tag}>{tag}</option>)}
                                 </select>
@@ -420,10 +420,7 @@ export default function SpinTheWheelPage({ pubs, newPubs, criteria, scores }) {
                             : '⚠️ Avoid';
                         return (
                             <div className="result-card grain-overlay" style={{ borderRadius:'var(--radius-2xl)', overflow:'hidden', border:`2px solid ${tierColor}`, boxShadow:`0 8px 32px ${tierColor}40, var(--shadow-lg)` }}>
-                                {spinResult.photoURL
-                                    ? <img src={spinResult.photoURL} alt={spinResult.name} loading="lazy" width="600" height="220" style={{ width:'100%', height:'12rem', objectFit:'cover', display:'block' }} />
-                                    : <div style={{ height:'8rem', background:`linear-gradient(135deg, ${tierColor}cc 0%, ${tierColor}66 100%)`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'3.5rem' }}>🍻</div>
-                                }
+                                <img src={spinResult.photoURL || 'https://placehold.co/600x400/1e293b/ffffff?text=No+Photo'} alt={spinResult.name} loading="lazy" width="600" height="220" style={{ width:'100%', height:'12rem', objectFit:'cover', display:'block' }} />
                                 <div style={{ padding:'var(--space-6) var(--space-7) var(--space-7)', background:'var(--color-surface)' }}>
                                     <p style={{ fontFamily:'var(--font-body)', fontWeight:700, fontSize:'var(--text-xs)', letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--color-brand)', marginBottom:'var(--space-2)' }}>🎉 Tonight's Pub Is…</p>
                                     <h3 style={{ fontFamily:'var(--font-display)', fontSize:'clamp(1.6rem,2.5vw,2.4rem)', fontWeight:400, color:'var(--color-text)', lineHeight:1.1, marginBottom:'var(--space-3)' }}>{spinResult.name}</h3>

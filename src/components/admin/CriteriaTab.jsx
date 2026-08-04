@@ -47,7 +47,7 @@ export default function CriteriaTab({
                         </div>
                         <div className="space-y-1">
                             <label className="block text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider ml-1">Rating Type</label>
-                            <select value={newCriterionType} onChange={e => setNewCriterionType(e.target.value)} className={inputClass}>
+                            <select value={newCriterionType} onChange={e => setNewCriterionType(e.target.value)} className={`${inputClass} pr-10`}>
                                 {Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                             </select>
                         </div>

@@ -10,18 +10,13 @@ import ErrorBoundary from './components/ErrorBoundary.jsx';
 const Dashboard         = React.lazy(() => import('./pages/DashboardPage.jsx'));
 const PubDirectoryPage  = React.lazy(() => import('./pages/PubsPage.jsx'));
 const RateView          = React.lazy(() => import('./pages/RateView.jsx'));
-const ToVisitPage       = React.lazy(() => import('./pages/PubsToVisitPage.jsx'));
-const InsightsPage      = React.lazy(() => import('./pages/InsightsPage.jsx'));
 const EventsPage        = React.lazy(() => import('./pages/EventsPage.jsx'));
 const MapPage           = React.lazy(() => import('./pages/MapPage.jsx'));
 const LeaderboardPage   = React.lazy(() => import('./pages/LeaderboardPage.jsx'));
-const IndividualPage    = React.lazy(() => import('./pages/IndividualRankingsPage.jsx'));
 const SpinPage          = React.lazy(() => import('./pages/SpinTheWheelPage.jsx'));
 const FeedbackPage      = React.lazy(() => import('./pages/FeedbackPage.jsx'));
-const TaproomPage       = React.lazy(() => import('./pages/TaproomPage.jsx'));
 const VenuePortalPage   = React.lazy(() => import('./pages/VenuePortalPage.jsx'));
-const AchievementsPage  = React.lazy(() => import('./pages/AchievementsPage.jsx'));
-const CheckInsPage      = React.lazy(() => import('./pages/CheckInsPage.jsx'));
+const ActivityPage      = React.lazy(() => import('./pages/ActivityPage.jsx'));
 const AdminPageLoader      = React.lazy(() => import('./pages/AdminPage.jsx'));
 const SuperAdminPageLoader = React.lazy(() => import('./pages/SuperAdminPage.jsx'));
 const NotFoundPage         = React.lazy(() => import('./pages/NotFoundPage.jsx'));
@@ -30,19 +25,14 @@ const NotFoundPage         = React.lazy(() => import('./pages/NotFoundPage.jsx')
 const PATH_TO_PAGE = {
     '/':               'dashboard',
     '/dashboard':      'dashboard',
-    '/taproom':        'taproom',
     '/pubs':           'pubs',
-    '/hitlist':        'toVisit',
-    '/insights':       'insights',
     '/events':         'events',
     '/map':            'map',
     '/leaderboard':    'leaderboard',
-    '/versus':         'individual',
     '/spin':           'spin',
     '/feedback':       'feedback',
     '/venues':         'business',
-    '/achievements':   'achievements',
-    '/checkins':       'checkins',
+    '/activity':       'activity',
     '/admin':          'admin',
     '/superadmin':     'superadmin',
 };
@@ -135,19 +125,14 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
 
     const renderPage = () => {
         switch (page) {
-            case 'taproom':      return <TaproomPage {...sharedProps} onSelectPub={setSelectedPub} onViewDetail={setSelectedPubForDetail} />;
             case 'pubs':         return <PubDirectoryPage {...sharedProps} onSelectPub={setSelectedPub} onViewDetail={setSelectedPubForDetail} currentUser={user} />;
-            case 'toVisit':      return <ToVisitPage {...sharedProps} onSelectPub={setSelectedPub} onViewDetail={setSelectedPubForDetail} />;
-            case 'insights':     return <InsightsPage {...sharedProps} />;
             case 'events':       return <EventsPage {...sharedProps} />;
             case 'map':          return <MapPage {...sharedProps} onViewDetail={setSelectedPubForDetail} />;
             case 'leaderboard':  return <LeaderboardPage {...sharedProps} onViewDetail={setSelectedPubForDetail} />;
-            case 'individual':   return <IndividualPage {...sharedProps} />;
             case 'spin':         return <SpinPage {...sharedProps} onSelectPub={setSelectedPub} />;
             case 'feedback':     return <FeedbackPage {...sharedProps} />;
             case 'business':     return <VenuePortalPage db={db} user={user} userProfile={userProfile} />;
-            case 'achievements': return <AchievementsPage {...sharedProps} />;
-            case 'checkins':     return <CheckInsPage db={db} groupId={groupId} pubs={pubs} allUsers={allUsers} user={user} />;
+            case 'activity':     return <ActivityPage db={db} groupId={groupId} pubs={pubs} allUsers={allUsers} user={user} {...sharedProps} />;
             case 'admin':
                 return (
                     <ProtectedRoute allowed={canManageGroup} fallback={<RedirectToDashboard setPage={setPage} />}>
@@ -202,7 +187,7 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
                 criteria={criteria}
                 groupId={groupId}
             />
-            <main className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 pt-6">
+            <main className="w-full max-w-screen-2xl mx-auto px-4 sm:px-8 lg:px-12 pt-8 md:pt-10 pb-16">
                 {/* Per-page ErrorBoundary so one broken page can't take down the whole app */}
                 <ErrorBoundary key={page}>
                     <Suspense fallback={<LoadingScreen text="Loading..." />}>

@@ -198,7 +198,7 @@ export default function MembersTab({
                                         <select
                                             value={role}
                                             onChange={e => handleRoleChange(uid, e.target.value)}
-                                            className="text-xs border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-brand cursor-pointer shadow-sm font-semibold"
+                                            className="text-xs border border-gray-200 dark:border-gray-600 rounded-lg pl-2 pr-8 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-brand cursor-pointer shadow-sm font-semibold"
                                         >
                                             <option value="member">Member</option>
                                             <option value="manager">Manager</option>

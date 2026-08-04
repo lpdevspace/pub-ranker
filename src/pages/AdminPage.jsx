@@ -148,7 +148,7 @@ function OverviewTab({
     return (
         <div className="space-y-6">
             {/* Group identity header card */}
-            <div className="relative rounded-2xl overflow-hidden border border-gray-250 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800">
+            <div className="card-premium relative rounded-2xl overflow-hidden shadow-sm">
                 {currentGroup.coverPhoto ? (
                     <div className="h-28 w-full relative">
                         <img src={currentGroup.coverPhoto} alt="Group Cover" className="w-full h-full object-cover" />
@@ -165,7 +165,7 @@ function OverviewTab({
                     </div>
                     <button
                         onClick={() => setActiveTab('settings')}
-                        className="px-4 py-2 bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-650 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 rounded-xl font-bold text-xs transition shadow-sm cursor-pointer"
+                        className="btn-premium"
                     >
                         ⚙️ Customize Group
                     </button>
@@ -174,7 +174,7 @@ function OverviewTab({
 
             {/* Dashboard stats cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200/60 dark:border-gray-700 shadow-sm flex flex-col justify-between gap-3 hover:border-brand-border/20 transition-colors">
+                <div className="card-premium card-premium-hover p-5 flex flex-col justify-between gap-3 transition-colors">
                     <div>
                         <span className="text-[10px] font-bold text-gray-450 dark:text-gray-500 uppercase tracking-wider">Group Directory</span>
                         <p className="text-3xl font-black text-gray-850 dark:text-white mt-1">{pubsCount}</p>
@@ -182,7 +182,7 @@ function OverviewTab({
                     <button onClick={() => setActiveTab('pubs')} className="text-xs font-bold text-brand hover:underline text-left cursor-pointer">Manage Pubs →</button>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200/60 dark:border-gray-700 shadow-sm flex flex-col justify-between gap-3 hover:border-brand-border/20 transition-colors">
+                <div className="card-premium card-premium-hover p-5 flex flex-col justify-between gap-3 transition-colors">
                     <div>
                         <span className="text-[10px] font-bold text-gray-450 dark:text-gray-500 uppercase tracking-wider">Active Members</span>
                         <p className="text-3xl font-black text-gray-850 dark:text-white mt-1">{membersCount}</p>
@@ -190,7 +190,7 @@ function OverviewTab({
                     <button onClick={() => setActiveTab('members')} className="text-xs font-bold text-brand hover:underline text-left cursor-pointer">Manage Members →</button>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200/60 dark:border-gray-700 shadow-sm flex flex-col justify-between gap-3 hover:border-brand-border/20 transition-colors">
+                <div className="card-premium card-premium-hover p-5 flex flex-col justify-between gap-3 transition-colors">
                     <div>
                         <span className="text-[10px] font-bold text-gray-450 dark:text-gray-500 uppercase tracking-wider">Join Requests</span>
                         <p className={`text-3xl font-black mt-1 ${pendingCount > 0 ? 'text-amber-605 dark:text-amber-500' : 'text-gray-850 dark:text-white'}`}>{pendingCount}</p>
@@ -202,7 +202,7 @@ function OverviewTab({
                     )}
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200/60 dark:border-gray-700 shadow-sm flex flex-col justify-between gap-3 hover:border-brand-border/20 transition-colors">
+                <div className="card-premium card-premium-hover p-5 flex flex-col justify-between gap-3 transition-colors">
                     <div>
                         <span className="text-[10px] font-bold text-gray-455 dark:text-gray-500 uppercase tracking-wider">Privacy Mode</span>
                         <p className="text-base font-bold text-gray-850 dark:text-white mt-2">
@@ -215,7 +215,7 @@ function OverviewTab({
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                 {/* Quick share widget */}
-                <div className="lg:col-span-2 bg-gray-50 dark:bg-gray-700/30 p-5 rounded-2xl border border-gray-200/60 dark:border-gray-700 flex flex-col items-center justify-between text-center gap-4">
+                <div className="lg:col-span-2 card-premium bg-surface-offset p-5 flex flex-col items-center justify-between text-center gap-4">
                     <div className="w-full text-left">
                         <h4 className="text-sm font-bold text-gray-800 dark:text-white">Quick Invite</h4>
                         <p className="text-[10px] text-gray-450 uppercase tracking-wider mt-0.5">Share Link or QR Code</p>
@@ -226,8 +226,8 @@ function OverviewTab({
                     <div className="flex gap-1.5 w-full">
                         <button
                             onClick={handleCopyInvite}
-                            className={`flex-1 py-2.5 rounded-xl font-bold text-xs text-white transition-all shadow-sm cursor-pointer ${
-                                copyMessage ? 'bg-green-600 hover:bg-green-700' : 'bg-brand hover:bg-brand-hover active:bg-brand-active'
+                            className={`flex-1 btn-premium shadow-sm cursor-pointer ${
+                                copyMessage ? 'bg-green-600 hover:bg-green-700' : ''
                             }`}
                         >
                             {copyMessage ? '✓ Link Copied!' : '📋 Copy Link'}
@@ -243,7 +243,7 @@ function OverviewTab({
                 </div>
 
                 {/* Recent actions list */}
-                <div className="lg:col-span-3 bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-200/60 dark:border-gray-700 shadow-sm flex flex-col">
+                <div className="lg:col-span-3 card-premium p-5 flex flex-col">
                     <div className="flex justify-between items-center mb-4">
                         <div>
                             <h4 className="text-sm font-bold text-gray-800 dark:text-white">Recent Admin Activity</h4>
