@@ -62,23 +62,64 @@ function ReviewCard({ score, currentUser, groupRef, allUsers, canDelete, onDelet
     );
 }
 
-function CriteriaBar({ name, average, scores, type }) {
-    // Only handles 'scale' type now. Text type handled directly in modal.
+function CriteriaBar({ name, average, scores, type, allUsers, canDeleteScore, onDeleteScore }) {
+    const [expanded, setExpanded] = useState(false);
     if (type !== 'scale') return null;
 
     return (
-        <div className="flex justify-between items-center py-3 px-4 first:pt-4 last:pb-4 group hover:bg-surface-offset transition-colors">
-            <span className="font-body font-semibold text-sm text-text">{name}</span>
-            {scores.length > 0 ? (
-                <span className="font-display font-bold text-lg text-brand tabular-nums">{average.toFixed(1)}</span>
-            ) : (
-                <span className="font-body text-xs text-muted italic">No ratings</span>
+        <div className="flex flex-col border-b border-border last:border-0">
+            <div 
+                className="flex justify-between items-center py-3 px-4 group hover:bg-surface-offset transition-colors cursor-pointer"
+                onClick={() => setExpanded(!expanded)}
+            >
+                <div className="flex items-center gap-2">
+                    <span className="font-body font-semibold text-sm text-text">{name}</span>
+                    {scores.length > 0 && (
+                        <span className="text-[10px] text-text-muted bg-surface-offset border border-border px-1.5 py-0.5 rounded-md font-bold leading-none">{scores.length}</span>
+                    )}
+                </div>
+                <div className="flex items-center gap-3">
+                    {scores.length > 0 ? (
+                        <span className="font-display font-bold text-lg text-brand tabular-nums">{average.toFixed(1)}</span>
+                    ) : (
+                        <span className="font-body text-xs text-muted italic">No ratings</span>
+                    )}
+                    <span className={`text-text-muted transition-transform duration-200 text-xs ${expanded ? 'rotate-180' : ''}`}>▼</span>
+                </div>
+            </div>
+            
+            {expanded && scores.length > 0 && (
+                <div className="px-4 pb-3 pt-1 space-y-2 bg-surface/50 animate-fadeIn">
+                    {scores.map(s => {
+                        const userName = allUsers?.[s.userId]?.nickname || allUsers?.[s.userId]?.displayName || s.userName || 'User';
+                        const canDelete = canDeleteScore && canDeleteScore(s);
+                        return (
+                            <div key={s.id} className="flex justify-between items-center bg-surface-offset p-2 rounded-lg border border-border shadow-sm group">
+                                <div className="flex items-center gap-2">
+                                    <div 
+                                        className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black text-white shadow-inner"
+                                        style={{ backgroundColor: avatarColor(userName) }}
+                                    >
+                                        {initials(userName)}
+                                    </div>
+                                    <span className="text-xs font-bold text-text-muted">{userName}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className="font-display font-bold text-sm text-text tabular-nums">{s.value.toFixed(1)}</span>
+                                    {canDelete && (
+                                        <button onClick={(e) => { e.stopPropagation(); onDeleteScore(s); }} className="opacity-0 group-hover:opacity-100 transition-opacity text-[9px] text-error font-bold uppercase cursor-pointer hover:underline border-none bg-transparent">Remove</button>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             )}
         </div>
     );
 }
 
-function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, groupRef, pubsRef, onClose, canManageGroup }) {
+function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, groupRef, pubsRef, onClose, canManageGroup, onSelectPub }) {
     const canDeleteScore = (s) => !!(currentUser && currentGroup && (currentGroup.ownerUid === currentUser.uid || currentGroup.managers?.includes(currentUser.uid)));
 
     const handleDeleteScore = async (score) => {
@@ -90,7 +131,7 @@ function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, g
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm overflow-y-auto animate-fadeIn">
-            <div className="bg-surface rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-hidden border border-border flex flex-col relative">
+            <div className="bg-surface rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto border border-border flex flex-col relative">
                 
                 {/* Hero Header */}
                 <div className="relative h-48 sm:h-56 shrink-0 w-full group">
@@ -121,14 +162,24 @@ function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, g
                 </div>
 
                 {/* Content */}
-                <div className="p-6 overflow-y-auto flex-1 space-y-8 bg-surface">
+                <div className="p-6 space-y-8 bg-surface">
                     
+                    <button
+                        onClick={() => {
+                            onClose();
+                            if (onSelectPub) onSelectPub(pub);
+                        }}
+                        className="w-full bg-brand text-white py-3 rounded-xl font-bold font-body hover:bg-brand-dark transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer border-none"
+                    >
+                        ⭐ Rate this Pub
+                    </button>
+
                     {/* Score Breakdown */}
                     <div>
                         <h3 className="font-display text-lg font-bold text-text mb-4">Score Breakdown</h3>
-                        <div className="card-premium p-1 divide-y divide-border">
+                        <div className="card-premium p-0 flex flex-col">
                             {Object.values(breakdown).filter(d => d.type === 'scale').map(data => (
-                                <CriteriaBar key={data.name} name={data.name} average={data.average} scores={data.scores} type={data.type} />
+                                <CriteriaBar key={data.name} name={data.name} average={data.average} scores={data.scores} type={data.type} allUsers={allUsers} canDeleteScore={canDeleteScore} onDeleteScore={handleDeleteScore} />
                             ))}
                         </div>
                     </div>
@@ -178,13 +229,30 @@ export default function PubsPage({
     const [sortOption,  setSortOption]  = useState('highest');
     const [activeTab,   setActiveTab]   = useState('rated'); // 'rated' or 'unrated'
 
+    const [editingPub, setEditingPub] = useState(null);
+
     const handleDeletePub = async (pubId) => {
-        if (!pubsRef || !pubId) return;
+        if (!groupRef || !pubId) return;
         if (!window.confirm('Delete this pub? This cannot be undone.')) return;
         try {
-            await pubsRef.doc(pubId).delete();
+            await groupRef.collection('pubs').doc(pubId).delete();
             if (db && currentGroup?.id) await db.collection('groups').doc(currentGroup.id).update({ pubCount: firebase.firestore.FieldValue.increment(-1) });
         } catch (e) { console.error(e); }
+    };
+
+    const handleSavePubEdit = async (e) => {
+        e.preventDefault();
+        if (!editingPub || !groupRef) return;
+        try {
+            await groupRef.collection('pubs').doc(editingPub.id).update({
+                name: editingPub.name,
+                location: editingPub.location
+            });
+            setEditingPub(null);
+        } catch (error) {
+            console.error('Failed to update pub', error);
+            alert('Failed to update pub');
+        }
     };
 
     const enrichedPubs = useMemo(() => Array.isArray(pubs) ? pubs.map(pub => {
@@ -215,7 +283,7 @@ export default function PubsPage({
         if (sortOption === 'alphabetical')   return (a.name || '').localeCompare(b.name || '');
         if (sortOption === 'newest')         return safeTime(b.createdAt) - safeTime(a.createdAt);
         return 0;
-    }), [enrichedPubs, searchTerm, sortOption]);
+    }), [enrichedPubs, searchTerm, sortOption, activeTab]);
 
     const breakdown = useMemo(() => {
         if (!selectedPubForDetail) return null;
@@ -226,7 +294,7 @@ export default function PubsPage({
                 const criterionScores = pubScores[crit.id] ?? [];
                 const mappedScores = criterionScores.map(s => ({
                     id: s.id, value: s.value, userId: s.userId,
-                    type: s.type, createdAt: s.createdAt,
+                    type: s.type, createdAt: s.createdAt, userName: s.userName,
                 }));
                 const usable = criterionScores.filter(s => s.value != null);
                 const sum = usable.reduce((acc, s) => s.type === 'scale' ? acc + s.value : acc, 0);
@@ -245,19 +313,19 @@ export default function PubsPage({
                 </div>
             </div>
 
-            <div className="flex bg-surface-offset p-1 rounded-xl mb-6 w-max border border-border shadow-inner">
+            <div className="flex gap-6 border-b border-border mb-6">
                 <button 
                     onClick={() => setActiveTab('rated')}
-                    className={`px-6 py-2 rounded-lg font-bold text-sm transition-all ${activeTab === 'rated' ? 'bg-surface shadow-sm text-text' : 'text-text-muted hover:text-text'}`}
+                    className={`pb-3 px-2 font-black text-lg transition-all border-b-4 cursor-pointer ${activeTab === 'rated' ? 'border-brand text-text' : 'border-transparent text-text-muted hover:text-text'}`}
                 >
-                    Rated Pubs
+                    Directory (Rated)
                 </button>
                 <button 
                     onClick={() => setActiveTab('unrated')}
-                    className={`px-6 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'unrated' ? 'bg-surface shadow-sm text-text' : 'text-text-muted hover:text-text'}`}
+                    className={`pb-3 px-2 font-black text-lg transition-all border-b-4 flex items-center gap-2 cursor-pointer ${activeTab === 'unrated' ? 'border-brand text-text' : 'border-transparent text-text-muted hover:text-text'}`}
                 >
-                    Hit List
-                    <span className="bg-brand text-white text-[10px] px-1.5 py-0.5 rounded-full font-black leading-none flex items-center justify-center">
+                    Pubs to Visit
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-black leading-none flex items-center justify-center ${activeTab === 'unrated' ? 'bg-brand text-white' : 'bg-surface-offset text-text-muted border border-border'}`}>
                         {enrichedPubs.filter(p => p.ratingCount === 0).length}
                     </span>
                 </button>
@@ -304,10 +372,20 @@ export default function PubsPage({
                                 ) : (
                                     <div className="text-sm font-bold text-text-muted italic">Unrated</div>
                                 )}
-                                <div className="flex gap-3" onClick={e => e.stopPropagation()}>
-                                    <button onClick={() => onSelectPub(pub)} className="text-xs font-bold text-brand hover:text-brand-dark cursor-pointer bg-transparent border-none">Rate</button>
-                                    {canManageGroup && <button onClick={() => onSelectPubForEdit(pub)} className="text-xs font-bold text-warning hover:text-yellow-600 cursor-pointer bg-transparent border-none">Edit</button>}
-                                    {canManageGroup && <button onClick={() => handleDeletePub(pub.id)} className="text-xs font-bold text-error hover:text-red-700 cursor-pointer bg-transparent border-none">Delete</button>}
+                                <div className="flex flex-wrap gap-2 justify-end" onClick={e => e.stopPropagation()}>
+                                    <button onClick={() => onSelectPub(pub)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand/10 text-brand hover:bg-brand hover:text-white text-xs font-bold transition-all shadow-sm border border-brand/20 cursor-pointer">
+                                        ⭐ Rate
+                                    </button>
+                                    {canManageGroup && (
+                                        <button onClick={() => setEditingPub(pub)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-warning/10 text-warning hover:bg-warning hover:text-white text-xs font-bold transition-all shadow-sm border border-warning/20 cursor-pointer">
+                                            ✏️ Edit
+                                        </button>
+                                    )}
+                                    {canManageGroup && (
+                                        <button onClick={() => handleDeletePub(pub.id)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-error/10 text-error hover:bg-error hover:text-white text-xs font-bold transition-all shadow-sm border border-error/20 cursor-pointer">
+                                            🗑️ Delete
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -321,7 +399,30 @@ export default function PubsPage({
                     pub={selectedPubForDetail} breakdown={breakdown} allUsers={allUsers}
                     currentUser={currentUser} currentGroup={currentGroup} groupRef={groupRef}
                     pubsRef={pubsRef} canManageGroup={canManageGroup} onClose={() => setSelectedPubForDetail(null)}
+                    onSelectPub={onSelectPub}
                 />
+            )}
+
+            {editingPub && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+                    <form onSubmit={handleSavePubEdit} className="bg-surface p-6 rounded-2xl w-full max-w-md shadow-2xl relative">
+                        <h3 className="text-xl font-bold font-display text-text mb-4">Edit Pub</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-text-muted mb-1">Pub Name</label>
+                                <input type="text" required value={editingPub.name || ''} onChange={e => setEditingPub({...editingPub, name: e.target.value})} className="w-full px-4 py-2 rounded-lg border border-border bg-surface-offset text-text focus:ring-2 focus:ring-brand outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-text-muted mb-1">Location</label>
+                                <input type="text" value={editingPub.location || ''} onChange={e => setEditingPub({...editingPub, location: e.target.value})} className="w-full px-4 py-2 rounded-lg border border-border bg-surface-offset text-text focus:ring-2 focus:ring-brand outline-none" />
+                            </div>
+                        </div>
+                        <div className="mt-6 flex justify-end gap-3">
+                            <button type="button" onClick={() => setEditingPub(null)} className="px-4 py-2 rounded-lg font-bold text-text-muted hover:bg-surface-offset cursor-pointer border-none bg-transparent">Cancel</button>
+                            <button type="submit" className="px-4 py-2 rounded-lg font-bold bg-brand text-white shadow-md hover:bg-brand-dark cursor-pointer border-none">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
             )}
         </div>
     );

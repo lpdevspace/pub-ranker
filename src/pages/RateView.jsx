@@ -56,6 +56,7 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
                         lastEditedBy: user.uid,
                         lastEditedAt: now,
                         updatedAt: now,
+                        userName: user.displayName || user.email?.split('@')[0] || 'User',
                     });
                 } else {
                     const newScoreRef = scoresCollectionRef.doc();
@@ -70,6 +71,7 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
                         lastEditedBy: user.uid,
                         lastEditedAt: now,
                         updatedAt: now,
+                        userName: user.displayName || user.email?.split('@')[0] || 'User',
                     });
                 }
             }
@@ -111,106 +113,125 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
     }
 
     return (
-        <div className="max-w-2xl mx-auto pb-24 animate-fadeIn">
-            {/* Hero image */}
-            <div className="relative h-64 md:h-80 bg-gray-900 rounded-b-xl overflow-hidden -mx-4 sm:mx-0 mb-8 shadow-lg">
-                <img src={pub.photoURL || 'https://placehold.co/600x400/1e293b/ffffff?text=No+Photo'} alt={pub.name} className="w-full h-full object-cover opacity-60" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex flex-col justify-between p-6">
-                    <button onClick={onBack} className="w-10 h-10 bg-white/20 hover:bg-white/35 backdrop-blur-md rounded-full flex items-center justify-center text-white border-none cursor-pointer transition-colors">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
-                    </button>
-                    <div>
-                        <h2 className="text-2xl font-black text-white mb-1 font-display drop-shadow-md">{pub.name}</h2>
-                        <p className="text-white/80 font-medium flex items-center gap-2">📍 {pub.location || 'Unknown Location'}</p>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-surface rounded-3xl shadow-2xl w-full max-w-2xl max-h-[95vh] flex flex-col relative overflow-hidden">
+                
+                {/* Smaller Hero Header */}
+                <div className="relative h-32 sm:h-48 shrink-0 w-full bg-black">
+                    <img 
+                        src={pub.photoURL || 'https://placehold.co/600x400/1e293b/ffffff?text=No+Photo'} 
+                        alt={pub.name} 
+                        className="w-full h-full object-cover opacity-70 mix-blend-overlay" 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent flex flex-col justify-between p-4 sm:p-6">
+                        <button 
+                            type="button"
+                            onClick={onBack} 
+                            className="w-8 h-8 bg-black/40 hover:bg-black/60 backdrop-blur-xl rounded-full flex items-center justify-center text-white border border-white/20 cursor-pointer transition-all shadow-lg hover:scale-105 self-end"
+                        >
+                            ✕
+                        </button>
+                        <div>
+                            <h2 className="text-2xl sm:text-4xl font-black text-white mb-1 font-display drop-shadow-lg tracking-tight truncate">{pub.name}</h2>
+                            <p className="text-white/90 font-medium flex items-center gap-2 text-xs sm:text-sm font-body uppercase truncate">📍 {pub.location || 'Unknown Location'}</p>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-6 px-4 sm:px-0">
-                <div className="text-center mb-6">
-                    <h3 className="text-lg font-bold text-text">What's your verdict?</h3>
-                    <p className="text-sm text-text-muted">Be honest. Your group is counting on you.</p>
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto w-full p-4 sm:p-6 pb-28">
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+                        <div className="mb-2">
+                            <h3 className="text-xl font-black text-text font-display tracking-tight mb-1">What's your verdict?</h3>
+                            <p className="text-sm text-text-muted font-body">Be honest. Your group relies on your expertise to find the best spots.</p>
+                        </div>
+
+                        {criteria.map((crit) => (
+                            <div key={crit.id} className="bg-surface p-5 sm:p-6 rounded-2xl shadow-sm border border-border transition-all hover:shadow-md group">
+                                <label className="block text-lg font-bold text-text mb-4 font-display group-hover:text-brand transition-colors">{crit.name}</label>
+
+                                {crit.type === 'scale' && (
+                                    <div className="flex flex-col gap-5">
+                                        <div className="flex justify-between items-center bg-surface-offset p-3 rounded-xl border border-border shadow-inner">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-3xl drop-shadow-sm">{getScoreEmoji(ratings[crit.id])}</span>
+                                                <span className="font-body font-bold text-text-muted text-xs uppercase tracking-wider hidden sm:inline">Score</span>
+                                            </div>
+                                            <span className="text-2xl font-black text-brand tabular-nums">
+                                                {ratings[crit.id] ? ratings[crit.id] : '-'}<span className="text-lg text-text-muted opacity-50">/10</span>
+                                            </span>
+                                        </div>
+                                        <div className="px-2">
+                                            <input
+                                                type="range" min="1" max="10" step="0.5"
+                                                value={ratings[crit.id] || 5}
+                                                onChange={(e) => handleRate(crit.id, parseFloat(e.target.value))}
+                                                className="w-full h-3 rounded-full cursor-pointer bg-border accent-brand shadow-inner transition-all"
+                                            />
+                                            <div className="flex justify-between text-[10px] sm:text-xs font-black text-text-muted uppercase tracking-widest mt-3">
+                                                <span>Awful</span><span>Average</span><span>Perfect</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {crit.type === 'price' && (
+                                    <div className="flex justify-between gap-1.5 sm:gap-3">
+                                        {[1, 2, 3, 4, 5].map(num => (
+                                            <button
+                                                key={num} type="button"
+                                                onClick={() => handleRate(crit.id, num)}
+                                                className={`flex-1 py-3 rounded-xl text-sm sm:text-lg font-black border-2 cursor-pointer transition-all duration-200 flex items-center justify-center ${
+                                                    ratings[crit.id] === num 
+                                                    ? 'bg-success text-white border-success shadow-lg scale-105' 
+                                                    : 'bg-surface-offset text-text-muted border-transparent hover:bg-surface hover:border-border hover:shadow-sm'
+                                                }`}
+                                            >
+                                                {'£'.repeat(num)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {crit.type === 'yes-no' && (
+                                    <div className="flex gap-3 sm:gap-4">
+                                        <button type="button" onClick={() => handleRate(crit.id, true)}
+                                            className={`flex-1 py-3 rounded-xl text-base sm:text-lg font-black border-2 cursor-pointer transition-all duration-200 flex items-center justify-center gap-2 ${
+                                                ratings[crit.id] === true
+                                                ? 'bg-success text-white border-success shadow-lg scale-105'
+                                                : 'bg-surface-offset text-text-muted border-transparent hover:bg-surface hover:border-border hover:shadow-sm'
+                                            }`}>
+                                            👍 Yes
+                                        </button>
+                                        <button type="button" onClick={() => handleRate(crit.id, false)}
+                                            className={`flex-1 py-3 rounded-xl text-base sm:text-lg font-black border-2 cursor-pointer transition-all duration-200 flex items-center justify-center gap-2 ${
+                                                ratings[crit.id] === false
+                                                ? 'bg-error text-white border-error shadow-lg scale-105'
+                                                : 'bg-surface-offset text-text-muted border-transparent hover:bg-surface hover:border-border hover:shadow-sm'
+                                            }`}>
+                                            👎 No
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </form>
                 </div>
 
-                {criteria.map((crit) => (
-                    <div key={crit.id} className="bg-surface p-6 rounded-xl shadow-sm border border-border">
-                        <label className="block text-lg font-bold text-text mb-4">{crit.name}</label>
-
-                        {crit.type === 'scale' && (
-                            <div className="flex flex-col gap-4">
-                                <div className="flex justify-between items-center bg-surface-offset p-3 rounded-lg border border-border">
-                                    <span className="text-3xl">{getScoreEmoji(ratings[crit.id])}</span>
-                                    <span className="text-xl font-black text-brand tabular-nums">
-                                        {ratings[crit.id] ? ratings[crit.id] : '-'}<span className="text-lg text-text-muted">/10</span>
-                                    </span>
-                                </div>
-                                <input
-                                    type="range" min="1" max="10" step="0.5"
-                                    value={ratings[crit.id] || 5}
-                                    onChange={(e) => handleRate(crit.id, parseFloat(e.target.value))}
-                                    className="w-full h-3 rounded-full appearance-none cursor-pointer bg-surface-dynamic accent-brand"
-                                />
-                                <div className="flex justify-between text-xs font-bold text-text-muted uppercase">
-                                    <span>Awful</span><span>Average</span><span>Perfect</span>
-                                </div>
-                            </div>
-                        )}
-
-                        {crit.type === 'price' && (
-                            <div className="flex justify-between gap-2">
-                                {[1, 2, 3, 4, 5].map(num => (
-                                    <button
-                                        key={num} type="button"
-                                        onClick={() => handleRate(crit.id, num)}
-                                        className={`flex-1 py-3 rounded-lg text-lg font-bold border-none cursor-pointer transition-all ${
-                                            ratings[crit.id] === num 
-                                            ? 'bg-success text-white scale-105 shadow-md' 
-                                            : 'bg-surface-offset text-text-muted hover:bg-surface-2'
-                                        }`}
-                                    >
-                                        {'£'.repeat(num)}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {crit.type === 'yes-no' && (
-                            <div className="flex gap-4">
-                                <button type="button" onClick={() => handleRate(crit.id, true)}
-                                    className={`flex-1 py-3 rounded-lg text-lg font-bold border-none cursor-pointer transition-all ${
-                                        ratings[crit.id] === true
-                                        ? 'bg-success text-white scale-105 shadow-md'
-                                        : 'bg-surface-offset text-text-muted hover:bg-surface-2'
-                                    }`}>
-                                    👍 Yes
-                                </button>
-                                <button type="button" onClick={() => handleRate(crit.id, false)}
-                                    className={`flex-1 py-3 rounded-lg text-lg font-bold border-none cursor-pointer transition-all ${
-                                        ratings[crit.id] === false
-                                        ? 'bg-error text-white scale-105 shadow-md'
-                                        : 'bg-surface-offset text-text-muted hover:bg-surface-2'
-                                    }`}>
-                                    👎 No
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                ))}
-
-                {/* Fixed bottom bar */}
-                <div className="fixed bottom-0 left-0 right-0 p-4 bg-surface/90 backdrop-blur-md border-t border-border flex gap-3 z-40">
+                {/* Fixed bottom bar inside modal */}
+                <div className="absolute bottom-0 left-0 right-0 p-4 bg-surface/95 backdrop-blur-md border-t border-border flex justify-end gap-3 z-40">
                     <button type="button" onClick={onBack}
-                        className="flex-1 bg-surface-offset hover:bg-surface-dynamic text-text text-lg font-black rounded-lg py-4 border-none cursor-pointer transition-colors">
+                        className="px-6 py-3 bg-surface-offset hover:bg-surface text-text text-sm font-black rounded-xl border border-border cursor-pointer transition-all shadow-sm">
                         Cancel
                     </button>
                     <button onClick={handleSubmit} disabled={isSubmitting}
-                        className={`flex-1 bg-brand text-white text-lg font-black rounded-lg py-4 border-none shadow-md transition-colors ${
-                            isSubmitting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-brand-dark'
+                        className={`px-8 py-3 bg-brand text-white text-sm font-black rounded-xl border-none shadow-lg transition-all ${
+                            isSubmitting ? 'opacity-50 cursor-not-allowed scale-95' : 'cursor-pointer hover:bg-brand-dark hover:-translate-y-0.5'
                         }`}>
                         {isSubmitting ? 'Saving...' : '🍺 Submit Ratings'}
                     </button>
                 </div>
-            </form>
+            </div>
         </div>
     );
 }
