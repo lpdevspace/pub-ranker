@@ -310,3 +310,302 @@ const stripeModule = require('./stripe');
 exports.createCheckoutSession = stripeModule.createCheckoutSession;
 exports.createPortalSession   = stripeModule.createPortalSession;
 exports.stripeWebhook          = stripeModule.stripeWebhook;
+
+// ── AI Pub Crawl Generator ───────────────────────────────────────────────────
+const { GoogleGenAI } = require('@google/genai');
+const { defineSecret } = require('firebase-functions/params');
+const geminiApiKey = defineSecret('GEMINI_API_KEY');
+
+exports.generateAICrawl = functions
+    .region('europe-west2')
+    .runWith({ secrets: [geminiApiKey], timeoutSeconds: 60 })
+    .https.onCall(async (data, context) => {
+        if (!context.auth) {
+            throw new functions.https.HttpsError('unauthenticated', 'User must be signed in to generate crawls.');
+        }
+
+        const { groupId, vibe, numStops, startLat, startLng } = data;
+        if (!groupId || !vibe || !numStops) {
+            throw new functions.https.HttpsError('invalid-argument', 'Missing required parameters: groupId, vibe, numStops.');
+        }
+
+        try {
+            // 1. Fetch group's pubs
+            const pubsSnap = await db.collection('groups').doc(groupId).collection('pubs').get();
+            const pubs = [];
+            
+            pubsSnap.forEach(doc => {
+                const pubData = doc.data();
+                if (pubData.lat && pubData.lng) {
+                    pubs.push({
+                        id: doc.id,
+                        name: pubData.name,
+                        lat: pubData.lat,
+                        lng: pubData.lng,
+                        description: pubData.description || 'No description'
+                    });
+                }
+            });
+
+            if (pubs.length === 0) {
+                throw new functions.https.HttpsError('failed-precondition', 'No pubs found in this group with location data.');
+            }
+
+            // Optional: If startLat/startLng provided, filter/sort by distance here to save tokens
+            // (Assuming all group pubs for now if small enough)
+
+            // 2. Initialize Gemini
+            const apiKey = geminiApiKey.value();
+            if (!apiKey) {
+                throw new functions.https.HttpsError('internal', 'Gemini API key is not configured.');
+            }
+            const ai = new GoogleGenAI({ apiKey: apiKey });
+
+            // 3. Prepare the Prompt
+            const prompt = `
+You are an expert pub crawl planner. The user wants a pub crawl with ${numStops} stops that matches the vibe: "${vibe}".
+${startLat && startLng ? `The preferred starting location is approximately Lat: ${startLat}, Lng: ${startLng}. Try to start near here if possible, and ensure the pubs are in a logical walking route.` : `Create a logical walking route.`}
+
+Here is the list of available pubs:
+${JSON.stringify(pubs.map(p => ({ id: p.id, name: p.name, lat: p.lat, lng: p.lng, description: p.description })), null, 2)}
+
+Select exactly ${numStops} pubs from the list to form the crawl. 
+Return ONLY a valid JSON array of strings, where each string is the ID of a selected pub in the order they should be visited. Do not include markdown formatting or explanations. Example output: ["pub1_id", "pub2_id"]
+`;
+
+            // 4. Call Gemini
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+
+            let responseText = response.text;
+            // Strip potential markdown block if AI adds it despite instructions
+            if (responseText.startsWith('\`\`\`')) {
+                responseText = responseText.replace(/^\`\`\`(json)?\n/, '').replace(/\n\`\`\`$/, '');
+            }
+
+            let routeIds = [];
+            try {
+                routeIds = JSON.parse(responseText);
+            } catch (e) {
+                console.error("Failed to parse Gemini response:", responseText);
+                throw new functions.https.HttpsError('internal', 'AI returned an invalid response format.');
+            }
+
+            if (!Array.isArray(routeIds) || routeIds.length === 0) {
+                 throw new functions.https.HttpsError('internal', 'AI returned an empty route.');
+            }
+
+            return { pubIds: routeIds };
+        } catch (error) {
+            console.error('Error generating AI Crawl:', error);
+            throw new functions.https.HttpsError('internal', error.message || 'An error occurred during AI crawl generation.');
+        }
+    });
+
+// ── Feature 1: AI Review Summarization (Vibe Check) ─────────────────────────
+exports.generateVibeCheck = functions
+    .region('europe-west2')
+    .runWith({ secrets: [geminiApiKey], timeoutSeconds: 60 })
+    .firestore.document('groups/{groupId}/scores/{scoreId}')
+    .onWrite(async (change, context) => {
+        const after = change.after.data();
+        const before = change.before.data();
+        
+        if (!after || after.type !== 'text') return null;
+        if (before && before.value === after.value) return null;
+
+        const groupId = context.params.groupId;
+        const pubId = after.pubId;
+        if (!pubId) return null;
+
+        try {
+            const scoresSnap = await db.collection('groups').doc(groupId).collection('scores')
+                .where('pubId', '==', pubId)
+                .where('type', '==', 'text')
+                .orderBy('timestamp', 'desc')
+                .limit(10)
+                .get();
+
+            const reviews = [];
+            scoresSnap.forEach(doc => {
+                if (doc.data().value) reviews.push(doc.data().value);
+            });
+
+            if (reviews.length === 0) return null;
+
+            const apiKey = geminiApiKey.value();
+            if (!apiKey) return null;
+            const ai = new GoogleGenAI({ apiKey: apiKey });
+
+            const prompt = `
+You are a witty, concise local pub guide. Read the following reviews for a pub and generate a short, snappy "Vibe Summary" (2-3 sentences max). 
+Capture the general consensus, the atmosphere, and any standout features mentioned.
+
+Reviews:
+${reviews.map(r => "- " + r).join('\n')}
+
+Summary:`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+
+            const summary = response.text.trim();
+            if (summary) {
+                await db.collection('groups').doc(groupId).collection('pubs').doc(pubId).update({
+                    vibeSummary: summary,
+                    vibeSummaryUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+            }
+            return null;
+        } catch (error) {
+            console.error('Error generating vibe check:', error);
+            return null;
+        }
+    });
+
+// ── Feature 2: AI Automated Image Tagging ────────────────────────────────────
+exports.tagPubPhoto = functions
+    .region('europe-west2')
+    .runWith({ secrets: [geminiApiKey], timeoutSeconds: 60 })
+    .firestore.document('groups/{groupId}/pubs/{pubId}')
+    .onWrite(async (change, context) => {
+        const after = change.after.data();
+        const before = change.before.data();
+
+        if (!after || !after.photoURL) return null;
+        if (before && before.photoURL === after.photoURL) return null;
+
+        const groupId = context.params.groupId;
+        const pubId = context.params.pubId;
+        const photoUrl = after.photoURL;
+
+        try {
+            const apiKey = geminiApiKey.value();
+            if (!apiKey) return null;
+            const ai = new GoogleGenAI({ apiKey: apiKey });
+
+            const imageResp = await fetch(photoUrl);
+            const arrayBuffer = await imageResp.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            const base64Image = buffer.toString('base64');
+            const mimeType = imageResp.headers.get('content-type') || 'image/jpeg';
+
+            const prompt = `
+Analyze this image of a pub and return a JSON array of up to 5 descriptive tags (e.g., "beer_garden", "live_music", "pool_table", "cozy", "sports_tv", "food", "cocktails", "historic"). 
+If the image doesn't look like a pub or you cannot analyze it, return exactly ["Pub"].
+Return ONLY a valid JSON array of strings, nothing else.`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: [
+                    { inlineData: { data: base64Image, mimeType: mimeType } },
+                    prompt
+                ]
+            });
+
+            let responseText = response.text;
+            if (responseText.startsWith('\`\`\`')) {
+                responseText = responseText.replace(/^\`\`\`(json)?\n/, '').replace(/\n\`\`\`$/, '');
+            }
+
+            let tags = ["Pub"];
+            try {
+                const parsed = JSON.parse(responseText);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    tags = parsed;
+                }
+            } catch (e) {
+                console.error('Failed to parse Gemini Vision tags:', responseText);
+            }
+
+            await db.collection('groups').doc(groupId).collection('pubs').doc(pubId).update({
+                aiTags: tags
+            });
+            return null;
+        } catch (error) {
+            console.error('Error tagging pub photo:', error);
+            await db.collection('groups').doc(groupId).collection('pubs').doc(pubId).update({
+                aiTags: ["Pub"]
+            });
+            return null;
+        }
+    });
+
+// ── Feature 3: AI Smart Search ───────────────────────────────────────────────
+exports.aiSmartSearch = functions
+    .region('europe-west2')
+    .runWith({ secrets: [geminiApiKey], timeoutSeconds: 60 })
+    .https.onCall(async (data, context) => {
+        if (!context.auth) {
+            throw new functions.https.HttpsError('unauthenticated', 'User must be signed in.');
+        }
+
+        const { groupId, query } = data;
+        if (!groupId || !query) {
+            throw new functions.https.HttpsError('invalid-argument', 'Missing required parameters.');
+        }
+
+        try {
+            const pubsSnap = await db.collection('groups').doc(groupId).collection('pubs').get();
+            const pubs = [];
+            
+            pubsSnap.forEach(doc => {
+                const pubData = doc.data();
+                pubs.push({
+                    id: doc.id,
+                    name: pubData.name,
+                    description: pubData.description || '',
+                    vibeSummary: pubData.vibeSummary || '',
+                    tags: pubData.aiTags || []
+                });
+            });
+
+            if (pubs.length === 0) {
+                return { pubIds: [] };
+            }
+
+            const apiKey = geminiApiKey.value();
+            if (!apiKey) {
+                throw new functions.https.HttpsError('internal', 'Gemini API key is not configured.');
+            }
+            const ai = new GoogleGenAI({ apiKey: apiKey });
+
+            const prompt = `
+The user is searching for a pub with the following query: "${query}"
+
+Here is the list of available pubs with their metadata:
+${JSON.stringify(pubs, null, 2)}
+
+Identify the pubs that best match the user's search query. Rank them from best match to worst match, but only include pubs that actually match the intent of the query.
+Return ONLY a valid JSON array of strings, where each string is the ID of a matched pub in order of relevance. Do not include markdown formatting or explanations. Example output: ["pub1_id", "pub2_id"]
+If no pubs match, return an empty array: []
+`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+
+            let responseText = response.text;
+            if (responseText.startsWith('\`\`\`')) {
+                responseText = responseText.replace(/^\`\`\`(json)?\n/, '').replace(/\n\`\`\`$/, '');
+            }
+
+            let routeIds = [];
+            try {
+                routeIds = JSON.parse(responseText);
+            } catch (e) {
+                console.error("Failed to parse Gemini response:", responseText);
+                throw new functions.https.HttpsError('internal', 'AI returned an invalid response format.');
+            }
+
+            return { pubIds: Array.isArray(routeIds) ? routeIds : [] };
+        } catch (error) {
+            console.error('Error in aiSmartSearch:', error);
+            throw new functions.https.HttpsError('internal', error.message || 'An error occurred during smart search.');
+        }
+    });

@@ -2,6 +2,7 @@ import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
 import 'firebase/compat/storage';
+import 'firebase/compat/functions';
 
 // ✅ SECURITY FIX: All sensitive values loaded from environment variables.
 // Copy .env.example to .env and fill in your values. NEVER commit .env to git.

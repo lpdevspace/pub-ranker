@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { geocodeMissingPubs } from '../utils/geocode';
+import { firebase } from '../firebase';
 
 /* ─── tier helpers ──────────────────────────────────────────────────────── */
 const tierColor = (score, hasScore) => {
@@ -197,6 +198,12 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
     const [routeLoading,     setRouteLoading]      = useState(false);
     const [directionsOpen,   setDirectionsOpen]    = useState(false);
 
+    // AI Crawl State
+    const [aiVibe,           setAiVibe]            = useState('');
+    const [aiNumStops,       setAiNumStops]        = useState(3);
+    const [aiLoading,        setAiLoading]         = useState(false);
+    const [aiError,          setAiError]           = useState('');
+
     const allPubs = useMemo(() => [
         ...pubsArray.map(p => ({ ...p, _listType: 'visited' })),
         ...newPubsArray.map(p => ({ ...p, _listType: 'toVisit' })),
@@ -261,6 +268,39 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
             .onSnapshot(snap => setCrawls(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
         return unsub;
     }, [db, groupId]);
+
+    const generateAICrawl = async () => {
+        if (!aiVibe.trim()) return;
+        setAiLoading(true);
+        setAiError('');
+        try {
+            const center = leafletRef.current ? leafletRef.current.getCenter() : null;
+            const generateCrawlFn = firebase.app().functions('europe-west2').httpsCallable('generateAICrawl');
+            
+            const result = await generateCrawlFn({
+                groupId,
+                vibe: aiVibe,
+                numStops: Number(aiNumStops),
+                startLat: center?.lat,
+                startLng: center?.lng
+            });
+
+            if (result.data && result.data.pubIds) {
+                const validIds = result.data.pubIds.filter(id => localPubs.find(p => p.id === id));
+                setCrawlPubIds(validIds);
+                if (validIds.length === 0) {
+                    setAiError('AI could not find matching pubs for this vibe.');
+                }
+            } else {
+                setAiError('Unexpected response from AI.');
+            }
+        } catch (err) {
+            console.error('AI Crawl Error:', err);
+            setAiError(err.message || 'Failed to generate crawl.');
+        } finally {
+            setAiLoading(false);
+        }
+    };
 
     useEffect(() => {
         if (!mapRef.current || leafletRef.current) return;
@@ -619,6 +659,32 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
                                 <input type="date" value={crawlDate} onChange={e => setCrawlDate(e.target.value)}
                                     className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface-offset text-text text-sm outline-none focus:border-brand transition-colors"
                                 />
+                            </div>
+                            
+                            {/* AI Magic Generator */}
+                            <div className="p-4 bg-gradient-to-r from-brand-subtle to-surface border border-brand/30 rounded-xl mt-2 mb-2">
+                                <h4 className="text-sm font-bold text-brand mb-2 flex items-center gap-2">✨ AI Crawl Generator</h4>
+                                <p className="text-xs text-muted mb-3">Let Gemini plan your perfect route based on vibe and map center.</p>
+                                
+                                <div className="flex flex-col gap-3">
+                                    <input type="text" value={aiVibe} onChange={e => setAiVibe(e.target.value)}
+                                        placeholder="Vibe (e.g., Historic, Craft Beer, Lively)"
+                                        className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text text-sm outline-none focus:border-brand"
+                                    />
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2 flex-1">
+                                            <span className="text-xs text-muted font-bold">Stops:</span>
+                                            <input type="range" min="2" max="8" value={aiNumStops} onChange={e => setAiNumStops(parseInt(e.target.value))} className="flex-1 accent-brand" />
+                                            <span className="text-xs font-bold text-text">{aiNumStops}</span>
+                                        </div>
+                                        <button onClick={generateAICrawl} disabled={aiLoading || !aiVibe.trim()}
+                                            className={`px-4 py-2 rounded-lg font-bold text-xs border-none text-white transition-colors ${aiLoading || !aiVibe.trim() ? 'bg-muted cursor-not-allowed' : 'bg-brand cursor-pointer hover:bg-brand-hover'}`}
+                                        >
+                                            {aiLoading ? 'Generating...' : 'Generate Route'}
+                                        </button>
+                                    </div>
+                                </div>
+                                {aiError && <p className="text-xs text-error mt-2 font-bold">{aiError}</p>}
                             </div>
                             
                             {crawlPubIds.length > 0 && (

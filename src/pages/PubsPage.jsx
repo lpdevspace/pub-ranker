@@ -174,6 +174,34 @@ function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, g
                         ⭐ Rate this Pub
                     </button>
 
+                    {/* AI Insights */}
+                    {(pub.vibeSummary || (pub.aiTags && pub.aiTags.length > 0)) && (
+                        <div className="bg-gradient-to-br from-brand-subtle to-surface border border-brand/20 p-5 rounded-2xl shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-3 opacity-10 text-brand pointer-events-none">
+                                <span className="text-6xl">✨</span>
+                            </div>
+                            <h3 className="font-display text-lg font-bold text-brand mb-3 flex items-center gap-2 relative z-10">
+                                ✨ AI Insights
+                            </h3>
+                            
+                            {pub.vibeSummary && (
+                                <p className="text-sm text-text font-body leading-relaxed mb-4 italic relative z-10">
+                                    "{pub.vibeSummary}"
+                                </p>
+                            )}
+
+                            {pub.aiTags && pub.aiTags.length > 0 && (
+                                <div className="flex flex-wrap gap-2 relative z-10">
+                                    {pub.aiTags.map(tag => (
+                                        <span key={tag} className="px-2.5 py-1 bg-surface border border-brand/30 text-[10px] font-bold text-brand rounded-md uppercase tracking-wider shadow-sm">
+                                            #{tag.replace(/_/g, ' ')}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Score Breakdown */}
                     <div>
                         <h3 className="font-display text-lg font-bold text-text mb-4">Score Breakdown</h3>
@@ -228,6 +256,8 @@ export default function PubsPage({
     const [searchTerm,  setSearchTerm]  = useState('');
     const [sortOption,  setSortOption]  = useState('highest');
     const [activeTab,   setActiveTab]   = useState('rated'); // 'rated' or 'unrated'
+    const [isSmartSearching, setIsSmartSearching] = useState(false);
+    const [smartSearchIds, setSmartSearchIds] = useState(null);
 
     const [editingPub, setEditingPub] = useState(null);
 
@@ -255,6 +285,27 @@ export default function PubsPage({
         }
     };
 
+    const handleSmartSearch = async () => {
+        if (!searchTerm.trim() || !groupRef) return;
+        setIsSmartSearching(true);
+        try {
+            // Need currentGroup ID which should be equivalent to groupId if we had it, wait, we don't have groupId directly here?
+            // Actually `currentGroup.id` is available.
+            const searchFn = firebase.app().functions('europe-west2').httpsCallable('aiSmartSearch');
+            const result = await searchFn({ groupId: currentGroup.id, query: searchTerm });
+            if (result.data && Array.isArray(result.data.pubIds)) {
+                setSmartSearchIds(result.data.pubIds);
+            } else {
+                setSmartSearchIds([]);
+            }
+        } catch (error) {
+            console.error('Smart Search Error:', error);
+            alert('Failed to perform smart search. Please try again.');
+        } finally {
+            setIsSmartSearching(false);
+        }
+    };
+
     const enrichedPubs = useMemo(() => Array.isArray(pubs) ? pubs.map(pub => {
         let totalScore = 0, count = 0;
         if (Array.isArray(criteria)) {
@@ -270,7 +321,11 @@ export default function PubsPage({
     }) : [], [pubs, criteria, scores]);
 
     const filteredPubs = useMemo(() => enrichedPubs.filter(pub => {
-        if (!(pub.name || '').toLowerCase().includes(searchTerm.toLowerCase())) return false;
+        if (smartSearchIds) {
+            if (!smartSearchIds.includes(pub.id)) return false;
+        } else {
+            if (!(pub.name || '').toLowerCase().includes(searchTerm.toLowerCase())) return false;
+        }
         
         const isRated = pub.ratingCount > 0;
         if (activeTab === 'rated' && !isRated) return false;
@@ -278,12 +333,15 @@ export default function PubsPage({
         
         return true;
     }).sort((a, b) => {
+        if (smartSearchIds) {
+            return smartSearchIds.indexOf(a.id) - smartSearchIds.indexOf(b.id);
+        }
         if (sortOption === 'highest')        return (b.avgScore    || 0) - (a.avgScore    || 0);
         if (sortOption === 'lowest')         return (a.avgScore    || 0) - (b.avgScore    || 0);
         if (sortOption === 'alphabetical')   return (a.name || '').localeCompare(b.name || '');
         if (sortOption === 'newest')         return safeTime(b.createdAt) - safeTime(a.createdAt);
         return 0;
-    }), [enrichedPubs, searchTerm, sortOption, activeTab]);
+    }), [enrichedPubs, searchTerm, sortOption, activeTab, smartSearchIds]);
 
     const breakdown = useMemo(() => {
         if (!selectedPubForDetail) return null;
@@ -332,10 +390,28 @@ export default function PubsPage({
             </div>
 
             <div className="card-premium p-4 md:p-5 flex flex-wrap gap-4 items-center">
-                <input
-                    type="text" placeholder="Search pubs..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                    className="flex-1 min-w-[200px] px-4 py-2.5 border border-border rounded-xl focus:ring-1 focus:ring-brand bg-surface text-text outline-none"
-                />
+                <div className="flex-1 min-w-[200px] flex gap-2">
+                    <input
+                        type="text" placeholder="Search pubs or try Smart Search (e.g., 'pubs with a pool table')..." 
+                        value={searchTerm} 
+                        onChange={e => {
+                            setSearchTerm(e.target.value);
+                            if (e.target.value === '') setSmartSearchIds(null);
+                        }}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter') handleSmartSearch();
+                        }}
+                        className="flex-1 px-4 py-2.5 border border-border rounded-xl focus:ring-1 focus:ring-brand bg-surface text-text outline-none"
+                    />
+                    <button onClick={handleSmartSearch} disabled={isSmartSearching || !searchTerm.trim()} className={`px-4 py-2 rounded-xl font-bold border-none transition-colors ${isSmartSearching || !searchTerm.trim() ? 'bg-surface-offset text-muted cursor-not-allowed' : 'bg-brand-subtle text-brand hover:bg-brand hover:text-white cursor-pointer'} flex items-center gap-2`}>
+                        {isSmartSearching ? '✨ Searching...' : '✨ Smart Search'}
+                    </button>
+                    {smartSearchIds && (
+                        <button onClick={() => { setSmartSearchIds(null); setSearchTerm(''); }} className="px-4 py-2 rounded-xl font-bold bg-error/10 text-error hover:bg-error hover:text-white border-none cursor-pointer transition-colors">
+                            Clear
+                        </button>
+                    )}
+                </div>
                 {activeTab === 'rated' && (
                     <select
                         value={sortOption} onChange={e => setSortOption(e.target.value)}

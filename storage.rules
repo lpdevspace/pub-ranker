@@ -45,10 +45,9 @@ service firebase.storage {
     // Path: pubs/{pubId}/{filename}
     match /pubs/{pubId}/{allPaths=**} {
       allow read: if isSignedIn();
-      // Allow upload if image, but restrict deletes and overwrites (conceptually) to admins.
-      // Firebase Storage rules cannot easily differentiate create vs overwrite, so restrict general write to admins.
-      allow write: if isAdmin() && isValidImage();
-      allow delete: if isAdmin();
+      // Allow upload if image for any signed-in user, but restrict deletes and overwrites to admins.
+      allow create: if isSignedIn() && isValidImage();
+      allow update, delete: if isAdmin();
     }
 
     // ─── Group cover photos ──────────────────────────────────────

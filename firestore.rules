@@ -187,7 +187,7 @@ service cloud.firestore {
 
     match /{path=**}/pubs/{pubId} {
       allow read: if isSignedIn();
-      allow create: if canDeleteGlobalPubs();
+      allow create: if isSignedIn() && isNotBanned();
       allow update: if canDeleteGlobalPubs() || (isSignedIn() && isNotBanned() && (
           resource.data.get('isLocked', false) == false ||
           (resource.data.get('claimedBy', []) is list && request.auth.uid in resource.data.get('claimedBy', []))
