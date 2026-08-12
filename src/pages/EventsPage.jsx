@@ -75,24 +75,58 @@ export default function EventsPage({ db, groupId, pubs, user, canManageGroup, al
     const [time, setTime] = useState('19:00');
     const [description, setDescription] = useState('');
 
+    const [venueEvents, setVenueEvents] = useState([]);
+
     useEffect(() => {
         if (!db || !groupId) return;
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         const cutoff = thirtyDaysAgo.toISOString().split('T')[0];
 
-        const unsubscribe = db.collection('events')
+        const unsubscribeGroup = db.collection('events')
             .where('groupId', '==', groupId)
             .orderBy('date', 'asc')
             .onSnapshot(snap => {
                 setEvents(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(e => e.date >= cutoff));
             });
-        return () => unsubscribe();
-    }, [db, groupId]);
 
+        // Also fetch venue events for pubs in this group
+        const pubIds = pubs.map(p => p.id);
+        const unsubscribes = [];
+        
+        if (pubIds.length > 0) {
+            // Firestore 'in' queries support max 10 elements.
+            const chunks = [];
+            for (let i = 0; i < pubIds.length; i += 10) {
+                chunks.push(pubIds.slice(i, i + 10));
+            }
+            
+            chunks.forEach((chunk, index) => {
+                const unsub = db.collection('events')
+                    .where('groupId', '==', 'venue')
+                    .where('pubId', 'in', chunk)
+                    .onSnapshot(snap => {
+                        const chunkEvents = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(e => e.date >= cutoff);
+                        setVenueEvents(prev => {
+                            // Merge and remove duplicates from this chunk
+                            const otherChunks = prev.filter(e => !chunk.includes(e.pubId));
+                            return [...otherChunks, ...chunkEvents].sort((a, b) => a.date.localeCompare(b.date));
+                        });
+                    });
+                unsubscribes.push(unsub);
+            });
+        }
+
+        return () => {
+            unsubscribeGroup();
+            unsubscribes.forEach(u => u());
+        };
+    }, [db, groupId, pubs]);
+
+    const allEvents = useMemo(() => [...events, ...venueEvents].sort((a, b) => a.date.localeCompare(b.date)), [events, venueEvents]);
     const today = new Date().toISOString().split('T')[0];
-    const upcomingEvents = useMemo(() => events.filter(e => e.date >= today), [events, today]);
-    const pastEvents = useMemo(() => events.filter(e => e.date < today).sort((a, b) => b.date.localeCompare(a.date)), [events, today]);
+    const upcomingEvents = useMemo(() => allEvents.filter(e => e.date >= today), [allEvents, today]);
+    const pastEvents = useMemo(() => allEvents.filter(e => e.date < today).sort((a, b) => b.date.localeCompare(a.date)), [allEvents, today]);
 
     const handleAddEvent = async (e) => {
         e.preventDefault();
@@ -185,6 +219,7 @@ export default function EventsPage({ db, groupId, pubs, user, canManageGroup, al
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-3 flex-wrap mb-2">
                                                 <h3 className="text-xl font-black text-text">{event.title}</h3>
+                                                {event.isVenueEvent && <span className="bg-brand-subtle dark:bg-brand-highlight/20 text-brand text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md">🏢 Official Pub Event</span>}
                                                 <CountdownBadge dateStr={event.date} />
                                             </div>
                                             <div className="flex flex-wrap gap-x-4 gap-y-2 text-[13px] font-bold text-muted uppercase tracking-wide">
@@ -198,7 +233,7 @@ export default function EventsPage({ db, groupId, pubs, user, canManageGroup, al
                                                 </p>
                                             )}
                                         </div>
-                                        {canManageGroup && (
+                                        {canManageGroup && !event.isVenueEvent && (
                                             <button
                                                 onClick={() => handleDeleteEvent(event.id)}
                                                 className="shrink-0 text-text-faint hover:text-error bg-transparent border-none cursor-pointer transition-colors"
@@ -256,11 +291,14 @@ export default function EventsPage({ db, groupId, pubs, user, canManageGroup, al
                                 return (
                                     <div key={event.id} className="flex items-center gap-4 bg-surface-offset p-3 rounded-lg border border-divider">
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-sm text-text truncate mb-0.5">{event.title}</p>
+                                            <p className="font-bold text-sm text-text truncate mb-0.5">
+                                                {event.title}
+                                                {event.isVenueEvent && <span className="ml-2 bg-brand-subtle dark:bg-brand-highlight/20 text-brand text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md inline-block align-middle">🏢 Official</span>}
+                                            </p>
                                             <p className="text-[10px] text-muted font-bold uppercase tracking-wider">{pub?.name || 'Unknown Pub'} · {formatDate(event.date)}</p>
                                         </div>
                                         <span className="text-xs font-black text-text-faint shrink-0 tabular-nums">{event.attendees?.length || 0} <span className="font-bold">ATTENDED</span></span>
-                                        {canManageGroup && (
+                                        {canManageGroup && !event.isVenueEvent && (
                                             <button
                                                 onClick={() => handleDeleteEvent(event.id)}
                                                 className="shrink-0 p-2 text-text-faint hover:text-error bg-transparent border-none cursor-pointer transition-colors"

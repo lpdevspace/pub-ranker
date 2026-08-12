@@ -105,8 +105,17 @@ export default function VenuePortalPage({ db, user, userProfile }) {
     const [newDeal, setNewDeal] = useState({ title: '', description: '', code: '', minCheckinsRequired: 0, daysValid: 7 });
     const [isSavingDeal, setIsSavingDeal] = useState(false);
 
+    // Events state
+    const [eventsList, setEventsList] = useState([]);
+    const [loadingEvents, setLoadingEvents] = useState(false);
+    const [newEvent, setNewEvent] = useState({ title: '', description: '', date: '', time: '19:00' });
+    const [isSavingEvent, setIsSavingEvent] = useState(false);
+
     // Profile state
-    const [profileForm, setProfileForm] = useState({ name: '', location: '', address: '', photoURL: '' });
+    const [profileForm, setProfileForm] = useState({ 
+        name: '', location: '', address: '', photoURL: '',
+        amenities: { isDogFriendly: false, hasSportsTv: false, hasBeerGarden: false, wheelchairAccessible: false, servesFood: false }
+    });
     const [isSavingProfile, setIsSavingProfile] = useState(false);
 
     // Stripe checkout fallback modal (shown when Stripe isn't configured yet)
@@ -180,6 +189,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                 location: activeVenue.location || '',
                 address: activeVenue.address || '',
                 photoURL: activeVenue.photoURL || '',
+                amenities: activeVenue.amenities || { isDogFriendly: false, hasSportsTv: false, hasBeerGarden: false, wheelchairAccessible: false, servesFood: false }
             });
         }
     }, [activeVenue]);
@@ -191,6 +201,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
         if (!venueId) return;
         setLoadingStats(true);
         setLoadingDeals(true);
+        setLoadingEvents(true);
 
         try {
             // 1. Fetch scores (using collectionGroup with index-missing fallback)
@@ -268,12 +279,17 @@ export default function VenuePortalPage({ db, user, userProfile }) {
             const dealsSnap = await db.collection('deals').where('pubId', '==', venueId).get();
             setDealsList(dealsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
+            // 3. Fetch events
+            const eventsSnap = await db.collection('events').where('pubId', '==', venueId).get();
+            setEventsList(eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => a.date.localeCompare(b.date)));
+
         } catch (e) {
             console.error(e);
             showToast('Failed to sync venue data: ' + e.message, 'error');
         } finally {
             setLoadingStats(false);
             setLoadingDeals(false);
+            setLoadingEvents(false);
         }
     }, [db, activeVenue]);
 
@@ -374,6 +390,58 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                 }
             }
         });
+    // -----------------------------------------------------------------------
+    // EVENTS
+    // -----------------------------------------------------------------------
+    const handleSaveNewEvent = async (e) => {
+        e.preventDefault();
+        if (!activeVenue) return;
+        if (!newEvent.title.trim() || !newEvent.date.trim()) return showToast('Please enter an event title and date.', 'warning');
+
+        setIsSavingEvent(true);
+        try {
+            const eventId = `event_${Date.now()}`;
+
+            const payload = {
+                id: eventId,
+                pubId: activeVenue.id,
+                pubName: activeVenue.name,
+                title: newEvent.title.trim(),
+                description: newEvent.description.trim(),
+                date: newEvent.date,
+                time: newEvent.time,
+                isVenueEvent: true,
+                groupId: 'venue',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            await db.collection('events').doc(eventId).set(payload);
+            setEventsList(prev => [...prev, payload].sort((a, b) => a.date.localeCompare(b.date)));
+            setNewEvent({ title: '', description: '', date: '', time: '19:00' });
+            showToast('🎉 Event published successfully!');
+        } catch (err) {
+            showToast('Failed to save event: ' + err.message, 'error');
+        } finally {
+            setIsSavingEvent(false);
+        }
+    };
+
+    const handleDeleteEvent = (eventId) => {
+        setConfirmState({
+            title: 'Cancel Event',
+            message: 'Are you sure you want to cancel and delete this event? It will be removed from the public directory.',
+            confirmLabel: 'Cancel Event',
+            danger: true,
+            onConfirm: async () => {
+                try {
+                    await db.collection('events').doc(eventId).delete();
+                    setEventsList(prev => prev.filter(e => e.id !== eventId));
+                    showToast('Event removed.');
+                } catch (e) {
+                    showToast('Failed to delete event: ' + e.message, 'error');
+                }
+            }
+        });
     };
 
     // -----------------------------------------------------------------------
@@ -389,7 +457,8 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                 name: profileForm.name.trim(),
                 location: profileForm.location.trim(),
                 address: profileForm.address.trim(),
-                photoURL: profileForm.photoURL.trim()
+                photoURL: profileForm.photoURL.trim(),
+                amenities: profileForm.amenities
             });
 
             // Update local state list
@@ -981,6 +1050,103 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                         </div>
                     )}
 
+                        </div>
+                    )}
+
+                    {/* EVENTS TAB */}
+                    {activeTab === 'events' && (
+                        <div className="space-y-6 animate-fadeIn">
+                            <div className="card-premium rounded-xl">
+                                <h4 className="text-sm font-bold text-gray-800 dark:text-white">Venue Events Manager</h4>
+                                <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">Publish events to the public directory</p>
+                                
+                                <form onSubmit={handleSaveNewEvent} className="bg-surface-offset/30 p-4 rounded-xl border border-gray-200 dark:border-gray-750 my-5 space-y-3.5">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Event Title</label>
+                                            <input
+                                                type="text"
+                                                value={newEvent.title}
+                                                onChange={e => setNewEvent({ ...newEvent, title: e.target.value })}
+                                                placeholder="e.g. Live Music: The Blue Notes"
+                                                className="w-full px-3 py-2 text-xs border dark:border-gray-650 rounded-xl card-premium dark:text-white focus:ring-2 focus:ring-brand outline-none"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Date</label>
+                                                <input
+                                                    type="date"
+                                                    value={newEvent.date}
+                                                    onChange={e => setNewEvent({ ...newEvent, date: e.target.value })}
+                                                    className="w-full px-3 py-2 text-xs border dark:border-gray-650 rounded-xl card-premium dark:text-white focus:ring-2 focus:ring-brand outline-none"
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Time</label>
+                                                <input
+                                                    type="time"
+                                                    value={newEvent.time}
+                                                    onChange={e => setNewEvent({ ...newEvent, time: e.target.value })}
+                                                    className="w-full px-3 py-2 text-xs border dark:border-gray-650 rounded-xl card-premium dark:text-white focus:ring-2 focus:ring-brand outline-none"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-gray-400 dark:text-gray-550 uppercase tracking-wider mb-1">Event Description</label>
+                                        <textarea
+                                            value={newEvent.description}
+                                            onChange={e => setNewEvent({ ...newEvent, description: e.target.value })}
+                                            placeholder="Details about the event, entry fees, or age limits."
+                                            className="w-full p-3 text-xs border dark:border-gray-650 rounded-xl focus:ring-2 focus:ring-brand card-premium dark:text-white resize-none h-16 outline-none"
+                                            required
+                                        />
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={isSavingEvent}
+                                        className="btn-premium"
+                                    >
+                                        {isSavingEvent ? 'Publishing Event...' : 'Publish Event'}
+                                    </button>
+                                </form>
+
+                                <h4 className="font-bold text-xs text-gray-850 dark:text-white mb-3">Upcoming & Past Events</h4>
+                                <div className="grid grid-cols-1 gap-4">
+                                    {eventsList.length === 0 ? (
+                                        <p className="text-xs text-gray-500 italic py-6 text-center">No events scheduled. Create one above to attract visitors!</p>
+                                    ) : (
+                                        eventsList.map(event => (
+                                            <div key={event.id} className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 card-premium shadow-sm relative group flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-2.5 flex-wrap">
+                                                        <span className="font-bold text-xs text-gray-855 dark:text-white">{event.title}</span>
+                                                        <span className="bg-brand-subtle dark:bg-brand-highlight/20 text-brand text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-lg">
+                                                            {new Date(event.date + 'T' + event.time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-gray-505 dark:text-gray-400">{event.description}</p>
+                                                </div>
+
+                                                <div className="flex items-center gap-4 self-end md:self-auto">
+                                                    <button onClick={() => handleDeleteEvent(event.id)} className="text-red-700 bg-red-50 hover:bg-red-100 dark:bg-red-955/20 dark:hover:bg-red-900/40 font-bold text-[10px] uppercase px-3 py-2 rounded-xl transition cursor-pointer">
+                                                        Cancel Event
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* PROFILE MANAGER TAB */}
                     {activeTab === 'profile' && (
                         <div className="space-y-6 animate-fadeIn">
@@ -1031,6 +1197,32 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                                             placeholder="https://..."
                                             className="w-full px-3 py-2.5 text-xs border dark:border-gray-655 rounded-xl bg-surface-offset dark:text-white focus:ring-2 focus:ring-brand outline-none font-mono"
                                         />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-gray-400 dark:text-gray-555 uppercase tracking-wider mb-2">Venue Amenities</label>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-surface-offset p-4 rounded-xl border border-divider">
+                                            {Object.entries({
+                                                isDogFriendly: '🐶 Dog Friendly',
+                                                hasSportsTv: '📺 Live Sports TV',
+                                                hasBeerGarden: '🌳 Beer Garden',
+                                                wheelchairAccessible: '♿ Wheelchair Accessible',
+                                                servesFood: '🍔 Serves Food'
+                                            }).map(([key, label]) => (
+                                                <label key={key} className="flex items-center gap-3 cursor-pointer">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={profileForm.amenities[key]} 
+                                                        onChange={e => setProfileForm({
+                                                            ...profileForm, 
+                                                            amenities: { ...profileForm.amenities, [key]: e.target.checked }
+                                                        })}
+                                                        className="w-4 h-4 text-brand bg-surface border-border rounded focus:ring-brand cursor-pointer" 
+                                                    />
+                                                    <span className="text-xs font-bold text-text">{label}</span>
+                                                </label>
+                                            ))}
+                                        </div>
                                     </div>
 
                                     <button

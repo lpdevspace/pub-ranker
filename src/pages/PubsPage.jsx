@@ -119,14 +119,47 @@ function CriteriaBar({ name, average, scores, type, allUsers, canDeleteScore, on
     );
 }
 
-function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, groupRef, pubsRef, onClose, canManageGroup, onSelectPub }) {
+function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, groupRef, pubsRef, db, onClose, canManageGroup, onSelectPub }) {
     const canDeleteScore = (s) => !!(currentUser && currentGroup && (currentGroup.ownerUid === currentUser.uid || currentGroup.managers?.includes(currentUser.uid)));
+
+    const [venueEvents, setVenueEvents] = React.useState([]);
+
+    React.useEffect(() => {
+        if (!db || !pub?.id) return;
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const cutoff = thirtyDaysAgo.toISOString().split('T')[0];
+
+        const unsub = db.collection('events')
+            .where('groupId', '==', 'venue')
+            .where('pubId', '==', pub.id)
+            .onSnapshot(snap => {
+                setVenueEvents(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(e => e.date >= cutoff).sort((a, b) => a.date.localeCompare(b.date)));
+            });
+        return () => unsub();
+    }, [db, pub?.id]);
 
     const handleDeleteScore = async (score) => {
         if (!groupRef || !score?.id) return;
         if (!window.confirm('Delete this rating?')) return;
         try { await groupRef.collection('scores').doc(score.id).delete(); }
         catch (e) { console.error(e); }
+    };
+
+    const handleUpdateBusyStatus = async (status) => {
+        if (!pubsRef || !pub?.id) return;
+        try {
+            await pubsRef.doc(pub.id).update({
+                busyStatus: status,
+                busyStatusUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                busyStatusUpdatedBy: currentUser?.uid || 'anonymous'
+            });
+            // Update local object optimistically to avoid flash if not synced back immediately
+            pub.busyStatus = status;
+            pub.busyStatusUpdatedAt = { toMillis: () => Date.now() }; // Mock timestamp for local render
+        } catch(e) {
+            console.error('Failed to update busy status:', e);
+        }
     };
 
     return (
@@ -148,6 +181,15 @@ function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, g
                             <div>
                                 <h2 className="text-3xl font-display font-bold text-white leading-tight drop-shadow-md truncate max-w-sm">{pub.name}</h2>
                                 <p className="text-white/80 font-body text-sm font-semibold mt-1">📍 {pub.location || 'Unknown'}</p>
+                                {pub.amenities && (
+                                    <div className="flex flex-wrap gap-1.5 mt-2">
+                                        {pub.amenities.isDogFriendly && <span className="bg-black/50 text-white border border-white/20 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded backdrop-blur-md">🐶 Dog Friendly</span>}
+                                        {pub.amenities.hasSportsTv && <span className="bg-black/50 text-white border border-white/20 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded backdrop-blur-md">📺 Live Sports</span>}
+                                        {pub.amenities.hasBeerGarden && <span className="bg-black/50 text-white border border-white/20 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded backdrop-blur-md">🌳 Beer Garden</span>}
+                                        {pub.amenities.wheelchairAccessible && <span className="bg-black/50 text-white border border-white/20 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded backdrop-blur-md">♿ Accessible</span>}
+                                        {pub.amenities.servesFood && <span className="bg-black/50 text-white border border-white/20 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded backdrop-blur-md">🍔 Food</span>}
+                                    </div>
+                                )}
                             </div>
                             <div className="flex flex-col items-center bg-black/40 backdrop-blur-md rounded-xl p-2 px-3 border border-white/20 shadow-lg shrink-0">
                                 <span className="text-white font-black text-2xl leading-none">
@@ -173,6 +215,84 @@ function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, g
                     >
                         ⭐ Rate this Pub
                     </button>
+
+                    {/* Live Busy Meter */}
+                    <div className="bg-surface-offset p-4 rounded-2xl border border-divider">
+                        <div className="flex justify-between items-center mb-3">
+                            <h3 className="font-display text-sm font-bold text-text flex items-center gap-2">
+                                🚦 Live Busy Meter
+                            </h3>
+                            {pub.busyStatusUpdatedAt && (
+                                <span className="text-[10px] text-muted font-bold uppercase tracking-wider">
+                                    Updated {new Date(pub.busyStatusUpdatedAt?.toMillis ? pub.busyStatusUpdatedAt.toMillis() : Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => handleUpdateBusyStatus('quiet')}
+                                className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                                    pub.busyStatus === 'quiet' 
+                                        ? 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700' 
+                                        : 'bg-surface border-border text-muted hover:text-text'
+                                }`}
+                            >
+                                😴 Quiet
+                            </button>
+                            <button 
+                                onClick={() => handleUpdateBusyStatus('lively')}
+                                className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                                    pub.busyStatus === 'lively' 
+                                        ? 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700' 
+                                        : 'bg-surface border-border text-muted hover:text-text'
+                                }`}
+                            >
+                                🍻 Lively
+                            </button>
+                            <button 
+                                onClick={() => handleUpdateBusyStatus('packed')}
+                                className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                                    pub.busyStatus === 'packed' 
+                                        ? 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700' 
+                                        : 'bg-surface border-border text-muted hover:text-text'
+                                }`}
+                            >
+                                🔥 Packed
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Venue Events */}
+                    {venueEvents.length > 0 && (
+                        <div className="bg-gradient-to-br from-blue-50 to-surface dark:from-blue-900/20 dark:to-surface border border-blue-200 dark:border-blue-800/50 p-5 rounded-2xl shadow-sm relative overflow-hidden">
+                            <h3 className="font-display text-lg font-bold text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-2 relative z-10">
+                                🏢 Official Venue Events
+                            </h3>
+                            <div className="space-y-3 relative z-10">
+                                {venueEvents.map(event => {
+                                    const dateObj = new Date(event.date + 'T' + event.time);
+                                    return (
+                                        <div key={event.id} className="bg-surface p-4 rounded-xl shadow-sm border border-border flex flex-col gap-2">
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <h4 className="font-bold text-text mb-1">{event.title}</h4>
+                                                    <div className="flex gap-2 items-center text-xs font-bold text-muted uppercase tracking-wider">
+                                                        <span>🗓️ {dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                                                        <span>🕖 {event.time}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {event.description && (
+                                                <p className="text-sm text-text bg-surface-offset p-2.5 rounded-lg border border-divider mt-1">
+                                                    {event.description}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     {/* AI Insights */}
                     {(pub.vibeSummary || (pub.aiTags && pub.aiTags.length > 0)) && (
@@ -258,7 +378,11 @@ export default function PubsPage({
     const [activeTab,   setActiveTab]   = useState('rated'); // 'rated' or 'unrated'
     const [isSmartSearching, setIsSmartSearching] = useState(false);
     const [smartSearchIds, setSmartSearchIds] = useState(null);
-
+    const [selectedAmenities, setSelectedAmenities] = useState([]);
+    
+    const [showSecretPubModal, setShowSecretPubModal] = useState(false);
+    const [secretPubTarget, setSecretPubTarget] = useState(null);
+    
     const [editingPub, setEditingPub] = useState(null);
 
     const handleDeletePub = async (pubId) => {
@@ -306,6 +430,21 @@ export default function PubsPage({
         }
     };
 
+    const handlePickSecretPub = () => {
+        // Find unvisited highly-rated? Actually wait, if they are unvisited, they have no rating. 
+        // Or if we want highly rated from other groups? No, just pick an unvisited pub at random.
+        // Or a random highly rated visited pub? Let's pick a random unvisited one, or random if none.
+        const unvisited = enrichedPubs.filter(p => p.ratingCount === 0);
+        const pool = unvisited.length > 0 ? unvisited : enrichedPubs;
+        if (pool.length === 0) {
+            alert('No pubs available!');
+            return;
+        }
+        const randomPub = pool[Math.floor(Math.random() * pool.length)];
+        setSecretPubTarget(randomPub);
+        setShowSecretPubModal(true);
+    };
+
     const enrichedPubs = useMemo(() => Array.isArray(pubs) ? pubs.map(pub => {
         let totalScore = 0, count = 0;
         if (Array.isArray(criteria)) {
@@ -331,6 +470,13 @@ export default function PubsPage({
         if (activeTab === 'rated' && !isRated) return false;
         if (activeTab === 'unrated' && isRated) return false;
         
+        if (selectedAmenities.length > 0) {
+            const pubAmenities = pub.amenities || {};
+            for (const amenity of selectedAmenities) {
+                if (!pubAmenities[amenity]) return false;
+            }
+        }
+        
         return true;
     }).sort((a, b) => {
         if (smartSearchIds) {
@@ -341,7 +487,7 @@ export default function PubsPage({
         if (sortOption === 'alphabetical')   return (a.name || '').localeCompare(b.name || '');
         if (sortOption === 'newest')         return safeTime(b.createdAt) - safeTime(a.createdAt);
         return 0;
-    }), [enrichedPubs, searchTerm, sortOption, activeTab, smartSearchIds]);
+    }), [enrichedPubs, searchTerm, sortOption, activeTab, smartSearchIds, selectedAmenities]);
 
     const breakdown = useMemo(() => {
         if (!selectedPubForDetail) return null;
@@ -369,6 +515,39 @@ export default function PubsPage({
                     <h2 className="font-display text-3xl md:text-4xl font-bold mb-1 text-text">Pub Directory</h2>
                     <p className="font-body text-sm font-semibold text-muted">Every pint, properly documented.</p>
                 </div>
+            </div>
+
+            {/* Amenity Filters */}
+            <div className="flex flex-wrap gap-2 items-center">
+                <span className="text-xs font-bold text-muted uppercase tracking-wider mr-2">Filters:</span>
+                {[
+                    { id: 'isDogFriendly', label: '🐶 Dog Friendly' },
+                    { id: 'hasSportsTv', label: '📺 Live Sports' },
+                    { id: 'hasBeerGarden', label: '🌳 Beer Garden' },
+                    { id: 'wheelchairAccessible', label: '♿ Accessible' },
+                    { id: 'servesFood', label: '🍔 Food' }
+                ].map(amenity => {
+                    const isSelected = selectedAmenities.includes(amenity.id);
+                    return (
+                        <button
+                            key={amenity.id}
+                            onClick={() => {
+                                setSelectedAmenities(prev => 
+                                    prev.includes(amenity.id) 
+                                        ? prev.filter(a => a !== amenity.id)
+                                        : [...prev, amenity.id]
+                                )
+                            }}
+                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors border cursor-pointer ${
+                                isSelected 
+                                    ? 'bg-brand text-white border-brand' 
+                                    : 'bg-surface border-border text-muted hover:text-text hover:border-brand/50'
+                            }`}
+                        >
+                            {amenity.label}
+                        </button>
+                    )
+                })}
             </div>
 
             <div className="flex gap-6 border-b border-border mb-6">
@@ -411,6 +590,9 @@ export default function PubsPage({
                             Clear
                         </button>
                     )}
+                    <button onClick={handlePickSecretPub} className="px-4 py-2 rounded-xl font-bold bg-purple-100 text-purple-700 hover:bg-purple-200 border-none cursor-pointer transition-colors shadow-sm whitespace-nowrap">
+                        🎲 Secret Pub
+                    </button>
                 </div>
                 {activeTab === 'rated' && (
                     <select
@@ -430,6 +612,12 @@ export default function PubsPage({
                     <div key={pub.id} onClick={() => setSelectedPubForDetail(pub)} className="card-premium card-premium-hover flex flex-col cursor-pointer group">
                         <div className="relative h-48 w-full shrink-0 overflow-hidden bg-surface-offset">
                             <img src={pub.photoURL || 'https://placehold.co/600x400/1e293b/ffffff?text=No+Photo'} alt={pub.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                            {pub.busyStatus && pub.busyStatusUpdatedAt && (Date.now() - pub.busyStatusUpdatedAt.toMillis?.()) < 3 * 60 * 60 * 1000 && (
+                                <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md border border-white/10 shadow-sm">
+                                    <div className={`w-2 h-2 rounded-full animate-pulse ${pub.busyStatus === 'packed' ? 'bg-red-500' : pub.busyStatus === 'lively' ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
+                                    <span className="text-[9px] font-bold text-white uppercase tracking-wider">{pub.busyStatus}</span>
+                                </div>
+                            )}
                         </div>
                         <div className="p-5 flex-1 flex flex-col justify-between">
                             <div>
@@ -474,7 +662,7 @@ export default function PubsPage({
                 <PubDetailModal
                     pub={selectedPubForDetail} breakdown={breakdown} allUsers={allUsers}
                     currentUser={currentUser} currentGroup={currentGroup} groupRef={groupRef}
-                    pubsRef={pubsRef} canManageGroup={canManageGroup} onClose={() => setSelectedPubForDetail(null)}
+                    pubsRef={pubsRef} db={db} canManageGroup={canManageGroup} onClose={() => setSelectedPubForDetail(null)}
                     onSelectPub={onSelectPub}
                 />
             )}
@@ -498,6 +686,39 @@ export default function PubsPage({
                             <button type="submit" className="px-4 py-2 rounded-lg font-bold bg-brand text-white shadow-md hover:bg-brand-dark cursor-pointer border-none">Save Changes</button>
                         </div>
                     </form>
+                </div>
+            )}
+            )}
+
+            {showSecretPubModal && secretPubTarget && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+                    <div className="bg-surface p-8 rounded-3xl w-full max-w-md shadow-2xl relative text-center border border-purple-500/30 bg-gradient-to-br from-surface to-purple-900/10">
+                        <div className="text-6xl mb-4 animate-bounce">🎲</div>
+                        <h3 className="text-3xl font-black font-display text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-2">Secret Pub Revealed!</h3>
+                        <p className="text-sm font-bold text-muted mb-6">Your next adventure awaits at...</p>
+                        
+                        <div className="bg-surface-offset p-6 rounded-2xl border border-border shadow-inner mb-6">
+                            <h4 className="text-2xl font-black text-text mb-1">{secretPubTarget.name}</h4>
+                            <p className="text-sm font-semibold text-text-muted">📍 {secretPubTarget.location || 'Unknown'}</p>
+                            {secretPubTarget.ratingCount === 0 && (
+                                <span className="inline-block mt-3 px-3 py-1 bg-brand text-white text-[10px] font-black uppercase tracking-widest rounded-full">
+                                    Uncharted Territory
+                                </span>
+                            )}
+                        </div>
+                        
+                        <div className="flex gap-3 justify-center">
+                            <button onClick={() => setShowSecretPubModal(false)} className="px-6 py-3 rounded-xl font-bold text-text-muted hover:bg-surface-offset cursor-pointer transition-colors border-none bg-transparent">
+                                Maybe Later
+                            </button>
+                            <button onClick={() => {
+                                setShowSecretPubModal(false);
+                                setSelectedPubForDetail(secretPubTarget);
+                            }} className="px-6 py-3 rounded-xl font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-lg cursor-pointer transition-colors flex items-center gap-2 border-none">
+                                View Details <span>→</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
