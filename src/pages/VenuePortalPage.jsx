@@ -11,6 +11,9 @@ import BillingTab from '../components/venue/BillingTab';
 import FeaturedTab from '../components/venue/FeaturedTab';
 import MultiVenueOverview from '../components/venue/MultiVenueOverview';
 import PremiumLock from '../components/venue/PremiumLock';
+import MenuTab from '../components/venue/MenuTab';
+import InboxTab from '../components/venue/InboxTab';
+import TriviaTab from '../components/venue/TriviaTab';
 
 // ---------------------------------------------------------------------------
 // Tiny toast helper
@@ -75,6 +78,24 @@ function PortalIcon({ type, className = "w-4 h-4 flex-shrink-0" }) {
                 <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <rect width="22" height="16" x="1" y="4" rx="3" />
                     <line x1="1" y1="10" x2="23" y2="10" />
+                </svg>
+            );
+        case 'menu':
+            return (
+                <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            );
+        case 'inbox':
+            return (
+                <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+            );
+        case 'trivia':
+            return (
+                <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
             );
         default:
@@ -757,7 +778,10 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                     </div>
                     <nav className="p-3.5 space-y-1" data-testid="venue-sidebar-nav">
                         <SidebarBtn id="insights"  label="Insights & Traffic"      icon="insights" active={activeTab} onClick={setActiveTab} />
+                        <SidebarBtn id="menu"      label="Live Tap List"           icon="menu"     active={activeTab} onClick={setActiveTab} />
                         <SidebarBtn id="reviews"   label="Customer Reviews"        icon="profile"  active={activeTab} onClick={setActiveTab} />
+                        <SidebarBtn id="inbox"     label="Private Inbox"           icon="inbox"    active={activeTab} onClick={setActiveTab} />
+                        <SidebarBtn id="trivia"    label="Pub Trivia"              icon="trivia"   active={activeTab} onClick={setActiveTab} />
                         <SidebarBtn id="featured"  label="Featured Listing"        icon="claim"    active={activeTab} onClick={setActiveTab} />
                         <SidebarBtn id="deals"     label="Deals & Campaigns"       icon="deals"    active={activeTab} onClick={setActiveTab} />
                         <SidebarBtn id="profile"   label="Manage Profile"          icon="profile"  active={activeTab} onClick={setActiveTab} />
@@ -903,6 +927,21 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                             onClaimCredit={handleClaimFeaturedCredit}
                             onUpgrade={handleUpgrade}
                         />
+                    )}
+
+                    {/* MENU TAB */}
+                    {activeTab === 'menu' && (
+                        <MenuTab db={db} venueId={activeVenue?.id} />
+                    )}
+
+                    {/* INBOX TAB */}
+                    {activeTab === 'inbox' && (
+                        <InboxTab db={db} venueId={activeVenue?.id} user={user} />
+                    )}
+
+                    {/* TRIVIA TAB */}
+                    {activeTab === 'trivia' && (
+                        <TriviaTab db={db} venueId={activeVenue?.id} />
                     )}
 
                     {/* MULTI-VENUE OVERVIEW (Pub Plus) */}

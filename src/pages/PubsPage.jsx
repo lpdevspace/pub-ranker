@@ -123,6 +123,34 @@ function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, g
     const canDeleteScore = (s) => !!(currentUser && currentGroup && (currentGroup.ownerUid === currentUser.uid || currentGroup.managers?.includes(currentUser.uid)));
 
     const [venueEvents, setVenueEvents] = React.useState([]);
+    const [menuItems, setMenuItems] = React.useState([]);
+    const [triviaSession, setTriviaSession] = React.useState(null);
+    const [feedbackText, setFeedbackText] = React.useState('');
+    const [isSubmittingFeedback, setIsSubmittingFeedback] = React.useState(false);
+    const [showFeedbackForm, setShowFeedbackForm] = React.useState(false);
+
+    const handleSubmitFeedback = async (e) => {
+        e.preventDefault();
+        if (!feedbackText.trim() || !currentUser) return;
+        setIsSubmittingFeedback(true);
+        try {
+            await db.collection('messages').add({
+                venueId: pub.id,
+                userId: currentUser.uid,
+                userName: currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
+                text: feedbackText,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            setFeedbackText('');
+            setShowFeedbackForm(false);
+            alert("Feedback sent directly to the venue manager!");
+        } catch (err) {
+            console.error("Error sending feedback:", err);
+            alert("Failed to send feedback.");
+        } finally {
+            setIsSubmittingFeedback(false);
+        }
+    };
 
     React.useEffect(() => {
         if (!db || !pub?.id) return;
@@ -136,8 +164,25 @@ function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, g
             .onSnapshot(snap => {
                 setVenueEvents(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(e => e.date >= cutoff).sort((a, b) => a.date.localeCompare(b.date)));
             });
-        return () => unsub();
-    }, [db, pub?.id]);
+
+        const unsubMenu = pubsRef.doc(pub.id).collection('menu').orderBy('createdAt', 'asc').onSnapshot(snap => {
+            setMenuItems(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        });
+
+        const unsubTrivia = pubsRef.doc(pub.id).collection('trivia').doc('liveSession').onSnapshot(doc => {
+            if (doc.exists && doc.data().isActive) {
+                setTriviaSession(doc.data());
+            } else {
+                setTriviaSession(null);
+            }
+        });
+
+        return () => {
+            unsub();
+            unsubMenu();
+            unsubTrivia();
+        };
+    }, [db, pubsRef, pub?.id]);
 
     const handleDeleteScore = async (score) => {
         if (!groupRef || !score?.id) return;
@@ -260,6 +305,90 @@ function PubDetailModal({ pub, breakdown, allUsers, currentUser, currentGroup, g
                                 🔥 Packed
                             </button>
                         </div>
+                    </div>
+
+                    {/* Live Pub Trivia */}
+                    {triviaSession && (
+                        <div className="bg-brand/10 p-5 rounded-2xl border-2 border-brand/30 relative overflow-hidden shadow-sm">
+                            <div className="absolute top-4 right-4 flex items-center gap-2">
+                                <span className="flex h-3 w-3 relative">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                </span>
+                                <span className="text-xs font-bold text-red-600 uppercase tracking-wider">Live</span>
+                            </div>
+                            <h3 className="font-display text-lg font-black text-brand mb-1 flex items-center gap-2">
+                                🧠 Live Pub Trivia
+                            </h3>
+                            <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mt-3">{triviaSession.currentQuestion}</p>
+                            
+                            {triviaSession.showAnswer && (
+                                <div className="mt-3 p-3 bg-green-100 dark:bg-green-900/30 rounded-xl border border-green-200 dark:border-green-800">
+                                    <span className="text-xs font-bold text-green-700 dark:text-green-400 uppercase tracking-wider block mb-1">Answer:</span>
+                                    <span className="text-sm font-bold text-green-900 dark:text-green-100">{triviaSession.currentAnswer}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Live Tap List / Menu */}
+                    {menuItems.length > 0 && (
+                        <div className="bg-surface-offset p-5 rounded-2xl border border-divider">
+                            <h3 className="font-display text-sm font-bold text-text flex items-center gap-2 mb-4">
+                                🍺 Live Menu
+                            </h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {menuItems.map(item => (
+                                    <div key={item.id} className="p-3 bg-surface rounded-xl border border-border flex justify-between items-start">
+                                        <div>
+                                            <h4 className="font-bold text-sm text-text flex items-center gap-1.5">
+                                                {item.type === 'beer' ? '🍺' : item.type === 'wine' ? '🍷' : item.type === 'cocktail' ? '🍸' : '🍔'}
+                                                {item.name}
+                                            </h4>
+                                            <p className="text-xs text-muted mt-0.5">{item.description}</p>
+                                        </div>
+                                        <span className="font-bold text-brand text-sm shrink-0">£{parseFloat(item.price).toFixed(2)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Message Manager (Feedback) */}
+                    <div className="bg-surface-offset p-5 rounded-2xl border border-divider">
+                        <div className="flex justify-between items-center mb-2">
+                            <div>
+                                <h3 className="font-display text-sm font-bold text-text flex items-center gap-2">
+                                    💬 Message the Manager
+                                </h3>
+                                <p className="text-xs text-muted mt-1">Send private feedback directly to the venue owner.</p>
+                            </div>
+                            <button 
+                                onClick={() => setShowFeedbackForm(!showFeedbackForm)}
+                                className="px-4 py-2 bg-brand-subtle text-brand font-bold rounded-lg text-xs"
+                            >
+                                {showFeedbackForm ? 'Cancel' : 'Send Message'}
+                            </button>
+                        </div>
+                        
+                        {showFeedbackForm && (
+                            <form onSubmit={handleSubmitFeedback} className="mt-4 space-y-3 animate-fadeIn">
+                                <textarea 
+                                    required
+                                    value={feedbackText}
+                                    onChange={e => setFeedbackText(e.target.value)}
+                                    placeholder="Write your feedback here (e.g. The music is a bit too loud, or the service was excellent!)..."
+                                    className="w-full px-4 py-3 bg-surface border border-border rounded-xl text-sm min-h-[100px] resize-none"
+                                />
+                                <button 
+                                    type="submit" 
+                                    disabled={isSubmittingFeedback}
+                                    className="w-full py-3 bg-brand text-white font-bold rounded-xl shadow-sm disabled:opacity-50"
+                                >
+                                    {isSubmittingFeedback ? 'Sending...' : 'Send Privately'}
+                                </button>
+                            </form>
+                        )}
                     </div>
 
                     {/* Venue Events */}
