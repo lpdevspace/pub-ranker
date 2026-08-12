@@ -75,6 +75,20 @@ export default function RateView({ pub, criteria, user, onBack, groupRef, groupI
                     });
                 }
             }
+
+            // Log activity
+            const activityRef = groupRef.collection("activities").doc();
+            batch.set(activityRef, {
+                type: 'rating',
+                userId: user.uid,
+                userName: user.displayName || user.email?.split('@')[0] || 'User',
+                userAvatar: user.photoURL || null,
+                pubId: pub.id,
+                pubName: pub.name,
+                timestamp: now,
+                ratingCount: Object.keys(ratings).length
+            });
+
             await batch.commit();
             setIsSubmitting(false);
             onBack();

@@ -14,6 +14,7 @@ const EventsPage        = React.lazy(() => import('./pages/EventsPage.jsx'));
 const MapPage           = React.lazy(() => import('./pages/MapPage.jsx'));
 const LeaderboardPage   = React.lazy(() => import('./pages/LeaderboardPage.jsx'));
 const SpinPage          = React.lazy(() => import('./pages/SpinTheWheelPage.jsx'));
+const CrawlPage         = React.lazy(() => import('./pages/CrawlPage.jsx'));
 const FeedbackPage      = React.lazy(() => import('./pages/FeedbackPage.jsx'));
 const VenuePortalPage   = React.lazy(() => import('./pages/VenuePortalPage.jsx'));
 const ActivityPage      = React.lazy(() => import('./pages/ActivityPage.jsx'));
@@ -33,6 +34,7 @@ const PATH_TO_PAGE = {
     '/feedback':       'feedback',
     '/venues':         'business',
     '/activity':       'activity',
+    '/crawl':          'crawl',
     '/admin':          'admin',
     '/superadmin':     'superadmin',
 };
@@ -133,6 +135,7 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
             case 'feedback':     return <FeedbackPage {...sharedProps} />;
             case 'business':     return <VenuePortalPage db={db} user={user} userProfile={userProfile} />;
             case 'activity':     return <ActivityPage db={db} groupId={groupId} pubs={pubs} allUsers={allUsers} user={user} {...sharedProps} />;
+            case 'crawl':        return <CrawlPage {...sharedProps} onViewDetail={setSelectedPubForDetail} />;
             case 'admin':
                 return (
                     <ProtectedRoute allowed={canManageGroup} fallback={<RedirectToDashboard setPage={setPage} />}>

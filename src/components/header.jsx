@@ -397,7 +397,8 @@ export default function Header({ user, page, setPage, canManageGroup, groupName,
                                 activePage={page}
                                 setPage={setPage}
                                 items={[
-                                    { name: "Spin Wheel", page: "spin" }
+                                    { name: "Spin Wheel", page: "spin" },
+                                    { name: "Pub Crawl", page: "crawl" }
                                 ]}
                             />
                         </div>
@@ -678,7 +679,10 @@ function ProfileModal({ user, userProfile, db, groupId, onClose, scores = {}, pu
           })
         : [
             { emoji: '🍻', title: 'First Pint', desc: 'Rated your first pub', earned: ratedCount >= 1 },
+            { emoji: '🍺', title: 'Pub Pro',    desc: 'Rated 10+ pubs',       earned: ratedCount >= 10 },
             { emoji: '🥇', title: 'Gold Pint',  desc: 'Rated 20+ pubs',       earned: ratedCount >= 20 },
+            { emoji: '✍️', title: 'Reviewer',   desc: 'Wrote 5+ reviews',     earned: writtenReviews >= 5 },
+            { emoji: '🗺️', title: 'Crawl Survivor', desc: 'Created a pub crawl', earned: crawlsCreated >= 1 },
           ];
 
     const handleSave = async (e) => {
