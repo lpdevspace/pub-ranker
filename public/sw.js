@@ -9,7 +9,7 @@
 //   • Everything else                         → Network-first, offline fallback
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2-refresh';
 const APP_SHELL_CACHE   = `pub-ranker-shell-${CACHE_VERSION}`;
 const ASSET_CACHE       = `pub-ranker-assets-${CACHE_VERSION}`;
 const FONT_CACHE        = `pub-ranker-fonts-${CACHE_VERSION}`;

@@ -63,24 +63,26 @@ export default function CheckInButton({ user, pubs = [], groupId, db }) {
 
     return (
         <>
-            {/* FAB */}
+            {/* Modern Floating Pill FAB */}
             <button
                 onClick={handleOpen}
                 aria-label="Check in at a pub"
                 className="
                     fixed z-[90]
                     bottom-20 right-4
-                    md:bottom-6 md:right-6
-                    w-14 h-14 rounded-full
-                    bg-brand hover:bg-brand-hover active:bg-brand-active active:scale-95
-                    text-white shadow-xl
-                    flex items-center justify-center
-                    text-2xl
-                    transition-all duration-200
-                    border-2 border-brand
+                    md:bottom-6 md:right-8
+                    h-11 px-4 rounded-full
+                    bg-[var(--color-surface-2)] backdrop-blur-md hover:bg-[var(--color-surface-offset)]
+                    text-[var(--color-text)] hover:text-[var(--color-brand)]
+                    border border-[var(--color-border)] hover:border-[var(--color-brand)]
+                    shadow-lg hover:shadow-xl
+                    flex items-center gap-2
+                    font-display font-bold text-xs tracking-wide
+                    transition-all duration-200 hover:scale-105 active:scale-95
                 "
             >
-                📍
+                <span className="text-sm">📍</span>
+                <span className="hidden sm:inline font-bold">Check In</span>
             </button>
 
             {/* Modal */}

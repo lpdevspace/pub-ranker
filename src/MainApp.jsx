@@ -1,12 +1,15 @@
-import React, { useState, useEffect, useMemo, Suspense } from 'react';
-import Header from './components/header.jsx';
+import React, { useState, useMemo, Suspense } from 'react';
+import NavigationShell from './components/navigation/NavigationShell';
 import useGroupData from './hooks/useGroupData';
 import useScoreCalculations from './hooks/useScoreCalculations';
 import LoadingScreen from './components/LoadingScreen';
 import CheckInButton from './components/CheckInButton';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import { useUI } from './context/UIContext';
+import { useAuth } from './context/AuthContext';
+import { useGroup } from './context/GroupContext';
 
-// ── Lazy-loaded pages — each page becomes its own split chunk ──────────────────
+// ── Lazy-loaded pages ─────────────────────────────────────────────────────────
 const Dashboard         = React.lazy(() => import('./pages/DashboardPage.jsx'));
 const PubDirectoryPage  = React.lazy(() => import('./pages/PubsPage.jsx'));
 const RateView          = React.lazy(() => import('./pages/RateView.jsx'));
@@ -22,50 +25,34 @@ const AdminPageLoader      = React.lazy(() => import('./pages/AdminPage.jsx'));
 const SuperAdminPageLoader = React.lazy(() => import('./pages/SuperAdminPage.jsx'));
 const NotFoundPage         = React.lazy(() => import('./pages/NotFoundPage.jsx'));
 
-// ── URL <-> page key mapping ──────────────────────────────────────────────────────────────────
-const PATH_TO_PAGE = {
-    '/':               'dashboard',
-    '/dashboard':      'dashboard',
-    '/pubs':           'pubs',
-    '/events':         'events',
-    '/map':            'map',
-    '/leaderboard':    'leaderboard',
-    '/spin':           'spin',
-    '/feedback':       'feedback',
-    '/venues':         'business',
-    '/activity':       'activity',
-    '/crawl':          'crawl',
-    '/admin':          'admin',
-    '/superadmin':     'superadmin',
-};
-
-const PAGE_TO_PATH = Object.fromEntries(
-    Object.entries(PATH_TO_PAGE).filter(([path]) => path !== '/').map(([path, page]) => [page, path])
-);
-PAGE_TO_PATH['dashboard'] = '/dashboard';
-
-function getPageFromURL() {
-    const path = window.location.pathname;
-    return PATH_TO_PAGE[path] || '404';
-}
-
-// ── Route guard ─────────────────────────────────────────────────────────────────────────────
+// ── Route guard ─────────────────────────────────────────────────────────────
 function ProtectedRoute({ allowed, children, fallback = null }) {
     if (!allowed) return fallback;
     return children;
 }
 
 function RedirectToDashboard({ setPage }) {
-    useEffect(() => { setPage('dashboard'); }, [setPage]);
+    React.useEffect(() => { setPage('dashboard'); }, [setPage]);
     return null;
 }
 
-export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMode, toggleDarkMode, featureFlags = {} }) {
-    const [page, setPageState] = useState(getPageFromURL);
+export default function MainApp({ db, auth }) {
+    const { user, userProfile, isStaff, featureFlags } = useAuth();
+    const { groupId, groupRef, groupData, canManageGroup } = useGroup();
+    const { page, setPage } = useUI();
+
     const [selectedPub, setSelectedPub] = useState(null);
     const [selectedPubForDetail, setSelectedPubForDetail] = useState(null);
 
-    const { groupRef, groupData, pubs, criteria, rawScores, users } = useGroupData({ db, groupId });
+    const { 
+        pubs, 
+        criteria, 
+        rawScores, 
+        users,
+        isShowingSampleFallback,
+        seedRealData,
+        isSeeding
+    } = useGroupData({ db, groupId });
     const scores = useScoreCalculations(rawScores);
 
     const allUsers = useMemo(() => {
@@ -76,53 +63,13 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
         }, {});
     }, [users]);
 
-    const canManageGroup = groupData &&
-        (groupData.ownerUid === user.uid || groupData.managers?.includes(user.uid));
-
-    const isStaff = userProfile?.isSuperAdmin || userProfile?.isAdmin || userProfile?.isModerator;
-
-    const setPage = (newPage) => {
-        const path = PAGE_TO_PATH[newPage] || '/dashboard';
-        if (window.location.pathname !== path) {
-            window.history.pushState({ page: newPage }, '', path);
-        }
-        setPageState(newPage);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    useEffect(() => {
-        const onPop = (e) => {
-            const p = e.state?.page || getPageFromURL();
-            setPageState(p);
-        };
-        window.addEventListener('popstate', onPop);
-        return () => window.removeEventListener('popstate', onPop);
-    }, []);
-
-    useEffect(() => {
-        const p = getPageFromURL();
-        window.history.replaceState({ page: p }, '', PAGE_TO_PATH[p] || window.location.pathname);
-    }, []);
-
-    useEffect(() => {
-        if (groupData?.brandColor) {
-            document.documentElement.style.setProperty('--theme-color', groupData.brandColor);
-        } else {
-            document.documentElement.style.removeProperty('--theme-color');
-        }
-    }, [groupData?.brandColor]);
-
-    const handleSwitchGroup = async () => {
-        try { await db.collection('users').doc(user.uid).update({ activeGroupId: null }); }
-        catch (e) { console.error('Error switching group:', e); }
-    };
-
     const sharedProps = {
         pubs, criteria, scores,
         users,
         allUsers,
         user, userProfile,
-        groupRef, groupId, db, featureFlags, canManageGroup, isStaff,
+        groupRef, groupId, db, featureFlags: featureFlags || {}, canManageGroup, isStaff,
+        isShowingSampleFallback, seedRealData, isSeeding,
     };
 
     const renderPage = () => {
@@ -133,8 +80,10 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
             case 'leaderboard':  return <LeaderboardPage {...sharedProps} onViewDetail={setSelectedPubForDetail} />;
             case 'spin':         return <SpinPage {...sharedProps} onSelectPub={setSelectedPub} />;
             case 'feedback':     return <FeedbackPage {...sharedProps} />;
+            case 'venues':
             case 'business':     return <VenuePortalPage db={db} user={user} userProfile={userProfile} />;
-            case 'activity':     return <ActivityPage db={db} groupId={groupId} pubs={pubs} allUsers={allUsers} user={user} {...sharedProps} />;
+            case 'activity':
+            case 'taproom':      return <ActivityPage db={db} groupId={groupId} pubs={pubs} allUsers={allUsers} user={user} {...sharedProps} />;
             case 'crawl':        return <CrawlPage {...sharedProps} onViewDetail={setSelectedPubForDetail} />;
             case 'admin':
                 return (
@@ -158,7 +107,7 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
 
     if (selectedPub) {
         return (
-            <Suspense fallback={<LoadingScreen text="Loading..." />}>
+            <Suspense fallback={<LoadingScreen text="Loading pub rating..." />}>
                 <RateView
                     pub={selectedPub}
                     criteria={criteria}
@@ -172,33 +121,13 @@ export default function MainApp({ user, userProfile, groupId, auth, db, isDarkMo
     }
 
     return (
-        <>
-            <Header
-                user={user}
-                page={page}
-                setPage={setPage}
-                canManageGroup={canManageGroup}
-                groupName={groupData?.groupName || ''}
-                onSwitchGroup={handleSwitchGroup}
-                auth={auth}
-                db={db}
-                userProfile={userProfile}
-                isDarkMode={isDarkMode}
-                toggleDarkMode={toggleDarkMode}
-                scores={scores}
-                pubs={pubs}
-                criteria={criteria}
-                groupId={groupId}
-            />
-            <main className="w-full max-w-screen-2xl mx-auto px-4 sm:px-8 lg:px-12 pt-8 md:pt-10 pb-16">
-                {/* Per-page ErrorBoundary so one broken page can't take down the whole app */}
-                <ErrorBoundary key={page}>
-                    <Suspense fallback={<LoadingScreen text="Loading..." />}>
-                        {renderPage()}
-                    </Suspense>
-                </ErrorBoundary>
-            </main>
+        <NavigationShell pubs={pubs} onSelectPub={setSelectedPub}>
+            <ErrorBoundary key={page}>
+                <Suspense fallback={<LoadingScreen text="Loading..." />}>
+                    {renderPage()}
+                </Suspense>
+            </ErrorBoundary>
             <CheckInButton user={user} pubs={pubs} groupId={groupId} db={db} />
-        </>
+        </NavigationShell>
     );
 }

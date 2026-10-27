@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import { auth, db } from './firebase';
 import MainApp from './MainApp';
 import LoadingScreen from './components/LoadingScreen';
@@ -7,181 +7,85 @@ import AuthScreen from './pages/AuthScreen';
 import GroupPortal from './pages/GroupPortal';
 import { ToastProvider } from './context/ToastContext';
 import ToastContainer from './components/ToastContainer';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { GroupProvider, useGroup } from './context/GroupContext';
+import { UIProvider } from './context/UIContext';
 
 // Lazy-loaded — only used on the business.pubranker.uk subdomain
 const VenuePortalPage = React.lazy(() => import('./pages/VenuePortalPage'));
 
-export default function App() {
-    const [user, setUser] = useState(null);
-    const [userProfile, setUserProfile] = useState(null);
-    const [authLoading, setAuthLoading] = useState(true);
-    const [globalAnnouncement, setGlobalAnnouncement] = useState('');
-    const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
-    const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+function AppContent() {
+    const { user, userProfile, authLoading, isMaintenanceMode, isSuperAdmin, isBanned, isVenueOwner, signOut } = useAuth();
+    const { groupId } = useGroup();
     const [showAuth, setShowAuth] = useState(false);
-    const [featureFlags, setFeatureFlags] = useState({});
 
-    useEffect(() => {
-        document.documentElement.classList.toggle('dark', isDarkMode);
-        document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
-        localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
-    }, [isDarkMode]);
-
-    useEffect(() => {
-        let profileUnsubscribe = null;
-
-        // Safety-valve: if Firebase hasn't resolved auth within 8 seconds
-        // (e.g. no network, no redirect pending) stop showing the loading screen.
-        const timeout = setTimeout(() => {
-            setAuthLoading(false);
-        }, 8000);
-
-        const authUnsubscribe = auth.onAuthStateChanged(async (currentUser) => {
-            // Auth state is now known — cancel the safety timeout.
-            clearTimeout(timeout);
-
-            // Clean up any previous profile listener.
-            if (profileUnsubscribe) {
-                profileUnsubscribe();
-                profileUnsubscribe = null;
-            }
-
-            if (currentUser) {
-                setUser(currentUser);
-                setShowAuth(false);
-
-                const userRef = db.collection('users').doc(currentUser.uid);
-
-                profileUnsubscribe = userRef.onSnapshot(
-                    async (doc) => {
-                        if (doc.exists) {
-                            setUserProfile(doc.data());
-                        } else {
-                            // First sign-in — create the profile document.
-                            const newProfile = {
-                                uid: currentUser.uid,
-                                email: currentUser.email,
-                                displayName:
-                                    currentUser.displayName ||
-                                    currentUser.email.split('@')[0],
-                                groups: [],
-                                activeGroupId: null,
-                                hasCompletedOnboarding: false,
-                            };
-                            try {
-                                await userRef.set(newProfile);
-                                setUserProfile(newProfile);
-                            } catch (e) {
-                                console.error('Error creating user profile:', e);
-                            }
-                        }
-                        // Profile is loaded (or just created) — auth is resolved.
-                        setAuthLoading(false);
-                    },
-                    (err) => {
-                        // Firestore rules denied the read — still show the app,
-                        // just without a profile snapshot. setUser stays set.
-                        console.error('Profile snapshot error:', err);
-                        setAuthLoading(false);
-                    }
-                );
-            } else {
-                // Genuinely signed out.
-                setUser(null);
-                setUserProfile(null);
-                setAuthLoading(false);
-                setShowAuth(false);
-            }
-        });
-
-        return () => {
-            clearTimeout(timeout);
-            authUnsubscribe();
-            if (profileUnsubscribe) profileUnsubscribe();
-        };
-    }, []);
-
-    useEffect(() => {
-        const unsub = db.collection('global').doc('settings').onSnapshot(
-            (doc) => {
-                if (doc.exists) {
-                    const data = doc.data();
-                    setGlobalAnnouncement(data.announcement || '');
-                    setIsMaintenanceMode(data.maintenanceMode || false);
-                    setFeatureFlags(data.featureFlags || {});
-                } else {
-                    setGlobalAnnouncement('');
-                    setIsMaintenanceMode(false);
-                }
-            },
-            (err) => console.error('Global settings error:', err)
-        );
-        return () => unsub();
-    }, []);
-
-    const isVenueOwner = userProfile?.isVenueOwner === true;
-    const isBusinessDomain = window.location.hostname.startsWith('business');
+    const isBusinessDomain = typeof window !== 'undefined' && window.location.hostname.startsWith('business');
     const showVenuePortal = isBusinessDomain && isVenueOwner;
 
-    let currentScreen;
-
     if (authLoading) {
-        currentScreen = <LoadingScreen text="Loading..." />;
+        return <LoadingScreen text="Loading Pub Ranker..." />;
+    }
 
-    } else if (!user) {
-        currentScreen = showAuth
-            ? <AuthScreen auth={auth} onBack={() => setShowAuth(false)} />
-            : <PublicSiteRouter db={db} user={null} userProfile={null} onLoginClick={() => setShowAuth(true)} />;
+    if (!user) {
+        return showAuth ? (
+            <AuthScreen auth={auth} onBack={() => setShowAuth(false)} />
+        ) : (
+            <PublicSiteRouter db={db} user={null} userProfile={null} onLoginClick={() => setShowAuth(true)} />
+        );
+    }
 
-    } else if (!userProfile) {
-        currentScreen = <LoadingScreen text="Loading profile..." />;
+    if (!userProfile) {
+        return <LoadingScreen text="Loading user profile..." />;
+    }
 
-    } else if (isMaintenanceMode && !userProfile?.isSuperAdmin) {
-        currentScreen = (
-            <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4 text-center">
-                <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl max-w-md w-full border border-gray-200 dark:border-gray-700">
+    if (isMaintenanceMode && !isSuperAdmin) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)] p-4 text-center">
+                <div className="card-tavern p-8 max-w-md w-full border border-[var(--color-border)] shadow-xl">
                     <span className="text-6xl mb-4 block">🚧</span>
-                    <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Under Maintenance</h1>
-                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                    <h1 className="text-3xl font-display font-normal text-[var(--color-text)] mb-2">Under Maintenance</h1>
+                    <p className="text-sm text-[var(--color-text-muted)] mb-6">
                         Pub Ranker is currently undergoing scheduled maintenance. We&apos;ll be back shortly!
                     </p>
                     <button
-                        onClick={() => auth.signOut()}
-                        className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white font-bold py-2 px-4 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+                        onClick={signOut}
+                        className="btn-ghost w-full justify-center"
                     >
                         Log Out
                     </button>
                 </div>
             </div>
         );
+    }
 
-    } else if (userProfile.isBanned) {
-        currentScreen = (
-            <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4 text-center">
-                <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl max-w-md w-full border border-gray-200 dark:border-gray-700">
+    if (isBanned) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)] p-4 text-center">
+                <div className="card-tavern p-8 max-w-md w-full border border-red-300 dark:border-red-900 shadow-xl">
                     <span className="text-6xl mb-4 block">🛑</span>
-                    <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Account Banned</h1>
-                    <p className="text-gray-600 dark:text-gray-400 mb-6">
+                    <h1 className="text-3xl font-display font-normal text-red-600 mb-2">Account Banned</h1>
+                    <p className="text-sm text-[var(--color-text-muted)] mb-6">
                         Your account has been suspended. Please contact support if you believe this is a mistake.
                     </p>
                     <button
-                        onClick={() => auth.signOut()}
-                        className="w-full bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 transition"
+                        onClick={signOut}
+                        className="w-full bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700 transition"
                     >
                         Log Out
                     </button>
                 </div>
             </div>
         );
+    }
 
-    } else if (showVenuePortal) {
-        currentScreen = (
+    if (showVenuePortal) {
+        return (
             <Suspense fallback={<LoadingScreen text="Loading Venue Portal..." />}>
-                <div className="min-h-screen bg-gray-50 dark:bg-gray-900 animate-fadeIn">
+                <div className="min-h-screen bg-[var(--color-bg)] animate-fadeIn">
                     <div className="p-4 flex justify-end">
                         <button
-                            onClick={() => auth.signOut()}
-                            className="text-sm font-bold text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition"
+                            onClick={signOut}
+                            className="text-xs font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition"
                         >
                             Log Out
                         </button>
@@ -190,45 +94,30 @@ export default function App() {
                 </div>
             </Suspense>
         );
+    }
 
-    } else if (!userProfile.activeGroupId || !userProfile.groups?.includes(userProfile.activeGroupId)) {
-        currentScreen = (
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4">
+    if (!groupId || !userProfile.groups?.includes(groupId)) {
+        return (
+            <div className="min-h-screen bg-[var(--color-bg)] py-12 px-4">
                 <GroupPortal user={user} userProfile={userProfile} auth={auth} db={db} />
             </div>
         );
-
-    } else {
-        currentScreen = (
-            <MainApp
-                user={user}
-                userProfile={userProfile}
-                groupId={userProfile.activeGroupId}
-                auth={auth}
-                db={db}
-                isDarkMode={isDarkMode}
-                toggleDarkMode={() => setIsDarkMode(prev => !prev)}
-                featureFlags={featureFlags}
-            />
-        );
     }
 
+    return <MainApp db={db} auth={auth} />;
+}
+
+export default function App() {
     return (
         <ToastProvider>
-            {isMaintenanceMode && userProfile?.isSuperAdmin && (
-                <div className="bg-red-600 text-white font-bold text-center p-3 shadow-md z-[60] relative animate-pulse">
-                    🚧 MAINTENANCE MODE IS ACTIVE 🚧
-                </div>
-            )}
-            {globalAnnouncement && (
-                <div className="bg-yellow-500 text-yellow-900 font-bold text-center p-3 shadow-md z-50 relative">
-                    📢 {globalAnnouncement}
-                </div>
-            )}
-            <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-300">
-                {currentScreen}
-            </div>
-            <ToastContainer />
+            <AuthProvider>
+                <GroupProvider>
+                    <UIProvider>
+                        <AppContent />
+                        <ToastContainer />
+                    </UIProvider>
+                </GroupProvider>
+            </AuthProvider>
         </ToastProvider>
     );
 }

@@ -1,16 +1,33 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import {
+    MapPin,
+    Compass,
+    Sparkles,
+    Route,
+    Footprints,
+    Car,
+    Plus,
+    Trash2,
+    X,
+    ChevronRight,
+    Navigation,
+    Layers,
+    SlidersHorizontal
+} from 'lucide-react';
 import { geocodeMissingPubs } from '../utils/geocode';
 import { firebase } from '../firebase';
+import { useToastContext } from '../context/ToastContext';
+import { SAMPLE_CRAWLS } from '../data/sampleTavernData';
 
-/* ─── tier helpers ──────────────────────────────────────────────────────── */
+/* ─── Tier Helpers ──────────────────────────────────────────────────────── */
 const tierColor = (score, hasScore) => {
-    if (!hasScore) return 'var(--color-text-faint)';
-    if (score >= 8.5) return 'var(--color-brand)';
-    if (score >= 7)   return 'color-mix(in srgb, var(--color-brand) 75%, #000)';
-    if (score >= 5)   return '#f59e0b';
-    return '#dc2626';
+    if (!hasScore) return '#78716c';
+    if (score >= 8.5) return '#f59e0b'; // Amber Gold
+    if (score >= 7)   return '#94a3b8'; // Silver Slate
+    if (score >= 5)   return '#b45309'; // Bronze
+    return '#dc2626'; // Red
 };
 
 const tierLabel = (score, hasScore) => {
@@ -21,48 +38,68 @@ const tierLabel = (score, hasScore) => {
     return 'Avoid';
 };
 
-/* Simplified flat markers */
-const makeIcon = (color, label = '') =>
+/* Modern Tavern SVG Pins */
+const makePinIcon = (color, label = '', isVisited = true) =>
     L.divIcon({
-        className: '',
+        className: 'tavern-custom-pin',
         html: `
           <div style="
-            width:2rem;height:2rem;
-            background:${color};
-            border:2px solid var(--color-surface);
-            border-radius:50% 50% 50% 0;
-            transform:rotate(-45deg);
-            display:flex;align-items:center;justify-content:center;
-            transition:transform 0.15s ease;
+            position: relative;
+            width: 32px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+            cursor: pointer;
           ">
-            <span style="transform:rotate(45deg);font-size:0.6rem;font-weight:900;color:#fff;line-height:1;">
-              ${label}
+            <svg viewBox="0 0 32 38" width="32" height="38" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16 0C7.163 0 0 7.163 0 16c0 10.5 16 22 16 22s16-11.5 16-22C32 7.163 24.837 0 16 0z" fill="${color}" stroke="#ffffff" stroke-width="2"/>
+              <circle cx="16" cy="15" r="9" fill="#1c1917" opacity="0.25"/>
+            </svg>
+            <span style="
+              position: absolute;
+              top: 7px;
+              left: 0;
+              right: 0;
+              text-align: center;
+              font-family: 'Satoshi', sans-serif;
+              font-size: 10px;
+              font-weight: 900;
+              color: #ffffff;
+              line-height: 1;
+            ">
+              ${label || (isVisited ? '★' : '○')}
             </span>
           </div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
-        popupAnchor: [0, -34],
+        iconSize: [32, 38],
+        iconAnchor: [16, 38],
+        popupAnchor: [0, -36],
     });
 
-const makeNumberIcon = (n, color) =>
+const makeStepNumberIcon = (n) =>
     L.divIcon({
-        className: '',
+        className: 'tavern-step-pin',
         html: `
           <div style="
-            width:1.8rem;height:1.8rem;
-            background:${color};
-            border:2px solid var(--color-surface);
-            border-radius:50%;
-            display:flex;align-items:center;justify-content:center;
+            width: 28px;
+            height: 28px;
+            background: #d97706;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
           ">
-            <span style="font-size:0.75rem;font-weight:900;color:#fff;">${n}</span>
+            <span style="font-family:'Satoshi',sans-serif;font-size:11px;font-weight:900;color:#ffffff;">${n}</span>
           </div>`,
         iconSize: [28, 28],
         iconAnchor: [14, 14],
         popupAnchor: [0, -16],
     });
 
-/* ─── OSRM routing ─────────────────────────────────────────────────────── */
+/* ─── OSRM Routing ─────────────────────────────────────────────────────── */
 async function fetchRoute(waypoints, profile = 'foot') {
     if (waypoints.length < 2) return null;
     const coords = waypoints.map(([lat, lng]) => `${lng},${lat}`).join(';');
@@ -123,51 +160,67 @@ function fmtDuration(s) {
     return `${Math.floor(mins / 60)}h ${mins % 60}min`;
 }
 
-/* ─── tooltip / popup builders ─────────────────────────────────────────── */
+/* ─── Tooltip & Popup Builders ─────────────────────────────────────────── */
 const buildTooltipHTML = (pub, score, hasScore, color) => {
-    const photoUrl = pub.photoURL || 'https://placehold.co/600x400/1e293b/ffffff?text=No+Photo';
-    const photoBlock = `<img src="${photoUrl}" alt="${pub.name}" style="width:100%;height:6rem;object-fit:cover;display:block;border-radius:var(--radius-lg) var(--radius-lg) 0 0;" />`;
-    const scoreBadge = hasScore
-        ? `<span style="background:${color};color:#fff;padding:2px 6px;border-radius:var(--radius-full);font-size:0.7rem;font-weight:800;">${score.toFixed(1)}</span>
-           <span style="color:var(--color-text-muted);font-size:0.65rem;font-weight:700;text-transform:uppercase;">${tierLabel(score, hasScore)}</span>`
-        : `<span style="color:var(--color-text-faint);font-size:0.7rem;font-weight:600;">Unrated</span>`;
     return `
-      <div style="width:180px;pointer-events:none;background:var(--color-surface);border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--color-border);">
-        ${photoBlock}
-        <div style="padding:8px 10px 10px;">
-          <p style="font-weight:800;font-size:0.85rem;color:var(--color-text);line-height:1.2;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${pub.name}</p>
-          <p style="font-size:0.65rem;color:var(--color-text-muted);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${pub.location || ''}</p>
-          <div style="display:flex;align-items:center;gap:6px;">${scoreBadge}</div>
+      <div style="background:#1c1917;color:#fafaf9;padding:6px 10px;border-radius:8px;border:1px solid #44403c;font-family:'Satoshi',sans-serif;box-shadow:0 10px 15px -3px rgba(0,0,0,0.5);">
+        <p style="font-weight:700;font-size:12px;margin:0 0 2px 0;">${pub.name}</p>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="background:${color};color:#fff;padding:1px 5px;border-radius:4px;font-size:10px;font-weight:900;">
+            ${hasScore ? score.toFixed(1) : 'To Visit'}
+          </span>
+          <span style="color:#a8a29e;font-size:10px;">${pub.location || 'Local Pub'}</span>
         </div>
       </div>`;
 };
 
 const buildPopupHTML = (pub, score, hasScore, color) => {
-    const photoUrl = pub.photoURL || 'https://placehold.co/600x400/1e293b/ffffff?text=No+Photo';
-    const photoBlock = `<img src="${photoUrl}" alt="${pub.name}" style="width:100%;height:8rem;object-fit:cover;display:block;border-radius:var(--radius-lg) var(--radius-lg) 0 0;" />`;
-    const scoreHTML = hasScore
-        ? `<span style="background:${color};color:#fff;padding:2px 8px;border-radius:var(--radius-full);font-weight:900;font-size:0.8rem;">${score.toFixed(1)}/10</span>
-           <span style="color:var(--color-text-muted);font-size:0.7rem;font-weight:700;text-transform:uppercase;">${tierLabel(score, hasScore)}</span>`
-        : `<span style="color:var(--color-text-faint);font-size:0.8rem;font-weight:600;">Unrated</span>`;
-    const googleHTML = pub.googleLink
-        ? `<a href="${pub.googleLink}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;margin-top:10px;background:var(--color-surface-offset);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:6px;font-size:0.7rem;font-weight:800;color:var(--color-text);text-decoration:none;">Open in Google Maps</a>`
+    const photoUrl = pub.photoURL || '';
+    const photoBlock = photoUrl
+        ? `<img src="${photoUrl}" alt="${pub.name}" style="width:100%;height:100px;object-fit:cover;display:block;border-radius:8px 8px 0 0;" />`
+        : `<div style="height:50px;background:linear-gradient(135deg, #292524, #1c1917);display:flex;align-items:center;justify-content:center;font-size:24px;border-radius:8px 8px 0 0;">🍺</div>`;
+    
+    const scoreBadge = hasScore
+        ? `<span style="background:${color};color:#fff;padding:2px 8px;border-radius:9999px;font-weight:800;font-size:11px;">${score.toFixed(1)} / 10</span>
+           <span style="color:#78716c;font-size:10px;font-weight:700;text-transform:uppercase;">${tierLabel(score, hasScore)}</span>`
+        : `<span style="color:#a8a29e;font-size:11px;font-weight:700;">Hit List (To Visit)</span>`;
+
+    const priceBadge = pub.pintPrice
+        ? `<span style="color:#f59e0b;font-weight:800;font-size:11px;">£${pub.pintPrice.toFixed(2)} / pint</span>`
         : '';
+
     return `
-      <div style="width:200px;">
+      <div style="width:210px;font-family:'Satoshi',sans-serif;color:#1c1917;">
         ${photoBlock}
-        <div style="padding:10px 12px 12px;">
-          <p style="font-weight:900;font-size:0.95rem;margin-bottom:2px;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${pub.name}</p>
-          <p style="font-size:0.7rem;color:var(--color-text-muted);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${pub.location || ''}</p>
-          <div style="display:flex;align-items:center;gap:6px;">${scoreHTML}</div>
-          ${googleHTML}
+        <div style="padding:10px 12px 12px;background:#ffffff;border-radius:0 0 8px 8px;">
+          <h4 style="font-family:'Instrument Serif',serif;font-size:18px;margin:0 0 2px 0;line-height:1.2;color:#1c1917;">${pub.name}</h4>
+          <p style="font-size:11px;color:#78716c;margin:0 0 8px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📍 ${pub.location || 'Local Pub'}</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:4px;">${scoreBadge}</div>
+            ${priceBadge}
+          </div>
+          <button id="popup-view-btn-${pub.id}" style="width:100%;background:#d97706;color:#ffffff;border:none;border-radius:6px;padding:6px;font-size:11px;font-weight:700;cursor:pointer;">
+            View Details & Rating →
+          </button>
         </div>
       </div>`;
 };
 
-/* ─── main component ────────────────────────────────────────────────────── */
-export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, setPage, allUsers, user }) {
-    const pubsArray     = Array.isArray(pubs)     ? pubs     : Object.values(pubs     || {});
-    const newPubsArray  = Array.isArray(newPubs)  ? newPubs  : Object.values(newPubs  || {});
+/* ─── Main Map Component ────────────────────────────────────────────────── */
+export default function MapPage({
+    pubs = [],
+    newPubs = [],
+    scores = {},
+    criteria = [],
+    db,
+    groupId,
+    onViewDetail,
+    user
+}) {
+    const { showToast } = useToastContext();
+
+    const pubsArray     = Array.isArray(pubs) ? pubs : Object.values(pubs || {});
+    const newPubsArray  = Array.isArray(newPubs) ? newPubs : Object.values(newPubs || {});
     const criteriaArray = Array.isArray(criteria) ? criteria : Object.values(criteria || {});
     const scoresObj     = scores || {};
 
@@ -176,33 +229,40 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
         [db, groupId]
     );
 
-    const mapRef       = useRef(null);
-    const leafletRef   = useRef(null);
-    const markersRef   = useRef({});
-    const crawlLineRef = useRef([]); 
+    const mapContainerRef = useRef(null);
+    const leafletMapRef   = useRef(null);
+    const tileLayerRef    = useRef(null);
+    const markersRef      = useRef({});
+    const crawlLineRef    = useRef([]);
 
-    const [filter,           setFilter]           = useState('all');
-    const [tierFilter,       setTierFilter]        = useState('all');
-    const [selectedPub,      setSelectedPub]       = useState(null);
-    const [crawls,           setCrawls]            = useState([]);
-    const [activeCrawl,      setActiveCrawl]       = useState(null);
-    const [drawerOpen,       setDrawerOpen]        = useState(false);
-    const [crawlName,        setCrawlName]         = useState('');
-    const [crawlDate,        setCrawlDate]         = useState('');
-    const [crawlPubIds,      setCrawlPubIds]       = useState([]);
-    const [geocoding,        setGeocoding]         = useState(false);
-    const [geocodeProgress,  setGeocodeProgress]   = useState({ done: 0, total: 0 });
-    const [localPubs,        setLocalPubs]         = useState([]);
-    const [travelMode,       setTravelMode]        = useState('foot');
-    const [routeData,        setRouteData]         = useState(null);
-    const [routeLoading,     setRouteLoading]      = useState(false);
-    const [directionsOpen,   setDirectionsOpen]    = useState(false);
+    const [filter, setFilter] = useState('all'); // 'all' | 'visited' | 'toVisit'
+    const [tierFilter, setTierFilter] = useState('all');
+    const [selectedPub, setSelectedPub] = useState(null);
+    const [localPubs, setLocalPubs] = useState([]);
 
-    // AI Crawl State
-    const [aiVibe,           setAiVibe]            = useState('');
-    const [aiNumStops,       setAiNumStops]        = useState(3);
-    const [aiLoading,        setAiLoading]         = useState(false);
-    const [aiError,          setAiError]           = useState('');
+    // Geocoding
+    const [geocoding, setGeocoding] = useState(false);
+    const [geocodeProgress, setGeocodeProgress] = useState({ done: 0, total: 0 });
+
+    // Crawls & Routing
+    const [crawls, setCrawls] = useState([]);
+    const [activeCrawl, setActiveCrawl] = useState(null);
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [crawlName, setCrawlName] = useState('');
+    const [crawlDate, setCrawlDate] = useState('');
+    const [crawlPubIds, setCrawlPubIds] = useState([]);
+    const [travelMode, setTravelMode] = useState('foot');
+    const [routeData, setRouteData] = useState(null);
+    const [routeLoading, setRouteLoading] = useState(false);
+    const [directionsOpen, setDirectionsOpen] = useState(false);
+
+    // AI Crawl Generator
+    const [aiVibe, setAiVibe] = useState('');
+    const [aiNumStops, setAiNumStops] = useState(3);
+    const [aiLoading, setAiLoading] = useState(false);
+
+    // Map style mode
+    const [mapStyle, setMapStyle] = useState('dark'); // 'dark' | 'standard'
 
     const allPubs = useMemo(() => [
         ...pubsArray.map(p => ({ ...p, _listType: 'visited' })),
@@ -218,21 +278,33 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
     const pubScoreMap = useMemo(() => {
         const map = {};
         allPubs.forEach(pub => {
-            let totalScore = 0, totalWeight = 0;
+            let totalScore = 0;
+            let totalWeight = 0;
             Object.entries(scoresObj[pub.id] ?? {}).forEach(([cid, cScores]) => {
                 const w = effectiveWeights[cid] ?? 1;
                 (cScores || []).forEach(s => {
-                    if (s.type === 'scale' && s.value != null)  { totalScore += s.value * w; totalWeight += w; }
-                    if (s.type === 'price' && s.value != null)  { totalScore += (s.value * 2) * w; totalWeight += w; }
+                    if (s.type === 'scale' && s.value != null) {
+                        totalScore += s.value * w;
+                        totalWeight += w;
+                    }
+                    if (s.type === 'price' && s.value != null) {
+                        totalScore += (s.value * 2) * w;
+                        totalWeight += w;
+                    }
                 });
             });
-            map[pub.id] = totalWeight > 0 ? { score: totalScore / totalWeight, hasScore: true } : { score: 0, hasScore: false };
+            map[pub.id] = totalWeight > 0
+                ? { score: totalScore / totalWeight, hasScore: true }
+                : { score: 0, hasScore: false };
         });
         return map;
     }, [allPubs, scoresObj, effectiveWeights]);
 
-    useEffect(() => { setLocalPubs(allPubs); }, [allPubs]);
+    useEffect(() => {
+        setLocalPubs(allPubs);
+    }, [allPubs]);
 
+    // Missing pub coordinates geocoder
     const geocodedRef = useRef(false);
     useEffect(() => {
         if (!pubsRef || geocodedRef.current) return;
@@ -246,11 +318,7 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
                 if (!results.length) return;
                 const batch = db.batch();
                 results.forEach(({ id, lat, lng }) =>
-                    batch.set(
-                        pubsRef.doc(id),
-                        { lat, lng },
-                        { merge: true }
-                    )
+                    batch.set(pubsRef.doc(id), { lat, lng }, { merge: true })
                 );
                 batch.commit().catch(console.error);
                 setLocalPubs(prev => prev.map(p => {
@@ -258,96 +326,150 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
                     return found ? { ...p, lat: found.lat, lng: found.lng } : p;
                 }));
             });
-    }, [allPubs, pubsRef]);
+    }, [allPubs, pubsRef, db]);
 
+    // Load saved crawls
     useEffect(() => {
-        if (!db || !groupId) return;
+        if (!groupId) return;
+        if (groupId === 'demo-group') {
+            setCrawls(SAMPLE_CRAWLS);
+            return;
+        }
+        if (!db) return;
         const unsub = db.collection('crawls')
             .where('groupId', '==', groupId)
             .orderBy('createdAt', 'desc')
-            .onSnapshot(snap => setCrawls(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+            .onSnapshot(snap => {
+                setCrawls(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            });
         return unsub;
     }, [db, groupId]);
 
-    const generateAICrawl = async () => {
-        if (!aiVibe.trim()) return;
-        setAiLoading(true);
-        setAiError('');
-        try {
-            const center = leafletRef.current ? leafletRef.current.getCenter() : null;
-            const generateCrawlFn = firebase.app().functions('europe-west2').httpsCallable('generateAICrawl');
-            
-            const result = await generateCrawlFn({
-                groupId,
-                vibe: aiVibe,
-                numStops: Number(aiNumStops),
-                startLat: center?.lat,
-                startLng: center?.lng
-            });
-
-            if (result.data && result.data.pubIds) {
-                const validIds = result.data.pubIds.filter(id => localPubs.find(p => p.id === id));
-                setCrawlPubIds(validIds);
-                if (validIds.length === 0) {
-                    setAiError('AI could not find matching pubs for this vibe.');
-                }
-            } else {
-                setAiError('Unexpected response from AI.');
-            }
-        } catch (err) {
-            console.error('AI Crawl Error:', err);
-            setAiError(err.message || 'Failed to generate crawl.');
-        } finally {
-            setAiLoading(false);
-        }
-    };
-
+    // Initialize Leaflet Map
     useEffect(() => {
-        if (!mapRef.current || leafletRef.current) return;
-        const map = L.map(mapRef.current, { zoomControl: true }).setView([52.5, -2.1], 10);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap',
+        if (!mapContainerRef.current || leafletMapRef.current) return;
+
+        // Auto-detect theme for initial tile
+        const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+        const initialStyle = isDark ? 'dark' : 'standard';
+        setMapStyle(initialStyle);
+
+        const tileUrl = initialStyle === 'dark'
+            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+            : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+        const map = L.map(mapContainerRef.current, {
+            zoomControl: false,
+            attributionControl: false
+        }).setView([52.5, -2.1], 9);
+
+        // Put zoom in bottom right
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        tileLayerRef.current = L.tileLayer(tileUrl, {
             maxZoom: 19,
         }).addTo(map);
-        leafletRef.current = map;
-        return () => { map.remove(); leafletRef.current = null; };
+
+        leafletMapRef.current = map;
+
+        return () => {
+            map.remove();
+            leafletMapRef.current = null;
+        };
     }, []);
 
+    // Switch Tile Layer
+    const handleSwitchTileStyle = (style) => {
+        if (!leafletMapRef.current) return;
+        setMapStyle(style);
+        if (tileLayerRef.current) {
+            tileLayerRef.current.remove();
+        }
+        const url = style === 'dark'
+            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+            : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+        tileLayerRef.current = L.tileLayer(url, { maxZoom: 19 }).addTo(leafletMapRef.current);
+    };
+
+    // Filtered Pubs
     const filteredPubs = useMemo(() => localPubs.filter(p => {
-        if (filter === 'visited'  && p._listType !== 'visited')  return false;
-        if (filter === 'toVisit'  && p._listType !== 'toVisit')  return false;
+        if (filter === 'visited' && p._listType !== 'visited') return false;
+        if (filter === 'toVisit' && p._listType !== 'toVisit') return false;
         const { score, hasScore } = pubScoreMap[p.id] || { score: 0, hasScore: false };
         if (tierFilter !== 'all' && tierLabel(score, hasScore) !== tierFilter) return false;
         return true;
     }), [localPubs, filter, tierFilter, pubScoreMap]);
 
+    // Render Markers
     useEffect(() => {
-        if (!leafletRef.current) return;
+        if (!leafletMapRef.current) return;
+
         Object.values(markersRef.current).forEach(m => m.remove());
         markersRef.current = {};
+
+        const validCoords = [];
+
         filteredPubs.forEach(pub => {
             if (!pub.lat || !pub.lng) return;
+            validCoords.push([pub.lat, pub.lng]);
+
             const { score, hasScore } = pubScoreMap[pub.id] || { score: 0, hasScore: false };
-            const color  = tierColor(score, hasScore);
-            const label  = hasScore ? score.toFixed(1) : '';
-            const marker = L.marker([pub.lat, pub.lng], { icon: makeIcon(color, label) });
-            marker.bindTooltip(buildTooltipHTML(pub, score, hasScore, color), {
-                direction: 'top', offset: [0, -25], opacity: 1, className: 'pub-hover-tooltip',
+            const color = tierColor(score, hasScore);
+            const label = hasScore ? score.toFixed(1) : '';
+            const isVisited = pub._listType === 'visited' || hasScore;
+
+            const marker = L.marker([pub.lat, pub.lng], {
+                icon: makePinIcon(color, label, isVisited)
             });
-            marker.bindPopup(buildPopupHTML(pub, score, hasScore, color), { maxWidth: 220, className: 'pub-popup' });
+
+            marker.bindTooltip(buildTooltipHTML(pub, score, hasScore, color), {
+                direction: 'top',
+                offset: [0, -32],
+                opacity: 1,
+                className: 'tavern-marker-tooltip',
+            });
+
+            marker.bindPopup(buildPopupHTML(pub, score, hasScore, color), {
+                maxWidth: 240,
+                className: 'tavern-popup-wrapper'
+            });
+
+            marker.on('popupopen', () => {
+                const btn = document.getElementById(`popup-view-btn-${pub.id}`);
+                if (btn && onViewDetail) {
+                    btn.onclick = () => onViewDetail(pub);
+                }
+            });
+
             marker.on('click', () => setSelectedPub(pub));
-            marker.addTo(leafletRef.current);
+            marker.addTo(leafletMapRef.current);
             markersRef.current[pub.id] = marker;
         });
-    }, [filteredPubs, pubScoreMap]);
 
+        // Fit bounds if coords exist and map not zoomed by user
+        if (validCoords.length > 0 && !activeCrawl) {
+            try {
+                leafletMapRef.current.fitBounds(L.latLngBounds(validCoords), {
+                    padding: [50, 50],
+                    maxZoom: 14
+                });
+            } catch (e) {
+                // ignore
+            }
+        }
+    }, [filteredPubs, pubScoreMap, onViewDetail, activeCrawl]);
+
+    // Crawl routing line & numbered waypoints
     const clearCrawlLayers = useCallback(() => {
         crawlLineRef.current.forEach(l => l.remove());
         crawlLineRef.current = [];
-        Object.keys(markersRef.current).filter(k => k.startsWith('crawl_')).forEach(k => {
-            markersRef.current[k].remove();
-            delete markersRef.current[k];
-        });
+        Object.keys(markersRef.current)
+            .filter(k => k.startsWith('crawl_'))
+            .forEach(k => {
+                markersRef.current[k].remove();
+                delete markersRef.current[k];
+            });
     }, []);
 
     useEffect(() => {
@@ -356,241 +478,485 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
         setDirectionsOpen(false);
 
         const ids = activeCrawl ? activeCrawl.pubIds : (crawlPubIds.length >= 2 ? crawlPubIds : null);
-        if (!ids || ids.length < 2 || !leafletRef.current) return;
+        if (!ids || ids.length < 2 || !leafletMapRef.current) return;
 
         const waypoints = ids
             .map(id => localPubs.find(p => p.id === id))
             .filter(p => p?.lat && p?.lng)
             .map(p => [p.lat, p.lng]);
+
         if (waypoints.length < 2) return;
 
         ids.forEach((id, idx) => {
             const pub = localPubs.find(p => p.id === id);
             if (!pub?.lat || !pub?.lng) return;
-            const m = L.marker([pub.lat, pub.lng], { icon: makeNumberIcon(idx + 1, 'var(--color-brand)') })
+            const m = L.marker([pub.lat, pub.lng], { icon: makeStepNumberIcon(idx + 1) })
                 .bindTooltip(pub.name, { permanent: false })
-                .addTo(leafletRef.current);
+                .addTo(leafletMapRef.current);
             markersRef.current[`crawl_${id}_${idx}`] = m;
         });
 
         setRouteLoading(true);
         fetchRoute(waypoints, travelMode).then(result => {
             setRouteLoading(false);
-            if (!result || !leafletRef.current) {
-                const fallback = L.polyline(waypoints, { color: 'var(--color-brand)', weight: 3, dashArray: '8 8' })
-                    .addTo(leafletRef.current);
+            if (!result || !leafletMapRef.current) {
+                const fallback = L.polyline(waypoints, {
+                    color: '#d97706',
+                    weight: 4,
+                    dashArray: '8 8'
+                }).addTo(leafletMapRef.current);
                 crawlLineRef.current.push(fallback);
-                leafletRef.current.fitBounds(fallback.getBounds(), { padding: [40, 40] });
+                leafletMapRef.current.fitBounds(fallback.getBounds(), { padding: [40, 40] });
                 return;
             }
             setRouteData(result);
-            const line = L.polyline(result.coords, { color: 'var(--color-brand)', weight: 4, opacity: 0.9 })
-                .addTo(leafletRef.current);
+            const line = L.polyline(result.coords, {
+                color: '#d97706',
+                weight: 5,
+                opacity: 0.95
+            }).addTo(leafletMapRef.current);
             crawlLineRef.current.push(line);
-            leafletRef.current.fitBounds(line.getBounds(), { padding: [40, 40] });
+            leafletMapRef.current.fitBounds(line.getBounds(), { padding: [40, 40] });
         });
-    }, [activeCrawl, crawlPubIds, travelMode, localPubs]);
+    }, [activeCrawl, crawlPubIds, travelMode, localPubs, clearCrawlLayers]);
 
     const flyToPub = useCallback((pub) => {
-        if (!pub.lat || !pub.lng || !leafletRef.current) return;
-        leafletRef.current.flyTo([pub.lat, pub.lng], 16, { duration: 0.8 });
+        if (!pub.lat || !pub.lng || !leafletMapRef.current) return;
+        leafletMapRef.current.flyTo([pub.lat, pub.lng], 16, { duration: 0.8 });
         const marker = markersRef.current[pub.id];
         if (marker) setTimeout(() => marker.openPopup(), 850);
         setSelectedPub(pub);
     }, []);
 
+    // AI Crawl Generation
+    const generateAICrawl = async () => {
+        if (!aiVibe.trim()) return;
+        setAiLoading(true);
+        try {
+            const center = leafletMapRef.current ? leafletMapRef.current.getCenter() : null;
+            const generateCrawlFn = firebase.app().functions('europe-west2').httpsCallable('generateAICrawl');
+
+            const result = await generateCrawlFn({
+                groupId,
+                vibe: aiVibe,
+                numStops: Number(aiNumStops),
+                startLat: center?.lat,
+                startLng: center?.lng
+            });
+
+            if (result.data?.pubIds) {
+                const validIds = result.data.pubIds.filter(id => localPubs.find(p => p.id === id));
+                setCrawlPubIds(validIds);
+                if (validIds.length > 0) {
+                    showToast(`AI created a ${validIds.length}-stop route for "${aiVibe}"!`, 'success');
+                } else {
+                    showToast('Could not find matching pubs for this vibe', 'info');
+                }
+            }
+        } catch (err) {
+            console.error('AI Crawl Error:', err);
+            showToast('Failed to generate route', 'error');
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
+    // Save Crawl
     const saveCrawl = async () => {
         if (!crawlName.trim() || crawlPubIds.length < 2) return;
         try {
             await db.collection('crawls').add({
-                groupId, name: crawlName.trim(), date: crawlDate || null,
-                pubIds: crawlPubIds, creatorId: user?.uid || null,
-                creatorName: user?.displayName || user?.email || 'Unknown',
+                groupId,
+                name: crawlName.trim(),
+                date: crawlDate || null,
+                pubIds: crawlPubIds,
+                creatorId: user?.uid || null,
+                creatorName: user?.displayName || user?.email?.split('@')[0] || 'Member',
                 createdAt: new Date(),
             });
-            setDrawerOpen(false); setCrawlName(''); setCrawlDate(''); setCrawlPubIds([]);
-        } catch (err) { console.error('Error saving crawl:', err); }
+            showToast('Pub crawl saved!', 'success');
+            setDrawerOpen(false);
+            setCrawlName('');
+            setCrawlDate('');
+            setCrawlPubIds([]);
+        } catch (err) {
+            console.error('Error saving crawl:', err);
+            showToast('Failed to save crawl', 'error');
+        }
     };
 
+    // Delete Crawl
     const deleteCrawl = async (id) => {
-        if (!window.confirm('Delete this crawl?')) return;
-        await db.collection('crawls').doc(id).delete().catch(console.error);
-        if (activeCrawl?.id === id) { setActiveCrawl(null); setRouteData(null); }
+        if (!window.confirm('Delete this crawl route?')) return;
+        try {
+            await db.collection('crawls').doc(id).delete();
+            if (activeCrawl?.id === id) {
+                setActiveCrawl(null);
+                setRouteData(null);
+            }
+            showToast('Crawl deleted', 'info');
+        } catch (err) {
+            console.error(err);
+            showToast('Failed to delete crawl', 'error');
+        }
     };
 
-    const toggleCrawlPub = (id) =>
+    const toggleCrawlPub = (id) => {
         setCrawlPubIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-    const movePubUp   = (i) => { if (i === 0) return; const a = [...crawlPubIds]; [a[i-1],a[i]] = [a[i],a[i-1]]; setCrawlPubIds(a); };
-    const movePubDown = (i) => { if (i === crawlPubIds.length-1) return; const a = [...crawlPubIds]; [a[i],a[i+1]] = [a[i+1],a[i]]; setCrawlPubIds(a); };
+    };
+
+    const movePubUp = (i) => {
+        if (i === 0) return;
+        const a = [...crawlPubIds];
+        [a[i - 1], a[i]] = [a[i], a[i - 1]];
+        setCrawlPubIds(a);
+    };
+
+    const movePubDown = (i) => {
+        if (i === crawlPubIds.length - 1) return;
+        const a = [...crawlPubIds];
+        [a[i], a[i + 1]] = [a[i + 1], a[i]];
+        setCrawlPubIds(a);
+    };
 
     const activeIds = activeCrawl ? activeCrawl.pubIds : crawlPubIds;
     const activeStops = activeIds.map(id => localPubs.find(p => p.id === id)).filter(Boolean);
-    const visitedPubsSorted = localPubs.filter(p => p._listType === 'visited')
-        .sort((a,b) => (pubScoreMap[b.id]?.score||0) - (pubScoreMap[a.id]?.score||0));
+    const pubsWithCoords = localPubs.filter(p => p.lat && p.lng);
 
     return (
-        <div className="space-y-6 md:space-y-8 animate-fadeIn pb-24">
-
+        <div className="w-full space-y-6 animate-fadeIn pb-24">
             <style>{`
-                .pub-hover-tooltip { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
-                .pub-hover-tooltip .leaflet-tooltip-content { padding: 0 !important; }
-                .pub-hover-tooltip::before { display: none !important; }
-                .pub-popup .leaflet-popup-content-wrapper { padding: 0; border-radius: var(--radius-lg); overflow: hidden; background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); }
-                .pub-popup .leaflet-popup-content { margin: 0; }
-                .pub-popup .leaflet-popup-tip { background: var(--color-surface); border: 1px solid var(--color-border); border-top: none; border-left: none; }
-                @keyframes spin { to { transform: rotate(360deg); } }
+                .tavern-marker-tooltip {
+                    background: transparent !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    padding: 0 !important;
+                }
+                .tavern-marker-tooltip .leaflet-tooltip-content { padding: 0 !important; }
+                .tavern-marker-tooltip::before { display: none !important; }
+
+                .tavern-popup-wrapper .leaflet-popup-content-wrapper {
+                    padding: 0 !important;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                }
+                .tavern-popup-wrapper .leaflet-popup-content { margin: 0 !important; }
+                .tavern-popup-wrapper .leaflet-popup-tip { background: #ffffff !important; }
             `}</style>
 
-            <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-                <div className="relative z-10">
-                    <h2 className="font-display text-3xl md:text-4xl font-bold mb-1 text-text">Pub Map</h2>
-                    <p className="font-body text-sm font-semibold text-muted">
-                        {localPubs.filter(p=>p.lat&&p.lng).length} of {localPubs.length} pubs on the map
+            {/* Header: Title and Route Planning Button */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[var(--color-divider)] pb-6">
+                <div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-2xl">🗺️</span>
+                        <h1 className="font-display text-3xl sm:text-4xl font-black text-[var(--color-text)] tracking-tight">
+                            Interactive Map
+                        </h1>
+                    </div>
+                    <p className="text-xs sm:text-sm text-[var(--color-text-muted)] mt-1">
+                        {pubsWithCoords.length} of {localPubs.length} pubs geocoded & mapped across your territory.
                     </p>
                 </div>
-                <button
-                    onClick={() => { setDrawerOpen(true); setActiveCrawl(null); }}
-                    className="relative z-10 bg-surface text-brand hover:bg-gray-50 px-6 py-3 rounded-full font-bold shadow-lg transition-transform hover:-translate-y-1 border-none cursor-pointer"
-                >
-                    🗺️ + Create Crawl
-                </button>
-            </div>
 
-            <div className="card-premium p-4 md:p-5 flex flex-col gap-4">
-                <div className="flex gap-2 flex-wrap">
-                    {['all','visited','toVisit'].map(f => (
-                        <button key={f} onClick={() => setFilter(f)}
-                            className={`px-3 py-1.5 rounded-full font-bold text-xs border cursor-pointer transition-colors ${filter === f ? 'border-brand bg-brand text-white' : 'border-border bg-surface text-muted hover:bg-surface-offset'}`}
-                        >
-                            { f==='all' ? '🍺 All' : f==='visited' ? '✅ Visited' : '📋 To Visit' }
-                        </button>
-                    ))}
-                    <div className="w-[1px] bg-divider mx-1" />
-                    {['all','Legendary','Great','Decent','Avoid','Unrated'].map(t => (
-                        <button key={t} onClick={() => setTierFilter(t)}
-                            className={`px-3 py-1.5 rounded-full font-bold text-xs border cursor-pointer transition-colors ${tierFilter === t ? 'border-brand bg-brand text-white' : 'border-border bg-surface text-muted hover:bg-surface-offset'}`}
-                        >
-                            {t==='all' ? '⭐ All Tiers' : t}
-                        </button>
-                    ))}
-                </div>
-                <div className="flex gap-4 flex-wrap items-center">
-                    <p className="text-[10px] font-bold text-muted uppercase tracking-wider">Key:</p>
-                    {[['Legendary','var(--color-brand)'],['Great','color-mix(in srgb, var(--color-brand) 75%, #000)'],['Decent','#f59e0b'],['Avoid','#dc2626'],['Unrated','var(--color-text-faint)']].map(([lbl,clr]) => (
-                        <span key={lbl} className="flex items-center gap-1.5 text-xs font-bold text-text">
-                            <span className="w-2.5 h-2.5 rounded-sm" style={{ background:clr }} />
-                            {lbl}
-                        </span>
-                    ))}
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => { setDrawerOpen(true); setActiveCrawl(null); }}
+                        className="btn-fun-primary !py-2.5 !px-5 text-xs font-extrabold"
+                    >
+                        <Route className="w-4 h-4" />
+                        <span>Plan Crawl</span>
+                    </button>
                 </div>
             </div>
 
-            <div className="card-premium overflow-hidden h-[36rem] relative flex flex-col p-0 border border-border shadow-inner">
-                <div ref={mapRef} className="w-full h-full z-0" />
-                
+            {/* Filter Controls Bar */}
+            <div className="card-tavern p-3 sm:p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between border border-[var(--color-border)]">
+                {/* Status and Tier Filters */}
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1 bg-[var(--color-surface-offset)] p-1 rounded-xl border border-[var(--color-border)]">
+                        <button
+                            onClick={() => setFilter('all')}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                                filter === 'all'
+                                    ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
+                                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                            }`}
+                        >
+                            All ({localPubs.length})
+                        </button>
+                        <button
+                            onClick={() => setFilter('visited')}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                                filter === 'visited'
+                                    ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
+                                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                            }`}
+                        >
+                            Visited
+                        </button>
+                        <button
+                            onClick={() => setFilter('toVisit')}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                                filter === 'toVisit'
+                                    ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
+                                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                            }`}
+                        >
+                            Hit List
+                        </button>
+                    </div>
+
+                    <div className="h-6 w-[1px] bg-[var(--color-divider)] mx-1 hidden sm:block" />
+
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                        {['all', 'Legendary', 'Great', 'Decent', 'Avoid', 'Unrated'].map(t => (
+                            <button
+                                key={t}
+                                onClick={() => setTierFilter(t)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition ${
+                                    tierFilter === t
+                                        ? 'bg-[var(--color-brand)] text-stone-900 border-[var(--color-brand)] font-bold'
+                                        : 'bg-[var(--color-surface-offset)] text-[var(--color-text-muted)] border-[var(--color-border)] hover:border-[var(--color-brand)]'
+                                }`}
+                            >
+                                {t === 'all' ? 'All Tiers' : t}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Right controls: Map Style Switcher (Carto Dark vs OSM) */}
+                <div className="flex items-center gap-2 justify-end">
+                    <span className="text-[10px] font-bold text-[var(--color-text-faint)] uppercase">
+                        Theme:
+                    </span>
+                    <div className="flex items-center bg-[var(--color-surface-offset)] p-0.5 rounded-xl border border-[var(--color-border)]">
+                        <button
+                            onClick={() => handleSwitchTileStyle('dark')}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                                mapStyle === 'dark'
+                                    ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
+                                    : 'text-[var(--color-text-muted)]'
+                            }`}
+                        >
+                            Dark Oak
+                        </button>
+                        <button
+                            onClick={() => handleSwitchTileStyle('standard')}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                                mapStyle === 'standard'
+                                    ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
+                                    : 'text-[var(--color-text-muted)]'
+                            }`}
+                        >
+                            Street
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Map Canvas Card */}
+            <div className="card-tavern overflow-hidden h-[34rem] sm:h-[40rem] relative flex flex-col p-0 border border-[var(--color-border)] shadow-xl">
+                <div ref={mapContainerRef} className="w-full h-full z-0" />
+
+                {/* Status Overlays */}
                 {geocoding && (
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-surface border border-border rounded-full px-4 py-2 shadow-sm z-[1000] font-bold text-xs text-brand flex items-center gap-2">
-                        <span className="inline-block animate-[spin_1s_linear_infinite]">⚙️</span>
-                        Locating pubs… {geocodeProgress.done}/{geocodeProgress.total}
+                    <div className="absolute top-4 left-4 bg-[var(--color-surface)]/90 backdrop-blur-md border border-[var(--color-border)] rounded-full px-4 py-1.5 shadow-lg z-[1000] text-xs font-bold text-[var(--color-brand)] flex items-center gap-2">
+                        <Compass className="w-4 h-4 animate-spin text-amber-500" />
+                        <span>Locating taverns… {geocodeProgress.done}/{geocodeProgress.total}</span>
                     </div>
                 )}
-                {routeLoading && (
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-surface border border-border rounded-full px-4 py-2 shadow-sm z-[1000] font-bold text-xs text-brand flex items-center gap-2">
-                        <span className="inline-block animate-[spin_1s_linear_infinite]">🗺️</span>
-                        Calculating route…
-                    </div>
-                )}
-            </div>
 
-            {routeData && activeStops.length >= 2 && (
-                <div className="card-premium p-6 md:p-8 flex flex-col gap-4">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                        <div className="flex gap-2 p-1 bg-surface-offset rounded-lg border border-divider">
-                            {[['foot','🚶 Walking'],['driving','🚗 Driving']].map(([mode, label]) => (
-                                <button key={mode} onClick={() => setTravelMode(mode)}
-                                    className={`px-3 py-1.5 rounded-md font-bold text-xs border-none cursor-pointer transition-colors ${travelMode === mode ? 'bg-surface text-text shadow-xs' : 'bg-transparent text-muted'}`}
-                                >{label}</button>
-                            ))}
-                        </div>
-                        <div className="flex gap-6 items-center">
-                            <div className="text-right">
-                                <p className="text-[10px] font-bold text-muted uppercase tracking-wider">Distance</p>
-                                <p className="text-xl font-black text-text tabular-nums">{fmtDist(routeData.totalDistance)}</p>
-                            </div>
-                            <div className="text-right border-l border-divider pl-6">
-                                <p className="text-[10px] font-bold text-muted uppercase tracking-wider">Time</p>
-                                <p className="text-xl font-black text-text tabular-nums">{fmtDuration(routeData.totalDuration)}</p>
-                            </div>
-                            <div className="text-right border-l border-divider pl-6">
-                                <p className="text-[10px] font-bold text-muted uppercase tracking-wider">Stops</p>
-                                <p className="text-xl font-black text-text tabular-nums">{activeStops.length}</p>
-                            </div>
+                {routeLoading && (
+                    <div className="absolute top-4 left-4 bg-[var(--color-surface)]/90 backdrop-blur-md border border-[var(--color-border)] rounded-full px-4 py-1.5 shadow-lg z-[1000] text-xs font-bold text-[var(--color-brand)] flex items-center gap-2">
+                        <Route className="w-4 h-4 animate-pulse text-amber-500" />
+                        <span>Calculating walking route…</span>
+                    </div>
+                )}
+
+                {/* Active Crawl floating banner */}
+                {activeCrawl && (
+                    <div className="absolute top-4 right-4 bg-[var(--color-surface)]/95 backdrop-blur-md border border-amber-500/40 rounded-2xl p-3 shadow-xl z-[1000] max-w-xs flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                            <span className="text-[9px] font-black uppercase tracking-wider text-amber-500 block">
+                                Active Crawl Route
+                            </span>
+                            <h4 className="font-display text-base font-normal text-[var(--color-text)] truncate">
+                                {activeCrawl.name}
+                            </h4>
                         </div>
                         <button
-                            onClick={() => setDirectionsOpen(o => !o)}
-                            className="px-4 py-2 rounded-lg font-bold text-xs border border-border bg-surface hover:border-brand text-text cursor-pointer transition-colors"
+                            onClick={() => {
+                                setActiveCrawl(null);
+                                setRouteData(null);
+                            }}
+                            className="p-1 rounded-lg text-[var(--color-text-muted)] hover:text-red-500"
                         >
-                            📋 {directionsOpen ? 'Hide' : 'Show'} Directions
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* Route Stats & Directions Breakdown (if active crawl route loaded) */}
+            {routeData && activeStops.length >= 2 && (
+                <div className="card-tavern p-5 sm:p-6 border border-[var(--color-border)] space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-1 bg-[var(--color-surface-offset)] p-1 rounded-xl border border-[var(--color-border)]">
+                            <button
+                                onClick={() => setTravelMode('foot')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                                    travelMode === 'foot'
+                                        ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
+                                        : 'text-[var(--color-text-muted)]'
+                                }`}
+                            >
+                                <Footprints className="w-3.5 h-3.5 text-amber-500" />
+                                <span>Walking</span>
+                            </button>
+                            <button
+                                onClick={() => setTravelMode('driving')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                                    travelMode === 'driving'
+                                        ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
+                                        : 'text-[var(--color-text-muted)]'
+                                }`}
+                            >
+                                <Car className="w-3.5 h-3.5 text-blue-500" />
+                                <span>Driving</span>
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-6">
+                            <div>
+                                <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
+                                    Distance
+                                </p>
+                                <p className="text-xl font-display font-normal text-[var(--color-text)]">
+                                    {fmtDist(routeData.totalDistance)}
+                                </p>
+                            </div>
+                            <div className="border-l border-[var(--color-divider)] pl-6">
+                                <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
+                                    Duration
+                                </p>
+                                <p className="text-xl font-display font-normal text-[var(--color-text)]">
+                                    {fmtDuration(routeData.totalDuration)}
+                                </p>
+                            </div>
+                            <div className="border-l border-[var(--color-divider)] pl-6">
+                                <p className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
+                                    Stops
+                                </p>
+                                <p className="text-xl font-display font-normal text-[var(--color-text)]">
+                                    {activeStops.length} pubs
+                                </p>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => setDirectionsOpen(o => !o)}
+                            className="btn-tavern text-xs px-3.5 py-2 font-bold"
+                        >
+                            {directionsOpen ? 'Hide Steps' : 'Turn-by-Turn Directions'}
                         </button>
                     </div>
 
                     {directionsOpen && (
-                        <div className="mt-4 pt-4 border-t border-divider">
-                            <div className="flex gap-4 overflow-x-auto pb-4 scroll-x-clean mb-4">
+                        <div className="pt-4 border-t border-[var(--color-divider)] space-y-4">
+                            {/* Itinerary horizontal pub chips */}
+                            <div className="flex gap-3 overflow-x-auto pb-3">
                                 {activeStops.map((pub, idx) => (
-                                    <React.Fragment key={pub.id}>
-                                        <div className="shrink-0 flex flex-col items-center gap-2 w-20">
-                                            <img src={pub.photoURL || 'https://placehold.co/100x100/1e293b/ffffff?text=' + (idx+1)} alt={pub.name} loading="lazy" className="w-12 h-12 rounded-full object-cover border-2 border-brand" />
-                                            <p className="text-[10px] font-bold text-center line-clamp-2 w-full leading-tight">{pub.name}</p>
+                                    <div key={pub.id} className="flex items-center gap-2 shrink-0">
+                                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--color-surface-offset)] border border-[var(--color-border)]">
+                                            <span className="w-5 h-5 rounded-full bg-amber-500 text-stone-900 flex items-center justify-center text-[10px] font-black">
+                                                {idx + 1}
+                                            </span>
+                                            <span className="text-xs font-bold text-[var(--color-text)]">
+                                                {pub.name}
+                                            </span>
                                         </div>
                                         {idx < activeStops.length - 1 && (
-                                            <div className="shrink-0 flex items-center text-muted font-black text-lg pt-2">→</div>
+                                            <ChevronRight className="w-4 h-4 text-[var(--color-text-faint)]" />
                                         )}
-                                    </React.Fragment>
+                                    </div>
                                 ))}
                             </div>
-                            <div className="flex flex-col gap-2">
+
+                            {/* Step by step list */}
+                            <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
                                 {routeData.steps.map((step, idx) => (
-                                    <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-surface-offset border border-divider">
-                                        <span className="w-6 h-6 rounded-full bg-surface text-muted border border-divider flex items-center justify-center text-[10px] font-black shrink-0">{idx+1}</span>
+                                    <div
+                                        key={idx}
+                                        className="flex items-start gap-3 p-2.5 rounded-xl bg-[var(--color-surface-offset)] border border-[var(--color-divider)] text-xs"
+                                    >
+                                        <span className="w-5 h-5 rounded-full bg-[var(--color-surface)] text-[var(--color-text-muted)] flex items-center justify-center text-[9px] font-bold shrink-0">
+                                            {idx + 1}
+                                        </span>
                                         <div className="flex-1">
-                                            <p className="text-sm font-bold text-text leading-tight">{step.instruction}</p>
-                                            <p className="text-[10px] text-muted font-bold tracking-wide mt-1 uppercase">{fmtDist(step.distance)} · {fmtDuration(step.duration)}</p>
+                                            <p className="font-semibold text-[var(--color-text)]">{step.instruction}</p>
+                                            <p className="text-[10px] text-[var(--color-text-faint)] mt-0.5">
+                                                {fmtDist(step.distance)} · {fmtDuration(step.duration)}
+                                            </p>
                                         </div>
                                     </div>
                                 ))}
-                                <div className="flex items-center gap-3 p-4 rounded-lg bg-brand-subtle border border-brand/20 text-brand">
-                                    <span className="text-xl">🍺</span>
-                                    <p className="text-sm font-black">Arrive at {activeStops[activeStops.length-1]?.name}.</p>
-                                </div>
                             </div>
                         </div>
                     )}
                 </div>
             )}
 
-            <div className="card-premium p-6 md:p-8">
-                <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-4">Click to fly to location</p>
-                <div className="flex gap-4 overflow-x-auto pb-2 scroll-x-clean">
+            {/* Quick Fly-To Carousel of Pubs */}
+            <div className="card-tavern p-4 sm:p-5 border border-[var(--color-border)]">
+                <p className="text-[10px] font-bold text-[var(--color-text-faint)] uppercase tracking-wider mb-3">
+                    Click to fly to location on map:
+                </p>
+                <div className="flex gap-3 overflow-x-auto pb-2">
                     {filteredPubs.map(pub => {
-                        const { score, hasScore } = pubScoreMap[pub.id] || { score:0, hasScore:false };
+                        const { score, hasScore } = pubScoreMap[pub.id] || { score: 0, hasScore: false };
                         const hasCoords = pub.lat && pub.lng;
                         const isSelected = selectedPub?.id === pub.id;
                         return (
                             <div
                                 key={pub.id}
                                 onClick={() => hasCoords && flyToPub(pub)}
-                                className={`shrink-0 w-32 rounded-xl border ${isSelected ? 'border-brand bg-surface-offset shadow-sm' : 'border-border bg-surface'} ${hasCoords ? 'cursor-pointer hover:border-brand/50' : 'cursor-default opacity-50'} overflow-hidden transition-colors flex flex-col`}
+                                className={`shrink-0 w-36 rounded-xl border p-2.5 transition flex flex-col justify-between ${
+                                    isSelected
+                                        ? 'border-[var(--color-brand)] bg-[var(--color-surface-offset)] shadow-md'
+                                        : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-brand)]/60'
+                                } ${hasCoords ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed'}`}
                             >
-                                <img src={pub.photoURL || 'https://placehold.co/600x400/1e293b/ffffff?text=No+Photo'} alt={pub.name} loading="lazy" className="w-full h-20 object-cover block" />
-                                <div className="p-3 flex-1 flex flex-col justify-between">
-                                    <div>
-                                        <p className="font-bold text-xs line-clamp-1 mb-0.5 text-text">{pub.name}</p>
-                                        <p className="text-muted text-[10px] line-clamp-1 mb-2">{pub.location}</p>
-                                    </div>
-                                    {hasScore
-                                        ? <span className="inline-block text-brand bg-brand-subtle rounded-sm px-1.5 py-0.5 text-[10px] font-black w-fit">{score.toFixed(1)}</span>
-                                        : <span className="text-[9px] font-bold text-text-faint uppercase">Unrated</span>}
+                                <div className="h-16 w-full rounded-lg overflow-hidden bg-[var(--color-surface-offset)] mb-2">
+                                    {pub.photoURL ? (
+                                        <img src={pub.photoURL} alt={pub.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-xl">🍺</div>
+                                    )}
+                                </div>
+                                <div>
+                                    <h4 className="font-display text-sm font-normal text-[var(--color-text)] truncate">
+                                        {pub.name}
+                                    </h4>
+                                    <p className="text-[10px] text-[var(--color-text-muted)] truncate mb-1">
+                                        {pub.location || 'Local Pub'}
+                                    </p>
+                                </div>
+                                <div className="flex items-center justify-between pt-1 border-t border-[var(--color-divider)]">
+                                    {hasScore ? (
+                                        <span className="text-[11px] font-bold text-[var(--color-brand)] tabular-nums">
+                                            ★ {score.toFixed(1)}
+                                        </span>
+                                    ) : (
+                                        <span className="text-[9px] font-bold text-[var(--color-text-faint)] uppercase">
+                                            To Visit
+                                        </span>
+                                    )}
+                                    {!hasCoords && (
+                                        <span className="text-[9px] text-amber-500 font-bold">No GPS</span>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -598,38 +964,76 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
                 </div>
             </div>
 
+            {/* Saved Pub Crawls Grid */}
             {crawls.length > 0 && (
-                <div className="card-premium p-6 md:p-8">
-                    <h3 className="text-card-title mb-6">Saved Crawls</h3>
+                <div className="card-tavern p-5 sm:p-6 border border-[var(--color-border)] space-y-4">
+                    <h3 className="font-display text-2xl text-[var(--color-text)]">
+                        Saved Crawl Routes
+                    </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {crawls.map(crawl => {
                             const isActive = activeCrawl?.id === crawl.id;
                             const stopPubs = (crawl.pubIds || []).map(id => localPubs.find(p => p.id === id)).filter(Boolean);
                             return (
-                                <div key={crawl.id} className={`bg-surface-offset border ${isActive ? 'border-brand' : 'border-divider'} rounded-xl p-4 flex flex-col gap-4 transition-colors`}>
-                                    <div className="flex justify-between items-start">
+                                <div
+                                    key={crawl.id}
+                                    className={`p-4 rounded-2xl border transition flex flex-col justify-between gap-3 ${
+                                        isActive
+                                            ? 'border-amber-500 bg-amber-500/5'
+                                            : 'border-[var(--color-border)] bg-[var(--color-surface-offset)]'
+                                    }`}
+                                >
+                                    <div className="flex items-start justify-between gap-2">
                                         <div>
-                                            <p className="font-bold text-sm text-text mb-1">{crawl.name}</p>
-                                            <p className="text-muted text-[10px] font-bold uppercase tracking-wider">
+                                            <h4 className="font-display text-lg text-[var(--color-text)]">
+                                                {crawl.name}
+                                            </h4>
+                                            <p className="text-[10px] text-[var(--color-text-muted)] font-semibold">
                                                 {crawl.date ? new Date(crawl.date).toLocaleDateString() : 'No date'} · {stopPubs.length} stops
                                             </p>
                                         </div>
-                                        <button onClick={() => deleteCrawl(crawl.id)} className="bg-transparent border-none cursor-pointer text-text-muted hover:text-error transition-colors">🗑️</button>
+                                        <button
+                                            onClick={() => deleteCrawl(crawl.id)}
+                                            className="p-1 text-[var(--color-text-muted)] hover:text-red-500 transition"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
                                     </div>
-                                    <div className="flex flex-col gap-1.5">
-                                        {stopPubs.slice(0,4).map((p,idx) => (
-                                            <div key={p.id} className="flex items-center gap-2">
-                                                <span className="w-4 h-4 bg-surface text-muted border border-divider rounded-full flex items-center justify-center text-[9px] font-black shrink-0">{idx+1}</span>
-                                                <p className="text-xs font-bold text-text truncate">{p.name}</p>
+
+                                    {/* Stops preview */}
+                                    <div className="space-y-1">
+                                        {stopPubs.slice(0, 3).map((p, idx) => (
+                                            <div key={p.id} className="flex items-center gap-2 text-xs text-[var(--color-text)] truncate">
+                                                <span className="w-4 h-4 rounded-full bg-[var(--color-surface)] text-[var(--color-text-muted)] flex items-center justify-center text-[9px] font-bold shrink-0">
+                                                    {idx + 1}
+                                                </span>
+                                                <span className="truncate">{p.name}</span>
                                             </div>
                                         ))}
-                                        {stopPubs.length > 4 && <p className="text-muted text-[10px] font-bold pl-6">+{stopPubs.length-4} more</p>}
+                                        {stopPubs.length > 3 && (
+                                            <span className="text-[10px] text-[var(--color-text-faint)] pl-6">
+                                                +{stopPubs.length - 3} more
+                                            </span>
+                                        )}
                                     </div>
+
                                     <button
-                                        onClick={() => { setActiveCrawl(isActive ? null : crawl); if (!isActive) setCrawlPubIds([]); }}
-                                        className={`mt-auto px-4 py-2 rounded-lg font-bold text-xs border cursor-pointer transition-colors w-full ${isActive ? 'border-brand bg-brand text-white' : 'border-border bg-surface text-text hover:bg-surface-offset'}`}
+                                        onClick={() => {
+                                            if (isActive) {
+                                                setActiveCrawl(null);
+                                                setRouteData(null);
+                                            } else {
+                                                setActiveCrawl(crawl);
+                                                setCrawlPubIds([]);
+                                            }
+                                        }}
+                                        className={`w-full py-2 rounded-xl text-xs font-bold transition ${
+                                            isActive
+                                                ? 'bg-amber-500 text-stone-900 font-extrabold shadow-sm'
+                                                : 'btn-tavern'
+                                        }`}
                                     >
-                                        {isActive ? 'Hide Route' : 'View on Map'}
+                                        {isActive ? 'Hide Route' : 'Display Route on Map'}
                                     </button>
                                 </div>
                             );
@@ -638,106 +1042,191 @@ export default function MapPage({ pubs, newPubs, scores, criteria, db, groupId, 
                 </div>
             )}
 
+            {/* Plan Crawl Drawer / Slide-Over */}
             {drawerOpen && (
-                <div className="fixed inset-0 z-[9000] flex justify-end animate-fadeIn">
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
-                    <div className="relative z-10 w-full max-w-[420px] h-full overflow-y-auto bg-surface shadow-2xl flex flex-col border-l border-border">
-                        <div className="px-6 py-5 border-b border-divider flex justify-between items-center sticky top-0 bg-surface/90 backdrop-blur-md z-10">
-                            <h3 className="text-lg font-black text-text">Create Crawl</h3>
-                            <button onClick={() => setDrawerOpen(false)} className="bg-transparent border-none cursor-pointer text-muted text-2xl leading-none hover:text-text">×</button>
+                <div className="fixed inset-0 z-50 flex justify-end animate-fadeIn">
+                    <div
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        onClick={() => setDrawerOpen(false)}
+                    />
+                    <div className="relative z-10 w-full max-w-md h-full overflow-y-auto card-tavern bg-[var(--color-surface)] border-l border-[var(--color-border)] shadow-2xl flex flex-col p-6 space-y-6">
+                        <div className="flex items-center justify-between border-b border-[var(--color-divider)] pb-4">
+                            <div>
+                                <h3 className="font-display text-2xl text-[var(--color-text)]">
+                                    Plan Pub Crawl
+                                </h3>
+                                <p className="text-xs text-[var(--color-text-muted)]">
+                                    Assemble your route or let Gemini generate one.
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setDrawerOpen(false)}
+                                className="text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
                         </div>
-                        <div className="px-6 py-6 flex flex-col gap-6 flex-1">
-                            <div>
-                                <label className="text-[10px] font-bold text-muted uppercase tracking-wider block mb-2">Crawl Name</label>
-                                <input type="text" value={crawlName} onChange={e => setCrawlName(e.target.value)}
-                                    placeholder="e.g. Birthday Pub Crawl"
-                                    className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface-offset text-text text-sm outline-none focus:border-brand transition-colors"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-bold text-muted uppercase tracking-wider block mb-2">Date (optional)</label>
-                                <input type="date" value={crawlDate} onChange={e => setCrawlDate(e.target.value)}
-                                    className="w-full px-4 py-2.5 border border-border rounded-lg bg-surface-offset text-text text-sm outline-none focus:border-brand transition-colors"
-                                />
-                            </div>
-                            
-                            {/* AI Magic Generator */}
-                            <div className="p-4 bg-gradient-to-r from-brand-subtle to-surface border border-brand/30 rounded-xl mt-2 mb-2">
-                                <h4 className="text-sm font-bold text-brand mb-2 flex items-center gap-2">✨ AI Crawl Generator</h4>
-                                <p className="text-xs text-muted mb-3">Let Gemini plan your perfect route based on vibe and map center.</p>
-                                
-                                <div className="flex flex-col gap-3">
-                                    <input type="text" value={aiVibe} onChange={e => setAiVibe(e.target.value)}
-                                        placeholder="Vibe (e.g., Historic, Craft Beer, Lively)"
-                                        className="w-full px-3 py-2 border border-border rounded-lg bg-surface text-text text-sm outline-none focus:border-brand"
-                                    />
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div className="flex items-center gap-2 flex-1">
-                                            <span className="text-xs text-muted font-bold">Stops:</span>
-                                            <input type="range" min="2" max="8" value={aiNumStops} onChange={e => setAiNumStops(parseInt(e.target.value))} className="flex-1 accent-brand" />
-                                            <span className="text-xs font-bold text-text">{aiNumStops}</span>
-                                        </div>
-                                        <button onClick={generateAICrawl} disabled={aiLoading || !aiVibe.trim()}
-                                            className={`px-4 py-2 rounded-lg font-bold text-xs border-none text-white transition-colors ${aiLoading || !aiVibe.trim() ? 'bg-muted cursor-not-allowed' : 'bg-brand cursor-pointer hover:bg-brand-hover'}`}
-                                        >
-                                            {aiLoading ? 'Generating...' : 'Generate Route'}
-                                        </button>
-                                    </div>
-                                </div>
-                                {aiError && <p className="text-xs text-error mt-2 font-bold">{aiError}</p>}
-                            </div>
-                            
-                            {crawlPubIds.length > 0 && (
-                                <div>
-                                    <label className="text-[10px] font-bold text-muted uppercase tracking-wider block mb-2">Route Order ({crawlPubIds.length} stops)</label>
-                                    <div className="flex flex-col gap-2">
-                                        {crawlPubIds.map((id, idx) => {
-                                            const pub = localPubs.find(p => p.id === id);
-                                            if (!pub) return null;
-                                            return (
-                                                <div key={id} className="flex items-center gap-3 bg-surface-offset px-3 py-2 rounded-lg border border-divider">
-                                                    <span className="w-5 h-5 bg-brand text-white rounded-full flex items-center justify-center text-[10px] font-black shrink-0">{idx+1}</span>
-                                                    <p className="flex-1 text-sm font-bold text-text truncate">{pub.name}</p>
-                                                    <div className="flex gap-1 shrink-0">
-                                                        <button onClick={() => movePubUp(idx)} className="bg-surface border border-divider rounded p-1 cursor-pointer text-muted hover:text-text">↑</button>
-                                                        <button onClick={() => movePubDown(idx)} className="bg-surface border border-divider rounded p-1 cursor-pointer text-muted hover:text-text">↓</button>
-                                                        <button onClick={() => toggleCrawlPub(id)} className="bg-surface border border-divider rounded p-1 cursor-pointer text-error hover:bg-error/10">✕</button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
 
+                        {/* Name and Date */}
+                        <div className="space-y-3">
                             <div>
-                                <label className="text-[10px] font-bold text-muted uppercase tracking-wider block mb-2">Add Pubs to Route</label>
-                                <div className="flex flex-col gap-2 max-h-72 overflow-y-auto pr-2 scroll-y-clean">
-                                    {visitedPubsSorted.map(pub => {
-                                        const included = crawlPubIds.includes(pub.id);
+                                <label className="block text-[10px] font-bold text-[var(--color-text-muted)] uppercase mb-1">
+                                    Crawl Title
+                                </label>
+                                <input
+                                    type="text"
+                                    value={crawlName}
+                                    onChange={e => setCrawlName(e.target.value)}
+                                    placeholder="e.g. Saturday Night Ale Trail"
+                                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-offset)] text-[var(--color-text)] text-sm focus:outline-none focus:border-[var(--color-brand)]"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-[var(--color-text-muted)] uppercase mb-1">
+                                    Target Date (Optional)
+                                </label>
+                                <input
+                                    type="date"
+                                    value={crawlDate}
+                                    onChange={e => setCrawlDate(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-offset)] text-[var(--color-text)] text-sm focus:outline-none focus:border-[var(--color-brand)]"
+                                />
+                            </div>
+                        </div>
+
+                        {/* AI Crawl Generator Box */}
+                        <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 to-purple-500/10 border border-amber-500/30 space-y-3">
+                            <div className="flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 text-amber-500" />
+                                <h4 className="text-xs font-bold text-[var(--color-text)]">
+                                    AI Itinerary Assistant
+                                </h4>
+                            </div>
+                            <input
+                                type="text"
+                                value={aiVibe}
+                                onChange={e => setAiVibe(e.target.value)}
+                                placeholder="Describe vibe (e.g. Cozy fireplace, craft IPA)"
+                                className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] text-xs focus:outline-none focus:border-[var(--color-brand)]"
+                            />
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2 flex-1">
+                                    <span className="text-[10px] font-bold text-[var(--color-text-muted)] uppercase">Stops:</span>
+                                    <input
+                                        type="range"
+                                        min="2"
+                                        max="6"
+                                        value={aiNumStops}
+                                        onChange={e => setAiNumStops(parseInt(e.target.value))}
+                                        className="flex-1 accent-amber-500"
+                                    />
+                                    <span className="text-xs font-bold text-[var(--color-text)]">{aiNumStops}</span>
+                                </div>
+                                <button
+                                    onClick={generateAICrawl}
+                                    disabled={aiLoading || !aiVibe.trim()}
+                                    className="btn-brand text-xs px-3.5 py-1.5 font-bold disabled:opacity-50"
+                                >
+                                    {aiLoading ? 'Thinking...' : 'Generate'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Selected Route Order */}
+                        {crawlPubIds.length > 0 && (
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-bold text-[var(--color-text-muted)] uppercase">
+                                    Itinerary Order ({crawlPubIds.length} stops)
+                                </label>
+                                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                                    {crawlPubIds.map((id, idx) => {
+                                        const pub = localPubs.find(p => p.id === id);
+                                        if (!pub) return null;
                                         return (
-                                            <div key={pub.id} onClick={() => toggleCrawlPub(pub.id)}
-                                                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${included ? 'border-brand bg-brand-subtle' : 'border-divider bg-surface hover:bg-surface-offset'}`}
+                                            <div
+                                                key={id}
+                                                className="flex items-center justify-between p-2 rounded-xl bg-[var(--color-surface-offset)] border border-[var(--color-border)] text-xs"
                                             >
-                                                <div className={`w-4 h-4 rounded-sm flex items-center justify-center shrink-0 border ${included ? 'border-brand bg-brand' : 'border-muted bg-transparent'}`}>
-                                                    {included && <span className="text-white text-[9px] font-black">✓</span>}
+                                                <div className="flex items-center gap-2 truncate">
+                                                    <span className="w-5 h-5 rounded-full bg-amber-500 text-stone-900 flex items-center justify-center text-[10px] font-black shrink-0">
+                                                        {idx + 1}
+                                                    </span>
+                                                    <span className="font-semibold text-[var(--color-text)] truncate">{pub.name}</span>
                                                 </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-bold text-text truncate">{pub.name}</p>
-                                                    <p className="text-muted text-[10px] truncate">{pub.location}</p>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <button
+                                                        onClick={() => movePubUp(idx)}
+                                                        className="px-1.5 py-0.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[10px] hover:text-[var(--color-brand)]"
+                                                    >
+                                                        ↑
+                                                    </button>
+                                                    <button
+                                                        onClick={() => movePubDown(idx)}
+                                                        className="px-1.5 py-0.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[10px] hover:text-[var(--color-brand)]"
+                                                    >
+                                                        ↓
+                                                    </button>
+                                                    <button
+                                                        onClick={() => toggleCrawlPub(id)}
+                                                        className="px-1.5 py-0.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[10px] text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40"
+                                                    >
+                                                        ✕
+                                                    </button>
                                                 </div>
                                             </div>
                                         );
                                     })}
                                 </div>
                             </div>
+                        )}
+
+                        {/* Add/Remove Pubs List */}
+                        <div className="space-y-2 flex-1">
+                            <label className="block text-[10px] font-bold text-[var(--color-text-muted)] uppercase">
+                                Tap Pubs to Include:
+                            </label>
+                            <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                                {localPubs.map(pub => {
+                                    const included = crawlPubIds.includes(pub.id);
+                                    return (
+                                        <div
+                                            key={pub.id}
+                                            onClick={() => toggleCrawlPub(pub.id)}
+                                            className={`p-2.5 rounded-xl border cursor-pointer transition flex items-center justify-between text-xs ${
+                                                included
+                                                    ? 'border-amber-500 bg-amber-500/10'
+                                                    : 'border-[var(--color-border)] bg-[var(--color-surface-offset)] hover:border-[var(--color-brand)]'
+                                            }`}
+                                        >
+                                            <div className="truncate">
+                                                <p className="font-semibold text-[var(--color-text)] truncate">{pub.name}</p>
+                                                <p className="text-[10px] text-[var(--color-text-muted)] truncate">{pub.location || 'Local Pub'}</p>
+                                            </div>
+                                            <div className={`w-5 h-5 rounded-md flex items-center justify-center font-bold text-xs ${
+                                                included ? 'bg-amber-500 text-stone-900' : 'border border-[var(--color-border)]'
+                                            }`}>
+                                                {included ? '✓' : '+'}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
-                        <div className="px-6 py-5 border-t border-divider sticky bottom-0 bg-surface/90 backdrop-blur-md flex gap-3">
-                            <button onClick={() => setDrawerOpen(false)} className="flex-1 py-2.5 border border-border rounded-lg bg-transparent text-muted font-bold text-sm cursor-pointer hover:bg-surface-offset">Cancel</button>
-                            <button onClick={saveCrawl} disabled={!crawlName.trim() || crawlPubIds.length < 2}
-                                className={`flex-[2] btn-premium text-sm ${(!crawlName.trim()||crawlPubIds.length<2) ? 'opacity-50 cursor-not-allowed' : ''}`}
+
+                        {/* Drawer Actions */}
+                        <div className="flex gap-2 pt-4 border-t border-[var(--color-divider)]">
+                            <button
+                                onClick={() => setDrawerOpen(false)}
+                                className="btn-tavern flex-1 text-xs py-2.5"
                             >
-                                Save Crawl
+                                Cancel
+                            </button>
+                            <button
+                                onClick={saveCrawl}
+                                disabled={!crawlName.trim() || crawlPubIds.length < 2}
+                                className="btn-brand flex-[2] text-xs py-2.5 font-bold disabled:opacity-50"
+                            >
+                                Save Itinerary
                             </button>
                         </div>
                     </div>

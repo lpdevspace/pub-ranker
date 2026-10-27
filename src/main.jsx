@@ -15,32 +15,42 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>,
 );
 
-// ── Service Worker registration ───────────────────────────────────────────────
-// Only registers in production. Vite dev server doesn't serve /sw.js.
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js', { scope: '/' })
-      .then((registration) => {
-        console.log('[SW] Registered, scope:', registration.scope);
+// ── Service Worker management ───────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  if (import.meta.env.DEV) {
+    // In development, ensure any stale Service Worker is unregistered and caches are cleared
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((r) => r.unregister());
+    });
+    if ('caches' in window) {
+      caches.keys().then((keys) => {
+        keys.forEach((key) => caches.delete(key));
+      });
+    }
+  } else if (import.meta.env.PROD) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker
+        .register('/sw.js', { scope: '/' })
+        .then((registration) => {
+          console.log('[SW] Registered, scope:', registration.scope);
 
-        // Prompt the user to refresh when a new SW version is waiting
-        registration.addEventListener('updatefound', () => {
-          const newWorker = registration.installing;
-          if (!newWorker) return;
-          newWorker.addEventListener('statechange', () => {
-            if (
-              newWorker.state === 'installed' &&
-              navigator.serviceWorker.controller
-            ) {
-              newWorker.postMessage({ type: 'SKIP_WAITING' });
-              navigator.serviceWorker.addEventListener('controllerchange', () => {
-                window.location.reload();
-              }, { once: true });
-            }
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            if (!newWorker) return;
+            newWorker.addEventListener('statechange', () => {
+              if (
+                newWorker.state === 'installed' &&
+                navigator.serviceWorker.controller
+              ) {
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                  window.location.reload();
+                }, { once: true });
+              }
+            });
           });
-        });
-      })
-      .catch((err) => console.warn('[SW] Registration failed:', err));
-  });
+        })
+        .catch((err) => console.warn('[SW] Registration failed:', err));
+    });
+  }
 }

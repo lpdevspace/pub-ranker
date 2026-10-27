@@ -411,6 +411,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                 }
             }
         });
+    };
     // -----------------------------------------------------------------------
     // EVENTS
     // -----------------------------------------------------------------------
@@ -1086,9 +1087,6 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                                     )}
                                 </div>
                             </div>
-                        </div>
-                    )}
-
                         </div>
                     )}
 

@@ -1,19 +1,28 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { firebase } from '../firebase';
+import {
+    SAMPLE_GROUP,
+    SAMPLE_PUBS,
+    SAMPLE_CRITERIA,
+    SAMPLE_RAW_SCORES,
+    SAMPLE_USERS
+} from '../data/sampleTavernData';
 
 const PUBS_PAGE_SIZE   = 50;
 const SCORES_PAGE_SIZE = 200;
 
 export default function useGroupData({ db, groupId }) {
-    const [groupData, setGroupData]   = useState(null);
-    const [pubs, setPubs]             = useState([]);
-    const [criteria, setCriteria]     = useState([]);
-    const [rawScores, setRawScores]   = useState([]);
-    const [users, setUsers]           = useState([]);
+    const isDemo = groupId === 'demo-group';
 
-    const [pubsLoading, setPubsLoading]       = useState(true);
+    const [groupData, setGroupData]   = useState(isDemo ? SAMPLE_GROUP : null);
+    const [pubs, setPubs]             = useState(isDemo ? SAMPLE_PUBS : []);
+    const [criteria, setCriteria]     = useState(isDemo ? SAMPLE_CRITERIA : []);
+    const [rawScores, setRawScores]   = useState(isDemo ? SAMPLE_RAW_SCORES : []);
+    const [users, setUsers]           = useState(isDemo ? SAMPLE_USERS : []);
+
+    const [pubsLoading, setPubsLoading]       = useState(!isDemo);
     const [hasMorePubs, setHasMorePubs]       = useState(false);
-    const [scoresLoading, setScoresLoading]   = useState(true);
+    const [scoresLoading, setScoresLoading]   = useState(!isDemo);
     const [hasMoreScores, setHasMoreScores]   = useState(false);
 
     const lastPubDocRef   = useRef(null);
@@ -21,25 +30,39 @@ export default function useGroupData({ db, groupId }) {
     const pubsUnsubRef    = useRef(null);
     const scoresUnsubRef  = useRef(null);
 
+    // Initialize or reset if demo
+    useEffect(() => {
+        if (groupId === 'demo-group' && (!groupData || groupData.id !== 'demo-group')) {
+            setGroupData(SAMPLE_GROUP);
+            setPubs(SAMPLE_PUBS);
+            setCriteria(SAMPLE_CRITERIA);
+            setRawScores(SAMPLE_RAW_SCORES);
+            setUsers(SAMPLE_USERS);
+            setPubsLoading(false);
+            setScoresLoading(false);
+        }
+    }, [groupId]);
+
     // Stable serialised key — only changes when the actual set of member UIDs
     // changes, preventing an infinite users-listener re-subscription loop.
     const membersKey = useMemo(() => {
-        if (!groupData) return '';
+        if (!groupData || isDemo) return '';
         const ids = [...new Set([
             groupData.ownerUid,
             ...(groupData.managers || []),
             ...(groupData.members  || []),
         ].filter(Boolean))].sort();
         return ids.join(',');
-    }, [groupData]);
+    }, [groupData, isDemo]);
 
-    const groupRef = useMemo(
-        () => db.collection('groups').doc(groupId),
-        [db, groupId]
-    );
+    const groupRef = useMemo(() => {
+        if (!db || !groupId || isDemo) return null;
+        return db.collection('groups').doc(groupId);
+    }, [db, groupId, isDemo]);
 
     // ── Group metadata ────────────────────────────────────────────────────────────
     useEffect(() => {
+        if (!groupRef) return;
         const unsub = groupRef.onSnapshot(doc => {
             if (doc.exists) setGroupData({ id: doc.id, ...doc.data() });
         });
@@ -48,6 +71,7 @@ export default function useGroupData({ db, groupId }) {
 
     // ── Pubs — paginated real-time listener ───────────────────────────────────────
     const subscribeToPubs = useCallback((startAfterDoc = null) => {
+        if (!groupRef) return;
         if (pubsUnsubRef.current) {
             pubsUnsubRef.current();
             pubsUnsubRef.current = null;
@@ -88,17 +112,20 @@ export default function useGroupData({ db, groupId }) {
     }, [groupRef]);
 
     useEffect(() => {
-        subscribeToPubs();
+        if (groupRef) {
+            subscribeToPubs();
+        }
         return () => { if (pubsUnsubRef.current) pubsUnsubRef.current(); };
-    }, [subscribeToPubs]);
+    }, [subscribeToPubs, groupRef]);
 
     const loadMorePubs = useCallback(() => {
-        if (!hasMorePubs || pubsLoading) return;
+        if (!hasMorePubs || pubsLoading || !groupRef) return;
         subscribeToPubs(lastPubDocRef.current);
-    }, [hasMorePubs, pubsLoading, subscribeToPubs]);
+    }, [hasMorePubs, pubsLoading, subscribeToPubs, groupRef]);
 
     // ── Criteria ──────────────────────────────────────────────────────────────────
     useEffect(() => {
+        if (!groupRef) return;
         const unsub = groupRef
             .collection('criteria')
             .where('archived', '==', false)
@@ -109,12 +136,8 @@ export default function useGroupData({ db, groupId }) {
     }, [groupRef]);
 
     // ── Scores — fetch ALL docs unordered ─────────────────────────────────────────
-    // Existing score documents were written with 'timestamp'/'lastEditedAt' but
-    // never 'updatedAt'. Using orderBy('updatedAt') silently excluded every
-    // legacy document, causing blank ratings everywhere. We now fetch all score
-    // docs without ordering; RateView writes 'updatedAt' going forward so a
-    // future ordered query will work once all docs have the field.
     const subscribeToScores = useCallback((startAfterDoc = null) => {
+        if (!groupRef) return;
         if (scoresUnsubRef.current) {
             scoresUnsubRef.current();
             scoresUnsubRef.current = null;
@@ -146,18 +169,20 @@ export default function useGroupData({ db, groupId }) {
     }, [groupRef]);
 
     useEffect(() => {
-        subscribeToScores();
+        if (groupRef) {
+            subscribeToScores();
+        }
         return () => { if (scoresUnsubRef.current) scoresUnsubRef.current(); };
-    }, [subscribeToScores]);
+    }, [subscribeToScores, groupRef]);
 
     const loadMoreScores = useCallback(() => {
-        if (!hasMoreScores || scoresLoading) return;
+        if (!hasMoreScores || scoresLoading || !groupRef) return;
         subscribeToScores(lastScoreDocRef.current);
-    }, [hasMoreScores, scoresLoading, subscribeToScores]);
+    }, [hasMoreScores, scoresLoading, subscribeToScores, groupRef]);
 
     // ── Users — stable listener keyed on sorted member UIDs ───────────────────────
     useEffect(() => {
-        if (!membersKey) return;
+        if (!membersKey || !db || isDemo) return;
         const ids = membersKey.split(',').filter(Boolean).slice(0, 30);
         if (!ids.length) return;
         const unsub = db
@@ -168,11 +193,47 @@ export default function useGroupData({ db, groupId }) {
                 err  => console.error('useGroupData: users listener error', err)
             );
         return () => unsub();
-    }, [db, membersKey]);
+    }, [db, membersKey, isDemo]);
+
+    // ── Sample Fallback & Seed Logic ──────────────────────────────────────────
+    const [isSeeding, setIsSeeding] = useState(false);
+
+    const isShowingSampleFallback = !isDemo && !pubsLoading && pubs.length === 0;
+    const effectivePubs = isShowingSampleFallback ? SAMPLE_PUBS : pubs;
+    const effectiveCriteria = (criteria.length > 0) ? criteria : (isShowingSampleFallback || isDemo ? SAMPLE_CRITERIA : criteria);
+    const effectiveScores = (rawScores.length > 0) ? rawScores : (isShowingSampleFallback || isDemo ? SAMPLE_RAW_SCORES : rawScores);
+    const effectiveUsers = (users.length > 0) ? users : (isShowingSampleFallback || isDemo ? SAMPLE_USERS : users);
+
+    const seedRealData = useCallback(async (userObj) => {
+        if (!db || !groupId || !groupRef) return;
+        setIsSeeding(true);
+        try {
+            const { seedGroupWithRealPubs } = await import('../utils/seedRealPubs');
+            await seedGroupWithRealPubs({ db, groupId, groupRef, user: userObj });
+        } catch (err) {
+            console.error('Failed to seed real pubs to Firestore:', err);
+            throw err;
+        } finally {
+            setIsSeeding(false);
+        }
+    }, [db, groupId, groupRef]);
 
     return {
-        groupRef, groupData, pubs, criteria, rawScores, users,
-        loadMorePubs, hasMorePubs, pubsLoading,
-        loadMoreScores, hasMoreScores, scoresLoading,
+        groupRef,
+        groupData,
+        pubs: effectivePubs,
+        rawPubs: pubs,
+        criteria: effectiveCriteria,
+        rawScores: effectiveScores,
+        users: effectiveUsers,
+        isShowingSampleFallback,
+        seedRealData,
+        isSeeding,
+        loadMorePubs,
+        hasMorePubs,
+        pubsLoading,
+        loadMoreScores,
+        hasMoreScores,
+        scoresLoading,
     };
 }

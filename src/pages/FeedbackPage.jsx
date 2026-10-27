@@ -1,7 +1,17 @@
 import React, { useState } from 'react';
+import {
+    MessageSquare,
+    Bug,
+    Sparkles,
+    Send,
+    CheckCircle2,
+    Beer
+} from 'lucide-react';
 import { firebase } from '../firebase';
+import { useToastContext } from '../context/ToastContext';
 
 export default function FeedbackPage({ db, user }) {
+    const { showToast } = useToastContext();
     const [type, setType] = useState('bug');
     const [message, setMessage] = useState('');
     const [submitted, setSubmitted] = useState(false);
@@ -13,90 +23,121 @@ export default function FeedbackPage({ db, user }) {
         setSubmitting(true);
         try {
             await db.collection('feedback').add({
-                type, message: message.trim(),
-                userId: user.uid, userEmail: user.email,
+                type,
+                message: message.trim(),
+                userId: user?.uid || 'anonymous',
+                userEmail: user?.email || 'anonymous',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             setSubmitted(true);
+            showToast('Feedback delivered to the landlords!', 'success');
         } catch (err) {
-            alert('Failed to send feedback: ' + err.message);
+            console.error('Feedback submission error:', err);
+            showToast('Failed to send feedback', 'error');
+        } finally {
+            setSubmitting(false);
         }
-        setSubmitting(false);
     };
 
     if (submitted) {
         return (
-            <div style={{ maxWidth: 'var(--content-narrow)', margin: '0 auto', textAlign: 'center', padding: 'var(--space-16) var(--space-4)' }} className="animate-fadeIn">
-                <div style={{ fontSize: '4rem', marginBottom: 'var(--space-4)' }}>🍻</div>
-                <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--color-text)', marginBottom: 'var(--space-2)', fontFamily: 'var(--font-display)' }}>Cheers!</h2>
-                <p style={{ color: 'var(--color-text-muted)' }}>Your feedback has been sent. We really appreciate it.</p>
-                <button
-                    onClick={() => { setSubmitted(false); setMessage(''); }}
-                    style={{ marginTop: 'var(--space-6)', background: 'var(--color-brand)', color: '#fff', fontWeight: 700, padding: 'var(--space-2) var(--space-6)', borderRadius: 'var(--radius-lg)', border: 'none', cursor: 'pointer', transition: 'background var(--transition-interactive)' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--color-brand-dark)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'var(--color-brand)'}
-                >
-                    Send More Feedback
-                </button>
+            <div className="max-w-md mx-auto text-center py-16 animate-fadeIn space-y-4">
+                <div className="text-5xl mb-2">🍻</div>
+                <h2 className="font-display text-3xl text-[var(--color-text)]">
+                    Cheers for the Dispatch!
+                </h2>
+                <p className="text-sm text-[var(--color-text-muted)] leading-relaxed">
+                    Your notes have been sent directly to the tavern engineering crew. We review every report.
+                </p>
+                <div className="pt-4">
+                    <button
+                        onClick={() => { setSubmitted(false); setMessage(''); }}
+                        className="btn-brand text-xs px-5 py-2.5 font-bold shadow-sm"
+                    >
+                        Send Another Note
+                    </button>
+                </div>
             </div>
         );
     }
 
-    const feedbackTypes = ['bug', 'feature', 'other'];
+    const feedbackTypes = [
+        { id: 'bug', label: 'Bug Report', icon: Bug, color: 'text-red-500' },
+        { id: 'feature', label: 'Feature Idea', icon: Sparkles, color: 'text-amber-500' },
+        { id: 'other', label: 'General Word', icon: MessageSquare, color: 'text-blue-500' }
+    ];
 
     return (
-        <div style={{ maxWidth: 'var(--content-narrow)', margin: '0 auto' }} className="animate-fadeIn">
-            <div style={{ marginBottom: 'var(--space-6)' }}>
-                <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--color-text)', fontFamily: 'var(--font-display)' }}>💬 Feedback</h2>
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', marginTop: 'var(--space-1)' }}>Got a bug, an idea, or just want to say something? We're listening.</p>
+        <div className="max-w-xl mx-auto space-y-6 animate-fadeIn pb-24">
+            <div className="border-b border-[var(--color-divider)] pb-4">
+                <h1 className="font-display text-3xl sm:text-4xl text-[var(--color-text)]">
+                    Feedback & Suggestions
+                </h1>
+                <p className="text-sm text-[var(--color-text-muted)] mt-1">
+                    Spotted a hiccup, craving a new feature, or want to say hello? Let us know.
+                </p>
             </div>
 
-            <form onSubmit={handleSubmit} style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-md)', border: '1px solid var(--color-border)', padding: 'var(--space-6)', display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+            <form
+                onSubmit={handleSubmit}
+                className="card-tavern p-6 sm:p-7 border border-[var(--color-border)] shadow-xl space-y-5"
+            >
                 {/* Type Selector */}
                 <div>
-                    <label style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)', marginBottom: 'var(--space-2)' }}>Type of Feedback</label>
-                    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                        {feedbackTypes.map(t => (
-                            <button
-                                key={t} type="button" onClick={() => setType(t)}
-                                style={{
-                                    flex: 1, padding: 'var(--space-2) 0', borderRadius: 'var(--radius-lg)',
-                                    fontSize: 'var(--text-sm)', fontWeight: 700, textTransform: 'capitalize',
-                                    border: '1px solid', cursor: 'pointer', transition: 'all var(--transition-interactive)',
-                                    background: type === t ? 'var(--color-brand)' : 'var(--color-surface-offset)',
-                                    borderColor: type === t ? 'var(--color-brand)' : 'var(--color-border)',
-                                    color: type === t ? '#fff' : 'var(--color-text-muted)'
-                                }}
-                                onMouseEnter={e => { if (type !== t) e.currentTarget.style.borderColor = 'var(--color-brand)'; }}
-                                onMouseLeave={e => { if (type !== t) e.currentTarget.style.borderColor = 'var(--color-border)'; }}
-                            >
-                                {t === 'bug' ? '🐛 Bug' : t === 'feature' ? '✨ Feature' : '💬 Other'}
-                            </button>
-                        ))}
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
+                        Category
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                        {feedbackTypes.map(t => {
+                            const Icon = t.icon;
+                            const isSelected = type === t.id;
+                            return (
+                                <button
+                                    key={t.id}
+                                    type="button"
+                                    onClick={() => setType(t.id)}
+                                    className={`py-2.5 px-3 rounded-xl border text-xs font-semibold transition flex flex-col items-center gap-1.5 ${
+                                        isSelected
+                                            ? 'bg-amber-500/10 border-amber-500 text-[var(--color-text)] font-bold'
+                                            : 'bg-[var(--color-surface-offset)] border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-brand)]'
+                                    }`}
+                                >
+                                    <Icon className={`w-4 h-4 ${t.color}`} />
+                                    <span>{t.label}</span>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
                 {/* Message */}
                 <div>
-                    <label style={{ display: 'block', fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-text)', marginBottom: 'var(--space-1)' }}>Your Message</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
+                        Your Message
+                    </label>
                     <textarea
-                        value={message} onChange={e => setMessage(e.target.value)}
-                        placeholder={type === 'bug' ? 'Describe what happened and how to reproduce it...' : type === 'feature' ? 'Describe your idea...' : 'Tell us anything...'}
-                        rows={5}
-                        style={{ width: '100%', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-text)', outline: 'none', resize: 'none', fontSize: 'var(--text-base)', fontFamily: 'var(--font-body)' }}
-                        onFocus={e => e.target.style.borderColor = 'var(--color-brand)'}
-                        onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
+                        value={message}
+                        onChange={e => setMessage(e.target.value)}
+                        placeholder={
+                            type === 'bug'
+                                ? 'Describe what happened, where you clicked, and what you expected...'
+                                : type === 'feature'
+                                ? 'Describe the feature you wish Pub Ranker had...'
+                                : 'Any thoughts, praise, or tavern lore...'
+                        }
+                        rows={6}
                         required
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-offset)] text-[var(--color-text)] text-sm focus:outline-none focus:border-[var(--color-brand)] resize-none"
                     />
                 </div>
 
                 <button
-                    type="submit" disabled={submitting || !message.trim()}
-                    style={{ width: '100%', background: 'var(--color-brand)', color: '#fff', fontWeight: 900, padding: 'var(--space-3) 0', borderRadius: 'var(--radius-lg)', border: 'none', cursor: submitting || !message.trim() ? 'not-allowed' : 'pointer', opacity: submitting || !message.trim() ? 0.5 : 1, fontSize: 'var(--text-base)', transition: 'background var(--transition-interactive)' }}
-                    onMouseEnter={e => { if (!submitting && message.trim()) e.currentTarget.style.background = 'var(--color-brand-dark)'; }}
-                    onMouseLeave={e => e.currentTarget.style.background = 'var(--color-brand)'}
+                    type="submit"
+                    disabled={submitting || !message.trim()}
+                    className="btn-brand w-full py-3 text-xs font-bold flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
                 >
-                    {submitting ? 'Sending...' : 'Send Feedback 🚀'}
+                    <Send className="w-3.5 h-3.5" />
+                    <span>{submitting ? 'Transmitting…' : 'Submit Feedback'}</span>
                 </button>
             </form>
         </div>
