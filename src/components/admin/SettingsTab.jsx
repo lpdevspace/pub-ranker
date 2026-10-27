@@ -187,15 +187,15 @@ export default function SettingsTab({
                         </div>
                     </Card>
 
-                    <Card title="Maintenance Tools" description="Data backup and legacy synchronisation.">
+                    <Card title="Live Places & OpenStreetMap Enrichment" description="Synchronise live opening hours, street view previews, popular times, and amenities.">
                         <div className="flex flex-col gap-3">
                             <button
                                 onClick={handleSyncLegacyPubs}
                                 disabled={isSyncing}
                                 className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-brand-subtle dark:bg-brand-highlight text-brand font-bold rounded-xl border border-brand-border/40 hover:bg-brand hover:text-white transition-all disabled:opacity-50 text-sm cursor-pointer shadow-sm"
                             >
-                                <span>{isSyncing ? '🔄' : '🔄'}</span>
-                                {isSyncing ? 'Syncing Pubs…' : 'Sync Legacy Google Places'}
+                                <span>{isSyncing ? '🔄' : '⚡'}</span>
+                                {isSyncing ? 'Enriching Pubs…' : 'Sync Live Places & OpenStreetMap Data'}
                             </button>
                             {isSyncing && syncProgress && (
                                 <p className="text-[10px] text-brand font-bold animate-pulse text-center">{syncProgress}</p>

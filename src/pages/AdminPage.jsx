@@ -3,6 +3,7 @@ import { firebase, storage } from '../firebase';
 import imageCompression from 'browser-image-compression';
 import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from '../hooks/useToast';
+import { enrichPubData } from '../services/pubEnrichmentService';
 
 import SettingsTab    from '../components/admin/SettingsTab';
 import InvitesTab     from '../components/admin/InvitesTab';
@@ -533,44 +534,55 @@ export default function AdminPage({
     };
 
     const handleSyncLegacyPubs = () => {
-        const legacyPubs = pubs.filter(p => !p.placeId);
-        if (legacyPubs.length === 0) { showToast('All your pubs are already synced with Google!', 'success'); return; }
+        const pubsToSync = pubs;
+        if (pubsToSync.length === 0) { showToast('No pubs in this group to sync.', 'info'); return; }
         setConfirmState({
-            title: 'Sync Legacy Pubs',
-            message: `Found ${legacyPubs.length} pub${legacyPubs.length !== 1 ? 's' : ''} missing Google data. This will use your Google API quota. Do you want to proceed?`,
-            confirmLabel: 'Sync Now',
+            title: 'Sync Live Places & OpenStreetMap Data',
+            message: `Enrich ${pubsToSync.length} pub${pubsToSync.length !== 1 ? 's' : ''} with live opening hours, street view previews, popular times, and amenities from Google Places & Overpass OSM?`,
+            confirmLabel: 'Enrich All Pubs',
             danger: false,
-            onConfirm: () => runSyncLegacyPubs(legacyPubs),
+            onConfirm: () => runSyncLegacyPubs(pubsToSync),
         });
     };
 
-    const runSyncLegacyPubs = async (legacyPubs) => {
+    const runSyncLegacyPubs = async (targetPubs) => {
         setIsSyncing(true);
         let successCount = 0;
         try {
-            const { Place } = await window.google.maps.importLibrary('places');
-            for (let i = 0; i < legacyPubs.length; i++) {
-                const pub = legacyPubs[i];
-                setSyncProgress(`Syncing ${i + 1} of ${legacyPubs.length}: ${pub.name}...`);
+            for (let i = 0; i < targetPubs.length; i++) {
+                const pub = targetPubs[i];
+                setSyncProgress(`Syncing ${i + 1} of ${targetPubs.length}: ${pub.name} (Places + OSM)...`);
                 try {
-                    const searchQuery = pub.location ? `${pub.name} in ${pub.location}` : pub.name;
-                    const { places } = await Place.searchByText({ textQuery: searchQuery, fields: ['id', 'displayName', 'rating', 'photos', 'formattedAddress'] });
-                    if (places?.length > 0) {
-                        const best = places[0];
-                        const updates = { placeId: best.id };
-                        if (best.rating) updates.googleRating = best.rating;
-                        if (best.photos?.length > 0 && !pub.photoURL) updates.photoURL = best.photos[0].getURI({ maxWidth: 800 });
-                        await pubsRef.doc(pub.id).update(updates);
-                        successCount++;
+                    const enriched = await enrichPubData(pub);
+                    if (enriched && pubsRef && pub.id) {
+                        const updates = {};
+                        if (enriched.openingHours) updates.openingHours = enriched.openingHours;
+                        if (enriched.schedule) updates.schedule = enriched.schedule;
+                        if (enriched.operator && !pub.operator) updates.operator = enriched.operator;
+                        if (enriched.phone && !pub.phone) updates.phone = enriched.phone;
+                        if (enriched.website && !pub.website) updates.website = enriched.website;
+                        if (enriched.placeId && !pub.placeId) updates.placeId = enriched.placeId;
+                        if (enriched.googleRating && !pub.googleRating) updates.googleRating = enriched.googleRating;
+                        if (enriched.photoURL && !pub.photoURL) updates.photoURL = enriched.photoURL;
+                        if (enriched.amenities) updates.amenities = enriched.amenities;
+                        if (enriched.lastEnrichedAt) updates.lastEnrichedAt = enriched.lastEnrichedAt;
+                        if (enriched.enrichmentSource) updates.enrichmentSource = enriched.enrichmentSource;
+
+                        if (Object.keys(updates).length > 0) {
+                            await pubsRef.doc(pub.id).update(updates);
+                            successCount++;
+                        }
                     }
-                } catch (err) { console.error(`Failed to sync ${pub.name}:`, err); }
-                await new Promise(r => setTimeout(r, 800));
+                } catch (err) {
+                    console.error(`Failed to enrich ${pub.name}:`, err);
+                }
+                await new Promise(r => setTimeout(r, 600));
             }
-            logAdminAction('Database Maintenance', `Synced ${successCount} legacy pubs with Google Places API`);
-            showToast(`Sync complete! Updated ${successCount} of ${legacyPubs.length} legacy pubs.`, 'success');
+            logAdminAction('Database Maintenance', `Enriched ${successCount} pubs with Google Places & OpenStreetMap live data`);
+            showToast(`Sync complete! Enriched ${successCount} of ${targetPubs.length} pubs.`, 'success');
         } catch (error) {
             console.error('Critical error during sync:', error);
-            showToast('Failed to initialise Google Places API.', 'error');
+            showToast('Enrichment sync encountered an issue.', 'error');
         } finally {
             setIsSyncing(false);
             setSyncProgress('');

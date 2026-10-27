@@ -20,6 +20,7 @@ import { geocodeMissingPubs } from '../utils/geocode';
 import { firebase } from '../firebase';
 import { useToastContext } from '../context/ToastContext';
 import { SAMPLE_CRAWLS } from '../data/sampleTavernData';
+import { getLiveOpeningStatus, getStreetViewData } from '../services/pubEnrichmentService';
 
 /* ─── Tier Helpers ──────────────────────────────────────────────────────── */
 const tierColor = (score, hasScore) => {
@@ -189,12 +190,25 @@ const buildPopupHTML = (pub, score, hasScore, color) => {
         ? `<span style="color:#f59e0b;font-weight:800;font-size:11px;">£${pub.pintPrice.toFixed(2)} / pint</span>`
         : '';
 
+    const liveStatus = getLiveOpeningStatus(pub.schedule || pub.openingHours);
+    const statusColor = liveStatus.badgeType === 'open' ? '#16a34a' : liveStatus.badgeType === 'closing-soon' ? '#d97706' : '#94a3b8';
+    const streetView = pub.lat && pub.lng ? getStreetViewData(pub.lat, pub.lng) : null;
+
     return `
-      <div style="width:210px;font-family:'Satoshi',sans-serif;color:#1c1917;">
+      <div style="width:220px;font-family:'Satoshi',sans-serif;color:#1c1917;">
         ${photoBlock}
         <div style="padding:10px 12px 12px;background:#ffffff;border-radius:0 0 8px 8px;">
           <h4 style="font-family:'Instrument Serif',serif;font-size:18px;margin:0 0 2px 0;line-height:1.2;color:#1c1917;">${pub.name}</h4>
-          <p style="font-size:11px;color:#78716c;margin:0 0 8px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📍 ${pub.location || 'Local Pub'}</p>
+          <p style="font-size:11px;color:#78716c;margin:0 0 6px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📍 ${pub.location || 'Local Pub'}</p>
+          
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:10px;">
+            <span style="font-weight:700;color:${statusColor};display:flex;align-items:center;gap:4px;">
+              <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${statusColor};"></span>
+              ${liveStatus.statusText}
+            </span>
+            ${streetView ? `<a href="${streetView.webPanoUrl}" target="_blank" rel="noopener noreferrer" style="color:#0284c7;font-weight:700;text-decoration:none;" title="Open Google 360° Street View">360° ↗</a>` : ''}
+          </div>
+
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
             <div style="display:flex;align-items:center;gap:4px;">${scoreBadge}</div>
             ${priceBadge}

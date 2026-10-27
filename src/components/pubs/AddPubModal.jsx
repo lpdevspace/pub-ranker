@@ -3,6 +3,7 @@ import { X, Plus, MapPin, Loader2, Sparkles } from 'lucide-react';
 import { geocodePub } from '../../utils/geocode';
 import { firebase } from '../../firebase';
 import { useToastContext } from '../../context/ToastContext';
+import { enrichPubData } from '../../services/pubEnrichmentService';
 
 export default function AddPubModal({ isOpen, onClose, groupRef, db, groupId, user }) {
     const { showToast } = useToastContext();
@@ -43,17 +44,39 @@ export default function AddPubModal({ isOpen, onClose, groupRef, db, groupId, us
             const coords = await geocodePub(name.trim(), location.trim());
             setIsGeocoding(false);
 
+            // Auto-enrich with Google Places & Overpass OSM
+            let enriched = null;
+            try {
+                enriched = await enrichPubData({
+                    name: name.trim(),
+                    location: location.trim(),
+                    address: location.trim(),
+                    lat: coords?.lat || null,
+                    lng: coords?.lng || null,
+                    amenities,
+                });
+            } catch (enrichErr) {
+                console.warn('Auto-enrichment skipped:', enrichErr);
+            }
+
             const now = firebase.firestore.FieldValue.serverTimestamp();
             const newPubDoc = {
                 name: name.trim(),
-                location: location.trim() || 'Local Area',
-                address: location.trim() || 'Local Area',
-                lat: coords?.lat || null,
-                lng: coords?.lng || null,
-                photoURL: '',
+                location: enriched?.formattedAddress || location.trim() || 'Local Area',
+                address: enriched?.formattedAddress || location.trim() || 'Local Area',
+                lat: coords?.lat || enriched?.lat || null,
+                lng: coords?.lng || enriched?.lng || null,
+                photoURL: enriched?.photoURL || '',
+                openingHours: enriched?.openingHours || null,
+                schedule: enriched?.schedule || null,
+                phone: enriched?.phone || null,
+                website: enriched?.website || null,
+                placeId: enriched?.placeId || null,
+                googleRating: enriched?.googleRating || null,
+                realAle: enriched?.amenities?.realAle || false,
                 status: 'to_visit', // starts in hit list until rated
                 ratingCount: 0,
-                amenities,
+                amenities: enriched?.amenities || amenities,
                 addedBy: user?.uid || 'anonymous',
                 createdAt: now,
                 updatedAt: now,
