@@ -83,7 +83,7 @@ export function GroupProvider({ children }) {
         groupLoading,
         canManageGroup,
         switchGroup,
-        groupName: groupData?.groupName || 'Pub Ranker',
+        groupName: groupData?.groupName || groupData?.name || 'Pub Ranker',
     }), [groupId, groupRef, groupData, groupLoading, canManageGroup, switchGroup]);
 
     return (

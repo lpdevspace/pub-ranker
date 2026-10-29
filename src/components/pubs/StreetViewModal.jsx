@@ -3,10 +3,11 @@ import { X, ExternalLink, Compass, Navigation, MapPin, Eye, RotateCw } from 'luc
 import { getStreetViewData } from '../../services/pubEnrichmentService';
 
 export default function StreetViewModal({ pub, onClose }) {
+    const [headingOffset, setHeadingOffset] = useState(0);
+
     if (!pub) return null;
 
     const baseHeading = pub.streetViewHeading || 180;
-    const [headingOffset, setHeadingOffset] = useState(0);
     const currentHeading = (baseHeading + headingOffset + 360) % 360;
 
     const streetView = getStreetViewData(pub.lat, pub.lng, currentHeading);

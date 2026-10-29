@@ -224,7 +224,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
             ]);
 
             const groupsData = groupsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            groupsData.sort((a, b) => (a.groupName || '').localeCompare(b.groupName || ''));
+            groupsData.sort((a, b) => (a.groupName || a.name || '').localeCompare(b.groupName || b.name || ''));
             setGroupsList(groupsData);
             setPubsList(pubsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             setUsersList(usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -895,7 +895,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
                     <div className="card-premium p-6 rounded-2xl shadow-2xl max-w-2xl w-full border border-gray-200 dark:border-gray-700 relative max-h-[90vh] flex flex-col">
                         <button onClick={() => setManagingGroup(null)} className="absolute top-4 right-4 w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white transition cursor-pointer">✕</button>
-                        <h3 className="text-2xl font-black text-gray-800 dark:text-white mb-1 pr-10 truncate">{managingGroup.groupName}</h3>
+                        <h3 className="text-2xl font-black text-gray-800 dark:text-white mb-1 pr-10 truncate">{managingGroup.groupName || managingGroup.name}</h3>
                         <p className="text-sm text-gray-500 mb-6 font-bold uppercase tracking-wider">Member Management</p>
                         <div className="overflow-y-auto flex-1 pr-2 space-y-3">
                             {managingGroup.members?.map(uid => {
@@ -1197,7 +1197,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                             <tbody className="divide-y divide-gray-150 dark:divide-gray-750 text-gray-750 dark:text-gray-200">
                                                 {groupsList.map(g => (
                                                     <tr key={g.id} className="hover:bg-gray-50 dark:hover:bg-gray-750/30 transition-colors">
-                                                        <td className="p-4 font-bold">{g.groupName}</td>
+                                                        <td className="p-4 font-bold">{g.groupName || g.name}</td>
                                                         <td className="p-4 text-center">
                                                             <span className={`py-1 px-2.5 rounded-full font-semibold text-[10px] ${g.members?.length === 0 ? 'bg-red-100 text-red-800' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-805 dark:text-blue-300'}`}>
                                                                 {g.members?.length || 0}
@@ -1207,7 +1207,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                                         <td className="p-4 text-right">
                                                             <div className="flex justify-end gap-1.5">
                                                                 {(!g.members || !g.members.includes(user?.uid)) && (
-                                                                    <button onClick={() => handleJoinGroup(g.id, g.groupName)} className="text-[10px] bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 hover:bg-green-100/60 dark:hover:bg-green-900/40 px-2.5 py-1.5 rounded-xl font-bold uppercase transition cursor-pointer">
+                                                                    <button onClick={() => handleJoinGroup(g.id, g.groupName || g.name)} className="text-[10px] bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-400 hover:bg-green-100/60 dark:hover:bg-green-900/40 px-2.5 py-1.5 rounded-xl font-bold uppercase transition cursor-pointer">
                                                                         Join
                                                                     </button>
                                                                 )}
@@ -1864,7 +1864,7 @@ export default function SuperAdminPage({ db, userProfile, user }) {
                                             ) : (
                                                 groupsList.filter(g => g.isPublic).map(g => (
                                                     <tr key={g.id} className="hover:bg-gray-55 dark:hover:bg-gray-750/30 transition-colors">
-                                                        <td className="p-4 font-bold text-sm">{g.groupName}</td>
+                                                        <td className="p-4 font-bold text-sm">{g.groupName || g.name}</td>
                                                         <td className="p-4 font-medium text-gray-500">{g.city || 'Global'}</td>
                                                         <td className="p-4">
                                                             <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-805 dark:text-blue-300 py-0.5 px-2.5 rounded-full font-bold text-[10px]">

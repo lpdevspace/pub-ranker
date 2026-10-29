@@ -161,6 +161,16 @@ export default function TopBar() {
                         )}
                     </div>
 
+                    {/* Dark/Light Mode Toggle */}
+                    <button
+                        onClick={toggleDarkMode}
+                        className="p-2 rounded-full border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] transition"
+                        title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                        aria-label="Toggle dark mode"
+                    >
+                        {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+                    </button>
+
                     {/* Live Taproom / Activity Feed */}
                     <button
                         onClick={() => setPage('activity')}

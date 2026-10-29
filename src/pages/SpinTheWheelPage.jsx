@@ -158,10 +158,14 @@ function drawWheel(canvas, pubs, rotationDeg) {
 
 /* ── component ────────────────────────────────────────────────────────── */
 export default function SpinTheWheelPage({ pubs, newPubs, criteria, scores }) {
-    const allPubs = useMemo(() => [
-        ...(Array.isArray(pubs)    ? pubs    : Object.values(pubs    || {})).map(p => ({ ...p, _listType: 'visited'  })),
-        ...(Array.isArray(newPubs) ? newPubs : Object.values(newPubs || {})).map(p => ({ ...p, _listType: 'toVisit' })),
-    ], [pubs, newPubs]);
+    const allPubs = useMemo(() => {
+        const list = Array.isArray(pubs) ? pubs : Object.values(pubs || {});
+        const extra = Array.isArray(newPubs) ? newPubs : Object.values(newPubs || {});
+        return [
+            ...list.map(p => ({ ...p, _listType: p.status === 'visited' ? 'visited' : 'toVisit' })),
+            ...extra.map(p => ({ ...p, _listType: 'toVisit' }))
+        ];
+    }, [pubs, newPubs]);
 
     const [filteredPubs,   setFilteredPubs]   = useState([]);
     const [isSpinning,     setIsSpinning]     = useState(false);

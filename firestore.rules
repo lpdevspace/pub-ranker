@@ -183,6 +183,36 @@ service cloud.firestore {
         allow read:  if isGroupMember(groupId);
         allow write: if false; // Admin SDK only
       }
+
+      // Group Criteria — configurable by group owner or managers
+      match /criteria/{critId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isSuperAdmin() || (
+          isSignedIn() && isNotBanned() && (
+            get(/databases/$(database)/documents/groups/$(groupId)).data.ownerUid == request.auth.uid ||
+            request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.get('managers', [])
+          )
+        );
+      }
+
+      // Group Activities (Feed) & CheckIns
+      match /activities/{activityId} {
+        allow read: if isSignedIn() && (
+          isSuperAdmin() ||
+          request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.get('members', [])
+        );
+        allow create: if isSignedIn() && isNotBanned();
+        allow update, delete: if isSuperAdmin();
+      }
+
+      match /checkIns/{checkInId} {
+        allow read: if isSignedIn() && (
+          isSuperAdmin() ||
+          request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.get('members', [])
+        );
+        allow create: if isSignedIn() && isNotBanned();
+        allow update, delete: if isSuperAdmin();
+      }
     }
 
     match /{path=**}/pubs/{pubId} {

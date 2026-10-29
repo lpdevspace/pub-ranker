@@ -4,6 +4,7 @@ import useGroupData from './hooks/useGroupData';
 import useScoreCalculations from './hooks/useScoreCalculations';
 import LoadingScreen from './components/LoadingScreen';
 import CheckInButton from './components/CheckInButton';
+import PubDetailModal from './components/pubs/PubDetailModal';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { useUI } from './context/UIContext';
 import { useAuth } from './context/AuthContext';
@@ -128,6 +129,23 @@ export default function MainApp({ db, auth }) {
                 </Suspense>
             </ErrorBoundary>
             <CheckInButton user={user} pubs={pubs} groupId={groupId} db={db} />
+            {selectedPubForDetail && (
+                <PubDetailModal
+                    pub={selectedPubForDetail}
+                    breakdown={scores[selectedPubForDetail.id] || {}}
+                    allUsers={allUsers}
+                    currentUser={user}
+                    groupRef={groupRef}
+                    pubsRef={groupRef ? groupRef.collection('pubs') : db.collection('pubs')}
+                    db={db}
+                    onClose={() => setSelectedPubForDetail(null)}
+                    canManageGroup={canManageGroup}
+                    onSelectPub={(pub) => {
+                        setSelectedPubForDetail(null);
+                        setSelectedPub(pub);
+                    }}
+                />
+            )}
         </NavigationShell>
     );
 }

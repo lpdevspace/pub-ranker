@@ -243,7 +243,8 @@ export default function VenuePortalPage({ db, user, userProfile }) {
 
                 allScores.forEach(c => {
                     ratingSum += (Number(c.value) || 0);
-                    if (c.textComment) {
+                    const reviewText = c.comment || c.textComment;
+                    if (reviewText) {
                         reviewsList.push({
                             id: c.id,
                             scoreId: c.id,
@@ -251,7 +252,7 @@ export default function VenuePortalPage({ db, user, userProfile }) {
                             userName: c.userName || 'Anonymous',
                             rating: c.value,
                             criterionId: c.criterionId,
-                            comment: c.textComment,
+                            comment: reviewText,
                             ownerReply: c.ownerReply || null,
                             date: c.createdAt ? new Date(c.createdAt.toDate ? c.createdAt.toDate() : c.createdAt).toLocaleDateString() : 'Recent'
                         });

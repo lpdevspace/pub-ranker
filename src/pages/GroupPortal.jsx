@@ -51,8 +51,10 @@ export default function GroupPortal({ user, userProfile, auth, db }) {
         setSubmitting(true); setError('');
         try {
             const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const trimmedName = newGroupName.trim();
             const ref = await db.collection('groups').add({
-                name: newGroupName.trim(),
+                name: trimmedName,
+                groupName: trimmedName,
                 code,
                 members: [user.uid],
                 admins: [user.uid],

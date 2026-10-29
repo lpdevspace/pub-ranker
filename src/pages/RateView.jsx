@@ -70,6 +70,14 @@ export default function RateView({ pub, criteria = [], user, onBack, groupRef, g
 
         setIsSubmitting(true);
         try {
+            if (!groupRef) {
+                // Live demo mode simulation fallback
+                showToast(`⭐ Ratings saved for ${pub.name}! (Demo Mode)`, "success");
+                setIsSubmitting(false);
+                onBack();
+                return;
+            }
+
             const batch = db.batch();
             const scoresCollectionRef = groupRef.collection("scores");
             const now = firebase.firestore.FieldValue.serverTimestamp();
@@ -89,7 +97,7 @@ export default function RateView({ pub, criteria = [], user, onBack, groupRef, g
                         lastEditedAt: now,
                         updatedAt: now,
                         userName,
-                        ...(reviewComment ? { comment: reviewComment } : {})
+                        ...(reviewComment ? { comment: reviewComment, textComment: reviewComment } : {})
                     });
                 } else {
                     const newScoreRef = scoresCollectionRef.doc();
@@ -105,7 +113,7 @@ export default function RateView({ pub, criteria = [], user, onBack, groupRef, g
                         lastEditedAt: now,
                         updatedAt: now,
                         userName,
-                        ...(reviewComment ? { comment: reviewComment } : {})
+                        ...(reviewComment ? { comment: reviewComment, textComment: reviewComment } : {})
                     });
                 }
             }

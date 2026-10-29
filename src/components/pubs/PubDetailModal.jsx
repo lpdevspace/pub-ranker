@@ -45,13 +45,13 @@ export default function PubDetailModal({
     const [showFeedbackForm, setShowFeedbackForm] = useState(false);
     const [expandedCriteria, setExpandedCriteria] = useState({});
     const [heroMode, setHeroMode] = useState('photo'); // 'photo' | 'streetview'
-    const [streetViewHeading, setStreetViewHeading] = useState(pub.streetViewHeading || 180);
+    const [streetViewHeading, setStreetViewHeading] = useState(pub?.streetViewHeading || 180);
     const [isEnriching, setIsEnriching] = useState(false);
     const [showFullHours, setShowFullHours] = useState(false);
 
     // Compute live opening status
-    const liveStatus = getLiveOpeningStatus(pub.schedule || pub.openingHours);
-    const streetView = getStreetViewData(pub.lat, pub.lng, streetViewHeading);
+    const liveStatus = getLiveOpeningStatus(pub?.schedule || pub?.openingHours);
+    const streetView = getStreetViewData(pub?.lat, pub?.lng, streetViewHeading);
 
     // ── Load live venue data (events, menu) ───────────────────────────────────
     useEffect(() => {

@@ -61,6 +61,12 @@ export default function ActivityPage({ db, groupId, user, pubs = [], allUsers = 
                     color: 'text-purple-500 bg-purple-500/10 border-purple-500/30',
                     label: 'Achievement'
                 };
+            case 'checkin':
+                return {
+                    icon: MapPin,
+                    color: 'text-rose-500 bg-rose-500/10 border-rose-500/30',
+                    label: 'Check-In'
+                };
             case 'crawl':
                 return {
                     icon: Compass,
@@ -202,7 +208,13 @@ export default function ActivityPage({ db, groupId, user, pubs = [], allUsers = 
                                                             charted a new crawl with <strong className="text-blue-400 font-semibold">{act.pubCount} stops</strong> 🗺️
                                                         </span>
                                                     )}
-                                                    {!['rating', 'badge', 'crawl'].includes(act.type) && (
+                                                    {act.type === 'checkin' && (
+                                                        <span>
+                                                            checked in at <strong className="text-rose-500 font-semibold">{act.pubName}</strong> 📍
+                                                            {act.note && <span className="block text-xs text-[var(--color-text-muted)] italic mt-1">&ldquo;{act.note}&rdquo;</span>}
+                                                        </span>
+                                                    )}
+                                                    {!['rating', 'badge', 'crawl', 'checkin'].includes(act.type) && (
                                                         <span>performed an action in the group</span>
                                                     )}
                                                 </p>

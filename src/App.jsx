@@ -1,4 +1,5 @@
 import React, { useState, Suspense } from 'react';
+import { useLocation } from 'react-router-dom';
 import { auth, db } from './firebase';
 import MainApp from './MainApp';
 import LoadingScreen from './components/LoadingScreen';
@@ -15,15 +16,23 @@ import { UIProvider } from './context/UIContext';
 const VenuePortalPage = React.lazy(() => import('./pages/VenuePortalPage'));
 
 function AppContent() {
+    const location = useLocation();
     const { user, userProfile, authLoading, isMaintenanceMode, isSuperAdmin, isBanned, isVenueOwner, signOut } = useAuth();
     const { groupId } = useGroup();
     const [showAuth, setShowAuth] = useState(false);
+
+    const publicPaths = ['/pricing', '/for-pubs', '/privacy', '/terms', '/cookies', '/contact', '/upgrade/success'];
+    const isPublicPath = publicPaths.some(p => location.pathname.startsWith(p));
 
     const isBusinessDomain = typeof window !== 'undefined' && window.location.hostname.startsWith('business');
     const showVenuePortal = isBusinessDomain && isVenueOwner;
 
     if (authLoading) {
         return <LoadingScreen text="Loading Pub Ranker..." />;
+    }
+
+    if (isPublicPath) {
+        return <PublicSiteRouter db={db} user={user} userProfile={userProfile} onLoginClick={() => setShowAuth(true)} />;
     }
 
     if (!user) {

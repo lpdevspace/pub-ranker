@@ -17,12 +17,12 @@ export default function CheckInButton({ user, pubs = [], groupId, db }) {
 
     const filteredPubs = useMemo(() => {
         const q = search.trim().toLowerCase();
-        const visited = pubs.filter(p => p.status === 'visited');
-        if (!q) return visited.slice(0, 20);
-        return visited.filter(p =>
+        if (!q) return pubs.slice(0, 30);
+        return pubs.filter(p =>
             p.name?.toLowerCase().includes(q) ||
-            p.location?.toLowerCase().includes(q)
-        ).slice(0, 20);
+            p.location?.toLowerCase().includes(q) ||
+            p.address?.toLowerCase().includes(q)
+        ).slice(0, 30);
     }, [pubs, search]);
 
     const handleOpen = () => {
@@ -41,16 +41,55 @@ export default function CheckInButton({ user, pubs = [], groupId, db }) {
         if (!selected || saving) return;
         setSaving(true);
         try {
+            if (!groupId || !db || groupId === 'demo-group') {
+                showToast(`Checked in at ${selected.name}! 🍺 (Demo Mode)`, 'success');
+                setSaving(false);
+                setOpen(false);
+                return;
+            }
+
+            const now = firebase.firestore.FieldValue.serverTimestamp();
+            const userName = user?.displayName || user?.email?.split('@')[0] || 'A member';
+
+            // Add check-in record
             await db
                 .collection('groups').doc(groupId)
                 .collection('checkIns')
                 .add({
-                    userId:    user.uid,
+                    userId:    user?.uid || 'anonymous',
+                    userName,
                     pubId:     selected.id,
+                    pubName:   selected.name,
                     note:      note.trim() || null,
                     groupId,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdAt: now,
                 });
+
+            // Write to live activity feed
+            await db
+                .collection('groups').doc(groupId)
+                .collection('activities')
+                .add({
+                    type:      'checkin',
+                    userId:    user?.uid || 'anonymous',
+                    userName,
+                    userAvatar: user?.photoURL || null,
+                    pubId:     selected.id,
+                    pubName:   selected.name,
+                    note:      note.trim() || null,
+                    timestamp: now,
+                });
+
+            // Mark pub as visited if not already
+            if (selected.status !== 'visited') {
+                try {
+                    await db.collection('groups').doc(groupId).collection('pubs').doc(selected.id).update({
+                        status: 'visited',
+                        updatedAt: now,
+                    });
+                } catch (_) {}
+            }
+
             showToast(`Checked in at ${selected.name}! 🍺`, 'success');
             setOpen(false);
         } catch (err) {

@@ -15,14 +15,16 @@ import {
     Shield,
     Store,
     LogOut,
-    Users
+    Users,
+    Sun,
+    Moon
 } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
 import { useGroup } from '../../context/GroupContext';
 import { useAuth } from '../../context/AuthContext';
 
 export default function MobileNavBar() {
-    const { page, setPage, isMobileDrawerOpen, toggleMobileDrawer, closeMobileDrawer } = useUI();
+    const { page, setPage, isMobileDrawerOpen, toggleMobileDrawer, closeMobileDrawer, isDarkMode, toggleDarkMode } = useUI();
     const { canManageGroup, switchGroup } = useGroup();
     const { isStaff, isVenueOwner, signOut } = useAuth();
 
@@ -98,23 +100,31 @@ export default function MobileNavBar() {
                             })}
                         </div>
 
-                        <div className="pt-4 border-t border-[var(--color-divider)] flex items-center justify-between gap-3">
+                        <div className="pt-4 border-t border-[var(--color-divider)] flex items-center justify-between gap-2">
+                            <button
+                                onClick={toggleDarkMode}
+                                className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-[var(--color-border)] text-xs font-semibold text-[var(--color-text)] bg-[var(--color-surface)]"
+                                title="Toggle dark mode"
+                            >
+                                {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+                                <span>{isDarkMode ? 'Light' : 'Dark'}</span>
+                            </button>
                             <button
                                 onClick={() => {
                                     switchGroup(null);
                                     closeMobileDrawer();
                                 }}
-                                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-[var(--color-border)] text-xs font-semibold text-[var(--color-text)] bg-[var(--color-surface)]"
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-[var(--color-border)] text-xs font-semibold text-[var(--color-text)] bg-[var(--color-surface)]"
                             >
                                 <Users className="w-4 h-4" />
-                                <span>Switch Group</span>
+                                <span>Switch</span>
                             </button>
                             <button
                                 onClick={() => {
                                     signOut();
                                     closeMobileDrawer();
                                 }}
-                                className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-semibold"
+                                className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-semibold"
                             >
                                 <LogOut className="w-4 h-4" />
                                 <span>Log Out</span>

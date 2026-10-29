@@ -413,8 +413,10 @@ exports.generateVibeCheck = functions
         const after = change.after.data();
         const before = change.before.data();
         
-        if (!after || after.type !== 'text') return null;
-        if (before && before.value === after.value) return null;
+        const afterComment = after?.comment || after?.textComment || (after?.type === 'text' ? after?.value : null);
+        const beforeComment = before?.comment || before?.textComment || (before?.type === 'text' ? before?.value : null);
+        if (!afterComment) return null;
+        if (beforeComment && beforeComment === afterComment) return null;
 
         const groupId = context.params.groupId;
         const pubId = after.pubId;
@@ -423,14 +425,15 @@ exports.generateVibeCheck = functions
         try {
             const scoresSnap = await db.collection('groups').doc(groupId).collection('scores')
                 .where('pubId', '==', pubId)
-                .where('type', '==', 'text')
                 .orderBy('timestamp', 'desc')
-                .limit(10)
+                .limit(20)
                 .get();
 
             const reviews = [];
             scoresSnap.forEach(doc => {
-                if (doc.data().value) reviews.push(doc.data().value);
+                const d = doc.data();
+                const text = d.comment || d.textComment || (d.type === 'text' ? d.value : null);
+                if (text && typeof text === 'string') reviews.push(text);
             });
 
             if (reviews.length === 0) return null;

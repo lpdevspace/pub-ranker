@@ -344,17 +344,8 @@ export default function AdminPage({
     const [auditLogs,   setAuditLogs]   = useState([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
 
-    // Guard
-    if (!currentGroup) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <p className="text-gray-500 dark:text-gray-400">Loading group data...</p>
-            </div>
-        );
-    }
-
     const inviteCode = currentGroup?.id || groupRef?.id;
-    const inviteUrl  = `${window.location.origin}?invite=${inviteCode}`;
+    const inviteUrl  = typeof window !== 'undefined' ? `${window.location.origin}?invite=${inviteCode}` : '';
 
     const isCurrentUserOwner   = currentGroup?.ownerUid === user?.uid;
     const isCurrentUserManager = currentGroup?.managers?.includes(user?.uid);
@@ -441,7 +432,7 @@ export default function AdminPage({
     }, [activeTab, inviteUrl]);
 
     useEffect(() => {
-        if (activeTab !== 'audit' && activeTab !== 'overview') return;
+        if (!groupRef || (activeTab !== 'audit' && activeTab !== 'overview')) return;
         setLoadingLogs(true);
         const unsub = groupRef.collection('auditLogs')
             .orderBy('timestamp', 'desc')
@@ -463,6 +454,7 @@ export default function AdminPage({
     };
 
     const logAdminAction = async (actionTitle, details = '') => {
+        if (!groupRef) return;
         try {
             await groupRef.collection('auditLogs').add({
                 action: actionTitle,
@@ -607,7 +599,11 @@ export default function AdminPage({
     const handleApproveMember = async (uid) => {
         try {
             await groupRef.update({ pendingMembers: firebase.firestore.FieldValue.arrayRemove(uid), members: firebase.firestore.FieldValue.arrayUnion(uid) });
-            await db.collection('users').doc(uid).update({ groups: firebase.firestore.FieldValue.arrayUnion(currentGroup.id) });
+            try {
+                await db.collection('users').doc(uid).update({ groups: firebase.firestore.FieldValue.arrayUnion(currentGroup.id) });
+            } catch (userErr) {
+                console.warn('Note: Member user doc will sync group upon login:', userErr);
+            }
             logAdminAction('Approved Member', `Allowed ${getUserLabel(uid)} to join the group`);
             showToast(`${getUserLabel(uid)} approved!`, 'success');
         } catch (e) { console.error('Error approving member', e); showToast('Failed to approve member.', 'error'); }
@@ -876,6 +872,14 @@ export default function AdminPage({
     );
 
     // ── Render ─────────────────────────────────────────────────────────────────
+    if (!currentGroup) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <p className="text-gray-500 dark:text-gray-400">Loading group data...</p>
+            </div>
+        );
+    }
+
     return (
         <div className="w-full">
             {confirmState && <ConfirmModal {...confirmState} onClose={() => setConfirmState(null)} />}
